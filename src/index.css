@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #53de9e;
+  --color-primary-container: #00b074;
+  --color-primary-fixed: #73fbb8;
+  --color-primary-fixed-dim: #53de9e;
+  --color-on-primary: #003822;
+  --color-on-primary-container: #003a23;
+  --color-on-primary-fixed: #002112;
+  --color-on-primary-fixed-variant: #005233;
+
+  --color-surface: #0f131c;
+  --color-surface-base: #0B0F17;
+  --color-surface-raised: #111827;
+  --color-surface-overlay: #1A2233;
+  --color-surface-container-lowest: #0a0e16;
+  --color-surface-container-low: #181c24;
+  --color-surface-container: #1c2028;
+  --color-surface-container-high: #222D42;
+  --color-surface-container-highest: #31353e;
+  --color-surface-bright: #353942;
+  --color-surface-dim: #0f131c;
+  --color-surface-tint: #53de9e;
+
+  --color-on-surface: #dfe2ee;
+  --color-on-surface-variant: #bccabf;
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+
+  --color-accent-emerald-bright: #00D084;
+  --color-accent-gold: #F59E0B;
+  --color-accent-gold-soft: #EAB308;
+
+  --color-secondary: #b0c9e8;
+  --color-secondary-container: #314863;
+  --color-on-secondary: #19324b;
+  --color-on-secondary-container: #9fb7d6;
+
+  --color-tertiary: #93ccff;
+  --color-tertiary-container: #3fa1e6;
+  --color-on-tertiary: #003351;
+
+  --color-border-subtle: #1F293D;
+  --color-border-strong: #2B374E;
+  --color-status-danger: #EF4444;
+  --color-status-info: #38BDF8;
+
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-headline-lg: 'Plus Jakarta Sans', sans-serif;
+  --font-headline-md: 'Plus Jakarta Sans', sans-serif;
+  --font-headline-sm: 'Plus Jakarta Sans', sans-serif;
+  --font-body-lg: 'Inter', sans-serif;
+  --font-body-md: 'Inter', sans-serif;
+  --font-body-sm: 'Inter', sans-serif;
+  --font-label-lg: 'Inter', sans-serif;
+  --font-label-md: 'Inter', sans-serif;
+  --font-label-sm: 'Inter', sans-serif;
+
+  --spacing-gutter-mobile: 1rem;
+  --spacing-gutter-desktop: 1.5rem;
+  --spacing-content-max-width: 80rem;
+  --spacing-space-2xs: 0.25rem;
+  --spacing-space-xs: 0.5rem;
+  --spacing-space-sm: 0.75rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+  --spacing-space-2xl: 3rem;
+  --spacing-space-3xl: 4rem;
+}
+
+@layer utilities {
+  .text-display {
+    font-size: 48px;
+    line-height: 56px;
+    letter-spacing: -0.025em;
+  }
+  .text-display-mobile {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -0.02em;
+  }
+  .text-headline-lg {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -0.02em;
+  }
+  .text-headline-md {
+    font-size: 24px;
+    line-height: 32px;
+    letter-spacing: -0.01em;
+  }
+  .text-headline-sm {
+    font-size: 18px;
+    line-height: 26px;
+  }
+  .text-body-lg {
+    font-size: 16px;
+    line-height: 26px;
+  }
+  .text-body-md {
+    font-size: 14px;
+    line-height: 22px;
+  }
+  .text-body-sm {
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .text-label-lg {
+    font-size: 14px;
+    line-height: 20px;
+    letter-spacing: 0.01em;
+  }
+  .text-label-md {
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.015em;
+  }
+  .text-label-sm {
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.02em;
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+body {
+  background-color: #0f131c;
+  color: #dfe2ee;
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111827;
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2B374E;
+  border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #53de9e;
+}
+
+/* ==========================================================
+   Knowledge Rocket & Earth 3D Orbit Keyframe Animations
+   ========================================================== */
+
+@keyframes earthTextureMove {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes rocketBobbing {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(3px, -5px) rotate(2deg);
+  }
+}
+
+@keyframes rocketFlamePulse {
+  0%, 100% {
+    transform: scaleY(0.95) scaleX(0.95);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scaleY(1.35) scaleX(1.1);
+    opacity: 1;
+    filter: drop-shadow(0 0 10px #10B981);
+  }
+}
+
+@keyframes trajectoryFlow {
+  from {
+    stroke-dashoffset: 60;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes orbitKnowledge1 {
+  from {
+    transform: rotate(0deg) translateX(74px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(74px) rotate(-360deg);
+  }
+}
+
+@keyframes orbitKnowledge2 {
+  from {
+    transform: rotate(120deg) translateX(74px) rotate(-120deg);
+  }
+  to {
+    transform: rotate(480deg) translateX(74px) rotate(-480deg);
+  }
+}
+
+@keyframes orbitKnowledge3 {
+  from {
+    transform: rotate(240deg) translateX(74px) rotate(-240deg);
+  }
+  to {
+    transform: rotate(600deg) translateX(74px) rotate(-600deg);
+  }
+}
+
+@keyframes stardustTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes pulseHalo {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.35), inset -12px -12px 24px rgba(0, 0, 0, 0.75);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(16, 185, 129, 0.6), inset -12px -12px 24px rgba(0, 0, 0, 0.65);
+  }
+}
+
