@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "cd Dedsacademy && npm install && npm run build",
+  "buildCommand": "Dedsacademy && npm install && npm run build",
   "outputDirectory": "Dedsacademy/dist",
   "installCommand": "echo 'Install handled in buildCommand'",
   "framework": "vite",
