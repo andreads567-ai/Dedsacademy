@@ -179,6 +179,10 @@ export interface StudentProgress {
   totalLessons: number;
   lastLessonTitle: string;
   lastAccessed: string;
+  completionDate?: string;
+  rating?: number;
+  reviewComment?: string;
+  completedLessonIds?: string[];
 }
 
 export interface CertificateItem {
@@ -437,18 +441,28 @@ export type CertificateFieldKey =
   | 'qr_code'
   | 'registro_academico'
   | 'amparo_legal'
-  | 'conteudo_programatico';
+  | 'conteudo_programatico'
+  | 'aluno'
+  | 'curso'
+  | 'data_conclusao'
+  | 'codigo';
 
 export interface CertificateFieldConfig {
   key: CertificateFieldKey;
   label: string;
+  tag?: string; // {aluno}, {curso}, {carga_horaria}, {data_conclusao}, {codigo}
   side: CertificateSide;
   x: number; // 0 - 100 percentage from left
   y: number; // 0 - 100 percentage from top
-  fontSize: number; // in pixels
+  x_percent?: number; // 0 - 100 percentage from left da imagem de fundo
+  y_percent?: number; // 0 - 100 percentage from top da imagem de fundo
+  fontSize: number; // in pixels (referência no editor)
+  tamanho_fonte_relativo?: number; // percentagem relativa da altura do certificado (0 - 100%)
   color: string;
+  cor?: string; // alias para color
   fontWeight: 'normal' | 'medium' | 'semibold' | 'bold' | 'black';
   textAlign: 'left' | 'center' | 'right';
+  alinhamento?: 'left' | 'center' | 'right'; // alias para textAlign
   visible: boolean;
   prefix?: string;
   suffix?: string;
@@ -474,7 +488,7 @@ export interface CertificateOfficialTemplate {
   aspectRatioMode?: 'auto' | '16_9' | 'a4';
   imageFitMode?: 'contain' | 'fill' | 'cover';
   defaultFontFamily?: string;
-  fields: Record<CertificateFieldKey, CertificateFieldConfig>;
+  fields: Record<string, CertificateFieldConfig>;
 }
 
 export interface Coupon {

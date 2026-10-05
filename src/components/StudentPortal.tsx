@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, CourseReview, Category } from '../types';
 import { INITIAL_ORDERS } from '../data/usersData';
 import { CancellationModal } from './CancellationModal';
 import { SignatureModal } from './SignatureModal';
 import { StudentCoursePlayerModal } from './StudentCoursePlayerModal';
+import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 
 interface StudentPortalProps {
   user: UserAccount;
   onUpdateUser?: (updatedUser: UserAccount) => void;
   enrolledCourses: Course[];
+  allCourses?: Course[];
+  categories?: Category[];
   progressData: Record<string, StudentProgress>;
   certificates: CertificateItem[];
   onNavigateHome: (sectionId?: string) => void;
@@ -17,12 +20,17 @@ interface StudentPortalProps {
   onOpenCatalog?: () => void;
   onCompleteLesson?: (courseId: string, lessonId: string, lessonTitle: string) => void;
   onCancelEnrollment?: (courseIds: string[]) => void;
+  onSubmitReview?: (review: CourseReview) => void;
+  onEnrollCourse?: (course: Course) => void;
+  onStartCourse?: (course: Course) => void;
 }
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({
   user,
   onUpdateUser,
   enrolledCourses,
+  allCourses = [],
+  categories = [],
   progressData,
   certificates,
   onNavigateHome,
@@ -31,6 +39,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   onOpenCatalog,
   onCompleteLesson,
   onCancelEnrollment,
+  onSubmitReview,
+  onEnrollCourse,
+  onStartCourse,
 }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activeTab, setActiveTab] = useState<'cursos' | 'certificados' | 'horas' | 'financeiro' | 'perfil'>('cursos');
@@ -112,6 +123,33 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       lessonTitle: progress?.lastLessonTitle || 'Módulo 1: Introdução e Visão Geral',
     });
   };
+
+  // Category filter state for enrolled courses and exploring courses
+  const [enrolledCategoryFilter, setEnrolledCategoryFilter] = useState<string>('Todos');
+  const [exploreCategoryFilter, setExploreCategoryFilter] = useState<string>('Todas');
+
+  const enrolledCategories = useMemo(() => {
+    const set = new Set<string>();
+    enrolledCourses.forEach((c) => set.add(c.category));
+    return ['Todos', ...Array.from(set)];
+  }, [enrolledCourses]);
+
+  const displayedEnrolledCourses = useMemo(() => {
+    if (enrolledCategoryFilter === 'Todos') return enrolledCourses;
+    return enrolledCourses.filter((c) => c.category === enrolledCategoryFilter);
+  }, [enrolledCourses, enrolledCategoryFilter]);
+
+  const effectiveCategoriesList = useMemo(() => {
+    if (categories && categories.length > 0) return categories.map((c) => c.name);
+    const set = new Set<string>();
+    allCourses.forEach((c) => set.add(c.category));
+    return Array.from(set);
+  }, [categories, allCourses]);
+
+  const displayedExploreCourses = useMemo(() => {
+    if (exploreCategoryFilter === 'Todas') return allCourses;
+    return allCourses.filter((c) => c.category.toLowerCase() === exploreCategoryFilter.toLowerCase());
+  }, [allCourses, exploreCategoryFilter]);
 
   const handleConfirmCancellation = (orderId: string, reason: string) => {
     const order = orders.find((o) => o.id === orderId);
@@ -299,109 +337,315 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
 
         {/* Tab 1: Meus Cursos */}
         {activeTab === 'cursos' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="space-y-8">
+            {/* Top Bar with Title and Quick Add */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-text-primary">Continuar Aprendendo</h2>
-                <p className="text-xs text-text-tertiary">Acesse suas salas de aula virtuais e retome suas aulas de onde parou</p>
+                <h2 className="text-xl font-bold text-text-primary">Continuar Aprendendo</h2>
+                <p className="text-xs text-text-tertiary mt-0.5">Acesse suas salas de aula virtuais e retome suas aulas de onde parou</p>
               </div>
-              <button
-                onClick={() => (onOpenCatalog ? onOpenCatalog() : onNavigateHome('cursos-section'))}
-                className="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                Adicionar mais cursos <span className="material-symbols-outlined text-sm">add</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const explorer = document.getElementById('secao-explorar-categorias');
+                    if (explorer) explorer.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">explore</span>
+                  Explorar por Categoria
+                </button>
+                <button
+                  onClick={() => (onOpenCatalog ? onOpenCatalog() : onNavigateHome('cursos-section'))}
+                  className="px-3.5 py-2 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-xs text-text-secondary hover:text-text-primary font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">storefront</span>
+                  Ver Catálogo Completo
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {enrolledCourses.map((course) => {
-                const prog = progressData[course.id] || {
-                  percent: 0,
-                  completedLessons: 0,
-                  totalLessons: course.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course.lessonsCount || 0,
-                  lastLessonTitle: 'Nenhuma aula iniciada',
-                  lastAccessed: 'Nunca acessado',
-                };
-                const isCompleted = prog.percent === 100;
+            {/* Category Filter Pills for Enrolled Courses */}
+            {enrolledCategories.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="text-xs text-text-tertiary shrink-0 font-medium mr-1 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">filter_alt</span>
+                  Filtrar Cursos:
+                </span>
+                {enrolledCategories.map((cat) => {
+                  const isSelected = enrolledCategoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setEnrolledCategoryFilter(cat)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-primary-container text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-raised text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-border-subtle'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-                return (
-                  <div
-                    key={course.id}
-                    className="bg-surface-raised rounded-2xl border border-border-subtle overflow-hidden flex flex-col shadow-sm hover:border-primary/50 transition-all group"
-                  >
-                    <div className="relative h-44 w-full bg-surface-base overflow-hidden">
-                      <img
-                        src={course.image}
-                        alt={course.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
-                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
-                        {course.category}
-                      </span>
-                      {isCompleted ? (
-                        <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs font-bold bg-accent-emerald-bright text-on-primary flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">verified</span> Concluído
+            {/* Grid of Enrolled Courses */}
+            {displayedEnrolledCourses.length === 0 ? (
+              <div className="p-8 text-center bg-surface-raised border border-border-subtle rounded-2xl space-y-2">
+                <span className="material-symbols-outlined text-4xl text-text-tertiary">school</span>
+                <p className="text-sm font-bold text-text-primary">Nenhum curso encontrado nesta categoria.</p>
+                <p className="text-xs text-text-tertiary">
+                  Tente selecionar "Todos" ou explore as categorias abaixo para matricular-se em novas formações.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEnrolledCategoryFilter('Todos')}
+                  className="mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold cursor-pointer"
+                >
+                  Mostrar Todos os Meus Cursos
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {displayedEnrolledCourses.map((course) => {
+                  const prog = progressData[course.id] || {
+                    percent: 0,
+                    completedLessons: 0,
+                    totalLessons: course.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course.lessonsCount || 0,
+                    lastLessonTitle: 'Nenhuma aula iniciada',
+                    lastAccessed: 'Nunca acessado',
+                  };
+                  const isCompleted = prog.percent === 100;
+
+                  return (
+                    <div
+                      key={course.id}
+                      className="bg-surface-raised rounded-2xl border border-border-subtle overflow-hidden flex flex-col shadow-sm hover:border-primary/50 transition-all group"
+                    >
+                      <div
+                        className="relative h-44 w-full bg-surface-base overflow-hidden cursor-pointer"
+                        onClick={() => handleOpenLesson(course)}
+                        title="Abrir sala de aula"
+                      >
+                        <img
+                          src={course.image}
+                          alt={course.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
+                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
+                          {course.category}
                         </span>
-                      ) : (
-                        <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs font-bold bg-surface-dim/80 text-accent-gold flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">timelapse</span> {prog.percent}%
-                        </span>
-                      )}
-                    </div>
+                        {isCompleted ? (
+                          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs font-bold bg-accent-emerald-bright text-on-primary flex items-center gap-1 shadow">
+                            <span className="material-symbols-outlined text-xs">verified</span> Concluído
+                          </span>
+                        ) : (
+                          <span className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-xs font-bold bg-surface-dim/80 text-accent-gold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">timelapse</span> {prog.percent}%
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="p-5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className="text-base font-bold text-text-primary line-clamp-1 group-hover:text-primary transition-colors">
-                          {course.title}
-                        </h3>
-                        <p className="text-xs text-text-tertiary mt-1 flex items-center gap-1">
-                          <span>{course.instructor}</span>
-                          <span>•</span>
-                          <span>{course.hours} horas</span>
-                        </p>
+                      <div className="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3
+                            onClick={() => handleOpenLesson(course)}
+                            className="text-base font-bold text-text-primary line-clamp-1 group-hover:text-primary transition-colors cursor-pointer"
+                          >
+                            {course.title}
+                          </h3>
+                          <p className="text-xs text-text-tertiary mt-1 flex items-center gap-1">
+                            <span>{course.instructor}</span>
+                            <span>•</span>
+                            <span>{course.hours} horas</span>
+                          </p>
 
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between text-xs text-text-secondary mb-1.5">
-                            <span>Progresso</span>
-                            <span className="font-bold text-text-primary">{prog.percent}% concluído</span>
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between text-xs text-text-secondary mb-1.5">
+                              <span>Progresso</span>
+                              <span className="font-bold text-text-primary">{prog.percent}% concluído</span>
+                            </div>
+                            <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-500"
+                                style={{ width: `${prog.percent}%` }}
+                              ></div>
+                            </div>
                           </div>
-                          <div className="w-full h-2 bg-surface-overlay rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all duration-500"
-                              style={{ width: `${prog.percent}%` }}
-                            ></div>
+
+                          <div className="mt-3 p-2.5 rounded-lg bg-surface-container-low border border-border-subtle/50 text-xs text-text-secondary">
+                            <span className="text-text-tertiary block text-[10px] uppercase font-bold mb-0.5">Última Aula Assistida:</span>
+                            <span className="text-text-primary font-medium truncate block">{prog.lastLessonTitle}</span>
                           </div>
                         </div>
 
-                        <div className="mt-3 p-2.5 rounded-lg bg-surface-container-low border border-border-subtle/50 text-xs text-text-secondary">
-                          <span className="text-text-tertiary block text-[10px] uppercase font-bold mb-0.5">Última Aula Assistida:</span>
-                          <span className="text-text-primary font-medium truncate block">{prog.lastLessonTitle}</span>
+                        <div className="mt-5 pt-3 border-t border-border-subtle flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenLesson(course)}
+                            className="flex-1 py-2.5 px-4 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-base">play_arrow</span>
+                            {isCompleted ? 'Reassistir Curso' : 'Continuar Aula'}
+                          </button>
+                          {isCompleted && (
+                            <button
+                              type="button"
+                              onClick={onOpenCertificateModal}
+                              className="p-2.5 bg-surface-overlay hover:bg-surface-container text-accent-emerald-bright rounded-xl border border-border-subtle transition-all cursor-pointer"
+                              title="Ver Certificado"
+                            >
+                              <span className="material-symbols-outlined text-base">workspace_premium</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ===================================================================
+                EXPLORAR & ADICIONAR CURSOS POR CATEGORIA (DIRETAMENTE NA ÁREA DO ALUNO)
+               =================================================================== */}
+            <div id="secao-explorar-categorias" className="pt-8 border-t border-border-subtle space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div>
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                    Formações da Deds Academy
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mt-1">
+                    Escolha um Curso por Categoria
+                  </h3>
+                  <p className="text-xs text-text-tertiary mt-0.5">
+                    Selecione uma categoria abaixo para adicionar novas formações diretamente à sua matrícula.
+                  </p>
+                </div>
+              </div>
+
+              {/* Category Pills Bar */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                <button
+                  type="button"
+                  onClick={() => setExploreCategoryFilter('Todas')}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    exploreCategoryFilter === 'Todas'
+                      ? 'bg-primary-container text-on-primary font-bold shadow-xs'
+                      : 'bg-surface-raised text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-border-subtle'
+                  }`}
+                >
+                  Todas as Categorias
+                </button>
+                {effectiveCategoriesList.map((catName) => {
+                  const isSelected = exploreCategoryFilter.toLowerCase() === catName.toLowerCase();
+                  return (
+                    <button
+                      key={catName}
+                      type="button"
+                      onClick={() => setExploreCategoryFilter(catName)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-primary-container text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-raised text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-border-subtle'
+                      }`}
+                    >
+                      {catName}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Grid of Available Courses to Enroll */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayedExploreCourses.map((course) => {
+                  const isEnrolled = enrolledCourses.some((c) => c.id === course.id);
+
+                  return (
+                    <div
+                      key={course.id}
+                      className="bg-surface-raised rounded-2xl border border-border-subtle overflow-hidden flex flex-col justify-between shadow-sm hover:border-primary/50 transition-all group hover:shadow-md cursor-pointer"
+                      onClick={() => {
+                        if (!isEnrolled && onEnrollCourse) {
+                          onEnrollCourse(course);
+                        }
+                        handleOpenLesson(course);
+                      }}
+                      title={isEnrolled ? "Clique para acessar este curso" : "Clique para se matricular e iniciar este curso"}
+                    >
+                      <div>
+                        <div className="relative h-40 w-full bg-surface-base overflow-hidden">
+                          <img
+                            src={course.image}
+                            alt={course.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
+                          <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[11px] font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
+                            {course.category}
+                          </span>
+                          <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] text-white font-mono">
+                            {course.hours}h
+                          </span>
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                          <h4 className="text-sm font-bold text-text-primary line-clamp-1 group-hover:text-primary transition-colors">
+                            {course.title}
+                          </h4>
+                          <p className="text-xs text-text-tertiary line-clamp-2 leading-relaxed">
+                            {course.description}
+                          </p>
+                          <div className="flex items-center justify-between text-[11px] text-text-tertiary pt-2 border-t border-border-subtle/50">
+                            <span>Instrutor: <strong className="text-text-secondary">{course.instructor}</strong></span>
+                            <span className="text-accent-gold font-bold flex items-center gap-0.5">
+                              ★ {course.rating.toFixed(1)}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="mt-5 pt-3 border-t border-border-subtle flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenLesson(course)}
-                          className="flex-1 py-2.5 px-4 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-base">play_arrow</span>
-                          {isCompleted ? 'Reassistir Curso' : 'Continuar Aula'}
-                        </button>
-                        {isCompleted && (
+                      <div className="p-4 pt-0">
+                        {isEnrolled ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenLesson(course);
+                              }}
+                              className="w-full py-2.5 px-3 rounded-xl bg-accent-emerald-bright hover:bg-primary text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                            >
+                              <span className="material-symbols-outlined text-base">play_arrow</span>
+                              <span>Já Matriculado • Acessar Aula</span>
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            onClick={onOpenCertificateModal}
-                            className="p-2.5 bg-surface-overlay hover:bg-surface-container text-accent-emerald-bright rounded-xl border border-border-subtle transition-all cursor-pointer"
-                            title="Ver Certificado"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onEnrollCourse) {
+                                onEnrollCourse(course);
+                              }
+                              handleOpenLesson(course);
+                            }}
+                            className="w-full py-2.5 px-3 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95 shadow-[0_0_12px_rgba(0,176,116,0.3)]"
                           >
-                            <span className="material-symbols-outlined text-base">workspace_premium</span>
+                            <span className="material-symbols-outlined text-base">school</span>
+                            <span>Matricular &amp; Iniciar Aula Imediatamente</span>
                           </button>
                         )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -466,11 +710,29 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       Visualizar Certificado
                     </button>
                     <button
-                      onClick={() => alert(`Iniciando download do PDF do certificado ${cert.code}...`)}
-                      className="px-4 py-2.5 bg-surface-overlay hover:bg-surface-container text-text-primary text-xs font-bold rounded-xl border border-border-subtle flex items-center gap-1.5 cursor-pointer"
+                      onClick={async () => {
+                        try {
+                          await downloadCertificatePdf({
+                            studentName: user.certificateData?.customName || cert.studentName || user.name,
+                            studentCpf: user.certificateData?.customCpf || cert.studentCpf || user.cpf,
+                            studentCode: cert.studentCode || user.studentCode,
+                            courseTitle: cert.courseTitle,
+                            courseCategory: cert.courseCategory,
+                            hours: cert.hours,
+                            issueDate: cert.issueDate,
+                            code: cert.code,
+                            instructor: cert.instructor,
+                          });
+                        } catch (err) {
+                          console.error('Erro ao gerar certificado:', err);
+                          alert('Erro ao gerar PDF do certificado.');
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold text-xs font-bold rounded-xl border border-accent-gold/40 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                      title="Baixar Certificado Oficial em PDF A4 Paisagem"
                     >
-                      <span className="material-symbols-outlined text-base">download</span>
-                      Baixar PDF
+                      <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                      Baixar PDF Oficial
                     </button>
                   </div>
                 </div>
@@ -1259,6 +1521,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               onCompleteLesson(courseId, lessonId, lessonTitle);
             }
           }}
+          progress={activeLessonModal.course ? progressData[activeLessonModal.course.id] : undefined}
+          currentUser={user}
+          onSubmitReview={onSubmitReview}
+          onOpenCertificateModal={onOpenCertificateModal}
         />
 
         {/* Cancellation Alert & Reason Modal */}

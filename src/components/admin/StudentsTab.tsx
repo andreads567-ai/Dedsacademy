@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserAccount, Course } from '../../types';
+import { UserAccount, Course, CourseReview, StudentProgress } from '../../types';
 
 interface StudentsTabProps {
   users: UserAccount[];
@@ -7,6 +7,8 @@ interface StudentsTabProps {
   onEditStudent: (student: UserAccount) => void;
   onOpenNewStudent: () => void;
   onQuickIssueCertificate?: (student: UserAccount) => void;
+  reviews?: CourseReview[];
+  progressMap?: Record<string, Record<string, StudentProgress>>;
 }
 
 export const StudentsTab: React.FC<StudentsTabProps> = ({
@@ -15,6 +17,8 @@ export const StudentsTab: React.FC<StudentsTabProps> = ({
   onEditStudent,
   onOpenNewStudent,
   onQuickIssueCertificate,
+  reviews = [],
+  progressMap = {},
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'pendente' | 'inativo'>('all');
@@ -164,19 +168,71 @@ export const StudentsTab: React.FC<StudentsTabProps> = ({
                         {s.cpf || 'Não informado'}
                       </td>
                       <td className="p-4">
-                        <div className="flex flex-wrap gap-1 max-w-xs">
-                          {courseNames.length === 0 ? (
-                            <span className="text-text-tertiary italic">Nenhum curso atribuído</span>
+                        <div className="flex flex-col gap-2 max-w-sm">
+                          {s.enrolledCourseIds.length === 0 ? (
+                            <span className="text-text-tertiary italic">Nenhum curso matriculado</span>
                           ) : (
-                            courseNames.map((name, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded bg-surface-overlay border border-border-subtle/70 text-[10px] text-text-secondary truncate max-w-[160px]"
-                                title={name}
-                              >
-                                {name}
-                              </span>
-                            ))
+                            s.enrolledCourseIds.map((courseId) => {
+                              const courseObj = courses.find((c) => c.id === courseId);
+                              const courseTitle = courseObj?.title || courseId;
+                              const userProgress = progressMap[s.id]?.[courseId];
+                              const userReview = reviews.find(
+                                (r) => (r.studentId === s.id || r.studentEmail === s.email) && r.courseId === courseId
+                              );
+                              const isCompleted =
+                                s.completedCourseIds?.includes(courseId) ||
+                                (userProgress?.percent === 100) ||
+                                Boolean(userReview);
+                              const completionDate =
+                                userProgress?.completionDate || userReview?.date || 'Recente';
+                              const ratingValue = userReview?.rating || userProgress?.rating;
+                              const commentText = userReview?.comment || userProgress?.reviewComment;
+
+                              return (
+                                <div
+                                  key={courseId}
+                                  className="p-2 rounded-xl bg-surface-overlay border border-border-subtle/80 space-y-1"
+                                >
+                                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                                    <span className="font-bold text-text-primary text-[11px] truncate max-w-[200px]" title={courseTitle}>
+                                      {courseTitle}
+                                    </span>
+                                    {isCompleted ? (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-accent-emerald-bright/20 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[12px]">verified</span>
+                                        100% Concluído
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-raised border border-border-subtle text-accent-gold">
+                                        {userProgress?.percent || 0}% em andamento
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Sync Details: Completion date, rating & comment */}
+                                  {isCompleted && (
+                                    <div className="pt-1 border-t border-border-subtle/50 space-y-1">
+                                      <div className="flex items-center justify-between text-[10px] text-text-tertiary">
+                                        <span>Conclusão: {completionDate}</span>
+                                        {ratingValue && (
+                                          <span className="flex items-center gap-0.5 text-accent-gold font-bold">
+                                            {'★'.repeat(ratingValue)}
+                                            <span className="ml-1 text-text-secondary">({ratingValue}.0)</span>
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {commentText && (
+                                        <div className="text-[10px] text-text-secondary bg-surface-raised p-1.5 rounded-lg border border-border-subtle/60 italic flex items-start gap-1">
+                                          <span className="material-symbols-outlined text-[12px] text-primary shrink-0 mt-0.5">format_quote</span>
+                                          <span className="line-clamp-2">&quot;{commentText}&quot;</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </td>

@@ -27,6 +27,9 @@ interface AdminDashboardProps {
   instructors?: Instructor[];
   blogPosts?: BlogPost[];
   certificates?: CertificateItem[];
+  reviews?: CourseReview[];
+  onDeleteReview?: (reviewId: string) => void;
+  progressMap?: Record<string, Record<string, StudentProgress>>;
   heroBannerConfig?: HeroBannerConfig;
   onUpdateHeroBannerConfig?: (config: HeroBannerConfig) => void;
   middleBannerConfig?: MiddlePromoBannerConfig;
@@ -48,6 +51,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
   certificates: initialCertificates = INITIAL_CERTIFICATES,
+  reviews,
+  onDeleteReview,
+  progressMap,
   heroBannerConfig,
   onUpdateHeroBannerConfig,
   middleBannerConfig,
@@ -69,7 +75,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [instructorsList, setInstructorsList] = useState<Instructor[]>(initialInstructors);
   const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(initialBlogPosts);
   const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(initialCertificates);
-  const [reviewsList, setReviewsList] = useState<CourseReview[]>(INITIAL_COURSE_REVIEWS);
+  const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
+    if (reviews && reviews.length > 0) return reviews;
+    try {
+      const saved = localStorage.getItem('deds_course_reviews');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_COURSE_REVIEWS;
+  });
+
+  useEffect(() => {
+    if (reviews) {
+      setReviewsList(reviews);
+    }
+  }, [reviews]);
   const [ticketsList, setTicketsList] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
   const [couponsList, setCouponsList] = useState<Coupon[]>(INITIAL_COUPONS);
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
@@ -578,6 +597,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onQuickIssueCertificate={(student) => {
                 setActiveTab('certificado');
               }}
+              reviews={reviewsList}
+              progressMap={progressMap}
             />
           )}
 

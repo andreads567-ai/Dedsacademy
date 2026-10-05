@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Course, CourseModule, Lesson } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
 
@@ -9,6 +9,9 @@ interface CourseDetailPageProps {
   onBuyNow?: (course: Course) => void;
   isAdded: boolean;
   onOpenCertificateModal?: () => void;
+  onStartCourse?: (course: Course) => void;
+  isEnrolled?: boolean;
+  progressPercent?: number;
 }
 
 export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
@@ -18,13 +21,54 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   onBuyNow,
   isAdded,
   onOpenCertificateModal,
+  onStartCourse,
+  isEnrolled = false,
+  progressPercent,
 }) => {
+  // Synthesize complete module structure if missing
+  const effectiveModules: CourseModule[] = useMemo(() => {
+    if (course.modules && course.modules.length > 0) {
+      return course.modules;
+    }
+    if (course.syllabus && course.syllabus.length > 0) {
+      return course.syllabus.map((topic, idx) => ({
+        id: `mod-${course.id}-${idx}`,
+        title: topic.includes(':') ? topic.split(':')[0].trim() : `Módulo ${idx + 1}`,
+        description: topic.includes(':') ? topic.split(':')[1].trim() : topic,
+        lessons: [
+          {
+            id: `lesson-${course.id}-${idx}-1`,
+            title: topic.includes(':') ? topic.split(':')[1].trim() : topic,
+            description: `Conteúdo prático e direcionamento de estudos para ${topic}.`,
+            duration: '15 min',
+            attachments: [],
+          },
+        ],
+      }));
+    }
+    return [
+      {
+        id: `mod-${course.id}-0`,
+        title: 'Módulo 1: Fundamentos & Apresentação',
+        description: 'Visão geral da formação',
+        lessons: [
+          {
+            id: `lesson-${course.id}-0-1`,
+            title: 'Aula 1: Apresentação do Treinamento',
+            description: course.description || 'Apresentação detalhada do curso.',
+            duration: '10 min',
+            attachments: [],
+          },
+        ],
+      },
+    ];
+  }, [course]);
+
   // Accordion state for modules
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    if (course.modules && course.modules.length > 0) {
-      // First module expanded by default
-      initial[course.modules[0].id || '0'] = true;
+    if (effectiveModules.length > 0) {
+      initial[effectiveModules[0].id || '0'] = true;
     }
     return initial;
   });
@@ -39,10 +83,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   };
 
   const effectiveBadge = getEffectiveCourseBadge(course);
-  const totalLessons =
-    course.modules && course.modules.length > 0
-      ? course.modules.reduce((sum, m) => sum + (m.lessons?.length || 0), 0)
-      : course.lessonsCount || 80;
+  const totalLessons = effectiveModules.reduce((sum, m) => sum + (m.lessons?.length || 0), 0);
 
   const discountAmount = Math.max(0, course.originalPrice - course.currentPrice);
   const discountPercent = course.originalPrice > 0
@@ -185,8 +226,44 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 {/* Lessons */}
                 <div className="flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-primary text-base">play_lesson</span>
-                  <span className="font-medium text-text-primary">{totalLessons} videoaulas</span>
+                  <span className="font-medium text-text-primary">{totalLessons} aulas na ementa</span>
                 </div>
+              </div>
+
+              {/* Prominent Hero CTA Button: Iniciar Curso / Continuar Curso */}
+              <div className="pt-2 flex flex-wrap items-center gap-4">
+                {onStartCourse && (
+                  <button
+                    type="button"
+                    onClick={() => onStartCourse(course)}
+                    className="px-8 py-4 rounded-xl font-bold text-sm bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_25px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2.5 active:scale-95 group"
+                    id="btn-hero-start-course"
+                  >
+                    <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">
+                      {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
+                    </span>
+                    <span className="text-sm font-extrabold uppercase tracking-wide">
+                      {progressPercent && progressPercent > 0
+                        ? 'Continuar Curso'
+                        : isEnrolled
+                        ? 'Iniciar Curso'
+                        : 'Iniciar Curso'}
+                    </span>
+                    <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                      arrow_forward
+                    </span>
+                  </button>
+                )}
+
+                {/* Progress pill if enrolled with progress */}
+                {progressPercent !== undefined && progressPercent > 0 && (
+                  <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-overlay border border-border-subtle text-xs">
+                    <span className="text-accent-emerald-bright font-bold">{progressPercent}% concluído</span>
+                    <div className="w-24 h-2 bg-surface-raised rounded-full overflow-hidden">
+                      <div className="h-full bg-accent-emerald-bright rounded-full" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -347,7 +424,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
 
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-text-secondary bg-surface-overlay px-3 py-1 rounded-full border border-border-subtle">
-                    {course.modules?.length || 1} {(course.modules?.length || 1) === 1 ? 'módulo' : 'módulos'}
+                    {effectiveModules.length} {effectiveModules.length === 1 ? 'módulo' : 'módulos'}
                   </span>
                   <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
                     {totalLessons} aulas
@@ -356,9 +433,9 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               </div>
 
               {/* Modules Accordion List */}
-              {course.modules && course.modules.length > 0 ? (
+              {effectiveModules.length > 0 ? (
                 <div className="space-y-3">
-                  {course.modules.map((mod: CourseModule, modIdx: number) => {
+                  {effectiveModules.map((mod: CourseModule, modIdx: number) => {
                     const isExpanded = expandedModules[mod.id || `${modIdx}`];
                     return (
                       <div
@@ -626,6 +703,28 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
 
               {/* CTA Buttons */}
               <div className="space-y-2.5">
+                {/* Prominent Action Button: Iniciar Curso ou Continuar Curso */}
+                {onStartCourse && (
+                  <button
+                    type="button"
+                    onClick={() => onStartCourse(course)}
+                    className="w-full py-4 px-5 rounded-xl font-extrabold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl"
+                    id="btn-start-course-sidebar"
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
+                    </span>
+                    <span>
+                      {progressPercent && progressPercent > 0
+                        ? 'Continuar Curso'
+                        : isEnrolled
+                        ? 'Iniciar Curso'
+                        : 'Iniciar Curso'}
+                    </span>
+                    <span className="material-symbols-outlined text-base">arrow_forward</span>
+                  </button>
+                )}
+
                 {/* Primary Button: Adicionar ao Carrinho */}
                 <button
                   type="button"
@@ -633,7 +732,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                   className={`w-full py-3.5 px-5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-95 ${
                     isAdded
                       ? 'bg-primary text-on-primary ring-2 ring-primary/40'
-                      : 'bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.4)] hover:shadow-lg'
+                      : 'bg-surface-overlay hover:bg-surface-raised text-text-primary border border-border-subtle hover:border-primary'
                   }`}
                   id="btn-add-to-cart-page"
                 >

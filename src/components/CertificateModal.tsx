@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { downloadCertificatePdf } from '../utils/certificateGenerator';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -144,10 +145,23 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
               {/* Actions */}
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => alert('Download do PDF do certificado oficial iniciado.')}
-                  className="px-4 py-2 rounded-lg bg-surface-raised hover:bg-surface-overlay text-text-primary text-label-md font-semibold flex items-center gap-2 border border-border-subtle"
+                  onClick={async () => {
+                    try {
+                      await downloadCertificatePdf({
+                        studentName: validationResult.studentName || 'Lucas M. Silveira',
+                        courseTitle: validationResult.courseName || 'Inteligência Artificial & Machine Learning',
+                        hours: parseInt(validationResult.workload?.replace(/\D/g, '') || '60') || 60,
+                        issueDate: validationResult.issuedDate || '15-02-2025',
+                        code: certCode,
+                      });
+                    } catch (err) {
+                      console.error(err);
+                      alert('Erro ao gerar PDF do certificado.');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-surface-raised hover:bg-surface-overlay text-text-primary text-label-md font-semibold flex items-center gap-2 border border-border-subtle cursor-pointer transition-all"
                 >
-                  <span className="material-symbols-outlined text-body-md">download</span>
+                  <span className="material-symbols-outlined text-body-md text-accent-gold">picture_as_pdf</span>
                   <span>Baixar PDF com Assinatura</span>
                 </button>
                 <button
