@@ -12,6 +12,7 @@ interface CoursesCatalogPageProps {
   onNavigateHome: (sectionId?: string) => void;
   currentUser?: UserAccount | null;
   onOpenStudentPortal?: () => void;
+  onEnrollCourse?: (course: Course) => void;
 }
 
 export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
@@ -24,6 +25,7 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
   onNavigateHome,
   currentUser,
   onOpenStudentPortal,
+  onEnrollCourse,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
@@ -410,15 +412,43 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => onSelectCourse(course)}
-                              className="px-3 py-2 rounded-xl text-xs font-bold text-on-primary bg-primary hover:bg-accent-emerald-bright shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-                              title="Prosseguir para o curso"
-                            >
-                              <span>Prosseguir</span>
-                              <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                            </button>
+                            {currentUser?.enrolledCourseIds?.includes(course.id) ? (
+                              <button
+                                type="button"
+                                onClick={() => onSelectCourse(course)}
+                                className="px-3.5 py-2 rounded-xl text-xs font-bold text-on-primary bg-accent-emerald-bright hover:bg-primary shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                title="Continuar estudando este curso"
+                              >
+                                <span className="material-symbols-outlined text-sm">play_arrow</span>
+                                <span>Continuar Aula</span>
+                              </button>
+                            ) : currentUser ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (onEnrollCourse) {
+                                    onEnrollCourse(course);
+                                  } else {
+                                    onSelectCourse(course);
+                                  }
+                                }}
+                                className="px-3 py-2 rounded-xl text-xs font-bold text-on-primary bg-primary hover:bg-accent-emerald-bright shadow-sm transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                title="Matricular-se no curso imediatamente"
+                              >
+                                <span className="material-symbols-outlined text-xs">school</span>
+                                <span>Matricular-se</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onSelectCourse(course)}
+                                className="px-3 py-2 rounded-xl text-xs font-bold text-on-primary bg-primary hover:bg-accent-emerald-bright shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                                title="Prosseguir para a apresentação do curso"
+                              >
+                                <span>Prosseguir</span>
+                                <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                              </button>
+                            )}
 
                             <button
                               type="button"

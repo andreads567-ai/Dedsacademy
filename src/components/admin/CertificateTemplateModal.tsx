@@ -5,6 +5,11 @@ import {
   CertificateFieldConfig,
   CertificateOfficialTemplate,
 } from '../../types';
+import {
+  calculateNormalizedDropCoordinates,
+  downloadCertificatePng,
+  downloadCertificatePdf,
+} from '../../utils/certificateGenerator';
 
 interface CertificateTemplateModalProps {
   isOpen: boolean;
@@ -44,21 +49,27 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
   frontPreset: 'dark_gold',
   backPreset: 'dark_gold',
   showBorders: true,
-  aspectRatioMode: 'auto',
+  aspectRatioMode: 'a4', // A4 Paisagem padrão (29,7 x 21 cm)
   imageFitMode: 'contain',
   defaultFontFamily: 'Inter, sans-serif',
   fields: {
-    // FRENTE (Otimizado para proporção 16:9 • 1920x1080 px • 29,7x16,7 cm)
+    // FRENTE (Otimizado para modelo A4 / 16:9 • Normalização de 0 a 100%)
     nome_aluno: {
       key: 'nome_aluno',
-      label: 'Nome e Dados do Aluno',
+      label: 'Nome do Aluno',
+      tag: '{aluno}',
       side: 'frente',
       x: 50,
       y: 44,
-      fontSize: 27, // -1px aplicado para encaixe perfeito
+      x_percent: 50,
+      y_percent: 44,
+      fontSize: 27,
+      tamanho_fonte_relativo: 4.2, // ~4.2% da altura do certificado
       color: '#ffffff',
+      cor: '#ffffff',
       fontWeight: 'bold',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: true,
       maxWidth: 70,
@@ -67,14 +78,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     },
     cpf_aluno: {
       key: 'cpf_aluno',
-      label: 'CPF Cadastrado do Aluno',
+      label: 'CPF do Aluno',
+      tag: '{cpf}',
       side: 'frente',
       x: 50,
       y: 52,
-      fontSize: 12, // -1px aplicado
+      x_percent: 50,
+      y_percent: 52,
+      fontSize: 12,
+      tamanho_fonte_relativo: 1.9,
       color: '#cbd5e1',
+      cor: '#cbd5e1',
       fontWeight: 'medium',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: false,
       maxWidth: 40,
@@ -85,29 +102,41 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     nome_curso: {
       key: 'nome_curso',
       label: 'Nome do Curso',
+      tag: '{curso}',
       side: 'frente',
       x: 50,
       y: 62,
-      fontSize: 22, // -1px aplicado
+      x_percent: 50,
+      y_percent: 62,
+      fontSize: 22,
+      tamanho_fonte_relativo: 3.4,
       color: '#34d399',
+      cor: '#34d399',
       fontWeight: 'bold',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: true,
-      maxWidth: 34, // Quebra automática perfeita dentro de colunas da imagem
+      maxWidth: 34,
       fontFamily: 'Inter, sans-serif',
       sampleText: 'Excel do Básico ao Avançado & Dashboards Dinâmicos',
     },
     carga_horaria: {
       key: 'carga_horaria',
-      label: 'Carga Horária (Apenas Horas ex: 60h)',
+      label: 'Carga Horária',
+      tag: '{carga_horaria}',
       side: 'frente',
       x: 50,
       y: 71,
-      fontSize: 12, // -1px aplicado
+      x_percent: 50,
+      y_percent: 71,
+      fontSize: 12,
+      tamanho_fonte_relativo: 1.9,
       color: '#e2e8f0',
+      cor: '#e2e8f0',
       fontWeight: 'semibold',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: true,
       maxWidth: 26,
@@ -118,14 +147,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     },
     data_emissao: {
       key: 'data_emissao',
-      label: 'Data de Emissão (Apenas Números)',
+      label: 'Data de Conclusão / Emissão',
+      tag: '{data_conclusao}',
       side: 'frente',
       x: 28,
       y: 83,
-      fontSize: 11, // -1px aplicado
+      x_percent: 28,
+      y_percent: 83,
+      fontSize: 11,
+      tamanho_fonte_relativo: 1.7,
       color: '#94a3b8',
+      cor: '#94a3b8',
       fontWeight: 'normal',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: false,
       maxWidth: 26,
@@ -136,13 +171,19 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     dados_instituicao: {
       key: 'dados_instituicao',
       label: 'Dados da Instituição',
+      tag: '{instituicao}',
       side: 'frente',
       x: 28,
       y: 92,
-      fontSize: 10, // -1px aplicado
+      x_percent: 28,
+      y_percent: 92,
+      fontSize: 10,
+      tamanho_fonte_relativo: 1.5,
       color: '#34d399',
+      cor: '#34d399',
       fontWeight: 'bold',
       textAlign: 'left',
+      alinhamento: 'left',
       visible: true,
       textWrap: true,
       maxWidth: 40,
@@ -151,14 +192,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     },
     codigo_emissao: {
       key: 'codigo_emissao',
-      label: 'Código do Certificado (Apenas Números)',
+      label: 'Código do Certificado',
+      tag: '{codigo}',
       side: 'frente',
       x: 84,
       y: 92,
-      fontSize: 10, // -1px aplicado
+      x_percent: 84,
+      y_percent: 92,
+      fontSize: 10,
+      tamanho_fonte_relativo: 1.5,
       color: '#fbbf24',
+      cor: '#fbbf24',
       fontWeight: 'bold',
       textAlign: 'right',
+      alinhamento: 'right',
       visible: true,
       textWrap: false,
       maxWidth: 30,
@@ -169,14 +216,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     },
     instrutor_assinatura: {
       key: 'instrutor_assinatura',
-      label: 'Assinatura / Instrutor Responsável',
+      label: 'Assinatura / Instrutor',
+      tag: '{instrutor}',
       side: 'frente',
       x: 72,
       y: 83,
-      fontSize: 10, // -1px aplicado
+      x_percent: 72,
+      y_percent: 83,
+      fontSize: 10,
+      tamanho_fonte_relativo: 1.5,
       color: '#cbd5e1',
+      cor: '#cbd5e1',
       fontWeight: 'medium',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: true,
       maxWidth: 32,
@@ -189,28 +242,40 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     qr_code: {
       key: 'qr_code',
       label: 'QR Code de Validação',
+      tag: '{qr_code}',
       side: 'verso',
       x: 25,
       y: 48,
-      fontSize: 11, // -1px aplicado
+      x_percent: 25,
+      y_percent: 48,
+      fontSize: 11,
+      tamanho_fonte_relativo: 1.7,
       size: 125,
       color: '#0f172a',
+      cor: '#0f172a',
       fontWeight: 'bold',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: false,
       sampleText: 'Validação Criptográfica',
     },
     registro_academico: {
       key: 'registro_academico',
-      label: 'Registro Acadêmico e Livro Oficial',
+      label: 'Registro Acadêmico e Livro',
+      tag: '{registro_academico}',
       side: 'verso',
       x: 70,
       y: 38,
-      fontSize: 10, // -1px aplicado
+      x_percent: 70,
+      y_percent: 38,
+      fontSize: 10,
+      tamanho_fonte_relativo: 1.5,
       color: '#cbd5e1',
+      cor: '#cbd5e1',
       fontWeight: 'normal',
       textAlign: 'left',
+      alinhamento: 'left',
       visible: true,
       textWrap: true,
       maxWidth: 65,
@@ -220,13 +285,19 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     amparo_legal: {
       key: 'amparo_legal',
       label: 'Amparo Legal (Lei nº 9.394/96)',
+      tag: '{amparo_legal}',
       side: 'verso',
       x: 70,
       y: 62,
-      fontSize: 9, // -1px aplicado
+      x_percent: 70,
+      y_percent: 62,
+      fontSize: 9,
+      tamanho_fonte_relativo: 1.4,
       color: '#94a3b8',
+      cor: '#94a3b8',
       fontWeight: 'normal',
       textAlign: 'left',
+      alinhamento: 'left',
       visible: true,
       textWrap: true,
       maxWidth: 65,
@@ -235,14 +306,20 @@ export const DEFAULT_CERTIFICATE_TEMPLATE: CertificateOfficialTemplate = {
     },
     conteudo_programatico: {
       key: 'conteudo_programatico',
-      label: 'Conteúdo Programático do Curso',
+      label: 'Conteúdo Programático',
+      tag: '{conteudo_programatico}',
       side: 'verso',
       x: 50,
       y: 88,
-      fontSize: 9, // -1px aplicado
+      x_percent: 50,
+      y_percent: 88,
+      fontSize: 9,
+      tamanho_fonte_relativo: 1.4,
       color: '#64748b',
+      cor: '#64748b',
       fontWeight: 'normal',
       textAlign: 'center',
+      alinhamento: 'center',
       visible: true,
       textWrap: true,
       maxWidth: 80,
@@ -561,6 +638,7 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
   // Dragging state on canvas (pointer events)
   const [draggingKey, setDraggingKey] = useState<CertificateFieldKey | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const dragStartRef = useRef<{ startX: number; startY: number; initFieldX: number; initFieldY: number } | null>(null);
 
   // Drag & drop from right panel into canvas
@@ -641,28 +719,79 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
     showToast(`Fundo da ${side === 'frente' ? 'frente' : 'verso'} restaurado para o tema padrão.`);
   };
 
-  // Update a single field attribute
+  // Update a single field attribute with automatic synchronization of normalized schema
   const updateField = (key: CertificateFieldKey, patch: Partial<CertificateFieldConfig>) => {
-    setTemplate((prev) => ({
-      ...prev,
-      fields: {
-        ...prev.fields,
-        [key]: {
-          ...prev.fields[key],
-          ...patch,
+    setTemplate((prev) => {
+      const existing = prev.fields[key];
+      if (!existing) return prev;
+
+      const updatedField: CertificateFieldConfig = {
+        ...existing,
+        ...patch,
+      };
+
+      // 1. Sincronização estrita de coordenadas percentuais (0 a 100%)
+      if (patch.x !== undefined) updatedField.x_percent = patch.x;
+      if (patch.x_percent !== undefined) updatedField.x = patch.x_percent;
+      if (patch.y !== undefined) updatedField.y_percent = patch.y;
+      if (patch.y_percent !== undefined) updatedField.y = patch.y_percent;
+
+      // 2. Sincronização de cor
+      if (patch.color !== undefined) updatedField.cor = patch.color;
+      if (patch.cor !== undefined) updatedField.color = patch.cor;
+
+      // 3. Sincronização de alinhamento
+      if (patch.textAlign !== undefined) updatedField.alinhamento = patch.textAlign;
+      if (patch.alinhamento !== undefined) updatedField.textAlign = patch.alinhamento;
+
+      // 4. Sincronização de tamanho de fonte relativo (normalizado pela altura de referência)
+      const baseH = canvasDisplayDimensions.baseHeight || 650;
+      if (patch.fontSize !== undefined) {
+        updatedField.tamanho_fonte_relativo = Number(((patch.fontSize / baseH) * 100).toFixed(2));
+      } else if (patch.tamanho_fonte_relativo !== undefined) {
+        updatedField.fontSize = Math.round((patch.tamanho_fonte_relativo / 100) * baseH);
+      } else if (updatedField.tamanho_fonte_relativo === undefined && updatedField.fontSize) {
+        updatedField.tamanho_fonte_relativo = Number(((updatedField.fontSize / baseH) * 100).toFixed(2));
+      }
+
+      return {
+        ...prev,
+        fields: {
+          ...prev.fields,
+          [key]: updatedField,
         },
-      },
-    }));
+      };
+    });
   };
 
-  // Save template configuration to localStorage
+  // Save template configuration to localStorage with normalized percentage schema
   const handleSave = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(template));
-      if (onSaveTemplate) {
-        onSaveTemplate(template);
+      const baseH = canvasDisplayDimensions.baseHeight || 650;
+      const enrichedFields = { ...template.fields };
+      for (const k of Object.keys(enrichedFields) as CertificateFieldKey[]) {
+        const f = enrichedFields[k];
+        if (f) {
+          enrichedFields[k] = {
+            ...f,
+            x_percent: f.x_percent ?? f.x,
+            y_percent: f.y_percent ?? f.y,
+            x: f.x_percent ?? f.x,
+            y: f.y_percent ?? f.y,
+            tamanho_fonte_relativo: f.tamanho_fonte_relativo ?? Number(((f.fontSize / baseH) * 100).toFixed(2)),
+            cor: f.cor ?? f.color,
+            color: f.cor ?? f.color,
+            alinhamento: f.alinhamento ?? f.textAlign,
+            textAlign: f.alinhamento ?? f.textAlign,
+          };
+        }
       }
-      showToast('Configurações e posições do certificado 16:9 salvas com sucesso!');
+      const templateToSave = { ...template, fields: enrichedFields };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(templateToSave));
+      if (onSaveTemplate) {
+        onSaveTemplate(templateToSave);
+      }
+      showToast('Modelo salvo com sucesso! Coordenadas normalizadas (0 a 100%) gravadas.');
     } catch {
       showToast('Modelo salvo localmente nesta sessão.');
     }
@@ -840,186 +969,49 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
     }
   };
 
-  // Export digital version in exact high-res resolution (preserving 100% of uploaded image)
+  // Export digital version directly via Canvas 2D
   const handleExportHighResPng = async () => {
     try {
-      showToast('Renderizando versão digital em alta definição sem cortes...');
-      const offscreen = document.createElement('canvas');
-      const currentBg = activeSide === 'frente' ? template.frontBgImage : template.backBgImage;
-
-      // Determine output resolution: use imported image resolution if available, otherwise 1920w
-      let outWidth = 1920;
-      let outHeight = Math.round(1920 / computedCanvasAspectRatio);
-      if (currentBg && currentImageDim) {
-        outWidth = Math.max(1920, currentImageDim.width);
-        outHeight = Math.round(outWidth / computedCanvasAspectRatio);
-      }
-      offscreen.width = outWidth;
-      offscreen.height = outHeight;
-
-      const ctx = offscreen.getContext('2d');
-      if (!ctx) return;
-
-      // 1. Draw custom background image or gradient theme
-      if (currentBg) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject();
-          img.src = currentBg;
-        });
-
-        if (currentFitMode === 'contain') {
-          ctx.fillStyle = '#080d1a';
-          ctx.fillRect(0, 0, outWidth, outHeight);
-          const hRatio = outWidth / img.naturalWidth;
-          const vRatio = outHeight / img.naturalHeight;
-          const ratio = Math.min(hRatio, vRatio);
-          const centerShiftX = (outWidth - img.naturalWidth * ratio) / 2;
-          const centerShiftY = (outHeight - img.naturalHeight * ratio) / 2;
-          ctx.drawImage(
-            img,
-            0,
-            0,
-            img.naturalWidth,
-            img.naturalHeight,
-            centerShiftX,
-            centerShiftY,
-            img.naturalWidth * ratio,
-            img.naturalHeight * ratio
-          );
-        } else if (currentFitMode === 'cover') {
-          const hRatio = outWidth / img.naturalWidth;
-          const vRatio = outHeight / img.naturalHeight;
-          const ratio = Math.max(hRatio, vRatio);
-          const centerShiftX = (outWidth - img.naturalWidth * ratio) / 2;
-          const centerShiftY = (outHeight - img.naturalHeight * ratio) / 2;
-          ctx.drawImage(
-            img,
-            0,
-            0,
-            img.naturalWidth,
-            img.naturalHeight,
-            centerShiftX,
-            centerShiftY,
-            img.naturalWidth * ratio,
-            img.naturalHeight * ratio
-          );
-        } else {
-          ctx.drawImage(img, 0, 0, outWidth, outHeight);
-        }
-      } else {
-        const grad = ctx.createLinearGradient(0, 0, outWidth, outHeight);
-        if (template.frontPreset === 'classic_light') {
-          grad.addColorStop(0, '#f8fafc');
-          grad.addColorStop(0.5, '#f1f5f9');
-          grad.addColorStop(1, '#e2e8f0');
-        } else if (template.frontPreset === 'emerald_luxury') {
-          grad.addColorStop(0, '#022c22');
-          grad.addColorStop(0.5, '#064e3b');
-          grad.addColorStop(1, '#021f18');
-        } else {
-          grad.addColorStop(0, '#0c1324');
-          grad.addColorStop(0.5, '#080d19');
-          grad.addColorStop(1, '#04060d');
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, outWidth, outHeight);
-
-        if (template.showBorders) {
-          ctx.strokeStyle = 'rgba(217, 119, 6, 0.3)';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(30, 30, outWidth - 60, outHeight - 60);
-          ctx.strokeStyle = 'rgba(217, 119, 6, 0.7)';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(45, 45, outWidth - 90, outHeight - 90);
-        }
-      }
-
-      // 2. Draw all visible fields on current side
-      const scale = outWidth / (canvasRef.current?.getBoundingClientRect().width || 800);
-      for (const field of currentSideFields) {
-        if (!field.visible) continue;
-        const posX = (field.x / 100) * outWidth;
-        const posY = (field.y / 100) * outHeight;
-
-        if (field.key === 'qr_code') {
-          const qrSize = (field.size || 130) * scale;
-          const qrLeft = posX - qrSize / 2;
-          const qrTop = posY - qrSize / 2;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(qrLeft, qrTop, qrSize, qrSize);
-          ctx.fillStyle = '#0f172a';
-          ctx.fillRect(qrLeft + qrSize * 0.1, qrTop + qrSize * 0.1, qrSize * 0.3, qrSize * 0.3);
-          ctx.fillRect(qrLeft + qrSize * 0.6, qrTop + qrSize * 0.1, qrSize * 0.3, qrSize * 0.3);
-          ctx.fillRect(qrLeft + qrSize * 0.1, qrTop + qrSize * 0.6, qrSize * 0.3, qrSize * 0.3);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(qrLeft + qrSize * 0.15, qrTop + qrSize * 0.15, qrSize * 0.2, qrSize * 0.2);
-          ctx.fillRect(qrLeft + qrSize * 0.65, qrTop + qrSize * 0.15, qrSize * 0.2, qrSize * 0.2);
-          ctx.fillRect(qrLeft + qrSize * 0.15, qrTop + qrSize * 0.65, qrSize * 0.2, qrSize * 0.2);
-          ctx.fillStyle = '#10b981';
-          ctx.fillRect(qrLeft + qrSize * 0.4, qrTop + qrSize * 0.4, qrSize * 0.2, qrSize * 0.2);
-        } else {
-          const isDate = field.key === 'data_emissao';
-          const isHours = field.key === 'carga_horaria';
-          const isCode = field.key === 'codigo_emissao';
-          const prefix = (isDate || isHours || isCode) ? '' : (field.prefix || '');
-          const suffix = (isDate || isHours || isCode) ? '' : (field.suffix || '');
-          const val = `${prefix}${getFieldRenderValue(field.key)}${suffix}`;
-          const fontSize = Math.round(field.fontSize * scale);
-          const weight = field.fontWeight === 'black' ? '900' : field.fontWeight === 'bold' ? 'bold' : 'normal';
-          const fontFamily = field.fontFamily || template.defaultFontFamily || 'Inter, sans-serif';
-          ctx.font = `${weight} ${fontSize}px ${fontFamily}`;
-          ctx.fillStyle = field.color;
-          ctx.textAlign = field.textAlign;
-          ctx.textBaseline = 'middle';
-
-          const isWrapped = field.textWrap !== false;
-          if (isWrapped) {
-            const maxWidthPct = field.maxWidth || (field.key === 'nome_curso' ? 34 : field.key === 'carga_horaria' ? 26 : field.key === 'conteudo_programatico' || field.key === 'amparo_legal' ? 65 : 70);
-            const maxWidthPx = (maxWidthPct / 100) * outWidth;
-            const lineHeightPx = fontSize * 1.25;
-
-            // Divide texto respeitando limite da largura
-            const words = val.split(' ');
-            const lines: string[] = [];
-            let currentLine = words[0] || '';
-
-            for (let i = 1; i < words.length; i++) {
-              const testLine = currentLine + ' ' + words[i];
-              const metrics = ctx.measureText(testLine);
-              if (metrics.width <= maxWidthPx) {
-                currentLine = testLine;
-              } else {
-                lines.push(currentLine);
-                currentLine = words[i];
-              }
-            }
-            lines.push(currentLine);
-
-            const totalHeight = (lines.length - 1) * lineHeightPx;
-            const startY = posY - totalHeight / 2;
-
-            for (let i = 0; i < lines.length; i++) {
-              ctx.fillText(lines[i], posX, startY + i * lineHeightPx);
-            }
-          } else {
-            ctx.fillText(val, posX, posY);
-          }
-        }
-      }
-
-      // 3. Download high-res PNG
-      const dataUrl = offscreen.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `certificado-${activeSide}-${outWidth}x${outHeight}.png`;
-      downloadLink.href = dataUrl;
-      downloadLink.click();
-      showToast(`Certificado HD (${outWidth} × ${outHeight} px) baixado com sucesso!`);
+      showToast('Renderizando versão digital HD diretamente no Canvas...');
+      const studentData = {
+        studentName: sampleStudentName,
+        studentCpf: sampleCpf,
+        courseTitle: sampleCourseTitle,
+        hours: sampleHours,
+        issueDate: template.fields.data_emissao?.sampleText || '16-09-2026',
+        code: sampleCode,
+        instructor: sampleInstructor,
+        institutionName: template.institutionName,
+        institutionCnpj: template.institutionCnpj,
+      };
+      await downloadCertificatePng(studentData, template, activeSide);
+      showToast(`Certificado (${activeSide}) baixado em alta definição!`);
     } catch (err) {
       console.error(err);
-      showToast('Certificado exportado!');
+      showToast('Erro ao exportar certificado PNG.');
+    }
+  };
+
+  // Export official PDF in A4 Landscape (29,7 x 21 cm)
+  const handleExportPdf = async () => {
+    try {
+      showToast('Gerando PDF A4 oficial com desenho direto no Canvas...');
+      const studentData = {
+        studentName: sampleStudentName,
+        studentCpf: sampleCpf,
+        courseTitle: sampleCourseTitle,
+        hours: sampleHours,
+        issueDate: template.fields.data_emissao?.sampleText || '16-09-2026',
+        code: sampleCode,
+        instructor: sampleInstructor,
+        institutionName: template.institutionName,
+        institutionCnpj: template.institutionCnpj,
+      };
+      await downloadCertificatePdf(studentData, template, true);
+      showToast('PDF oficial A4 gerado e descarregado!');
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao exportar PDF do certificado.');
     }
   };
 
@@ -1067,8 +1059,8 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
     dragStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      initFieldX: field.x,
-      initFieldY: field.y,
+      initFieldX: field.x_percent !== undefined ? field.x_percent : field.x,
+      initFieldY: field.y_percent !== undefined ? field.y_percent : field.y,
     };
 
     const target = e.currentTarget as HTMLElement;
@@ -1078,23 +1070,34 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!draggingKey || !dragStartRef.current || !canvasRef.current) return;
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
+    // Obtém as dimensões reais renderizadas da imagem de fundo ou do container
+    const targetRect =
+      imageRef.current && imageRef.current.getBoundingClientRect().width > 0
+        ? imageRef.current.getBoundingClientRect()
+        : canvasRef.current.getBoundingClientRect();
+
+    if (targetRect.width === 0 || targetRect.height === 0) return;
 
     const deltaPixelX = e.clientX - dragStartRef.current.startX;
     const deltaPixelY = e.clientY - dragStartRef.current.startY;
 
-    const deltaPercentX = (deltaPixelX / rect.width) * 100;
-    const deltaPercentY = (deltaPixelY / rect.height) * 100;
+    // Normaliza sempre para percentagem relativa (0 a 100%) da imagem renderizada
+    const deltaPercentX = (deltaPixelX / targetRect.width) * 100;
+    const deltaPercentY = (deltaPixelY / targetRect.height) * 100;
 
     let newX = Math.round((dragStartRef.current.initFieldX + deltaPercentX) * 10) / 10;
     let newY = Math.round((dragStartRef.current.initFieldY + deltaPercentY) * 10) / 10;
 
-    // Clamp between 3% and 97% to keep within certificate boundaries
-    newX = Math.max(3, Math.min(97, newX));
-    newY = Math.max(3, Math.min(97, newY));
+    // Clampa rigorosamente entre 0% e 100%
+    newX = Math.max(0, Math.min(100, newX));
+    newY = Math.max(0, Math.min(100, newY));
 
-    updateField(draggingKey, { x: newX, y: newY });
+    updateField(draggingKey, {
+      x: newX,
+      y: newY,
+      x_percent: newX,
+      y_percent: newY,
+    });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -1136,19 +1139,23 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
     const key = e.dataTransfer.getData('text/plain') as CertificateFieldKey;
 
     if (key && template.fields[key] && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const dropPixelX = e.clientX - rect.left;
-      const dropPixelY = e.clientY - rect.top;
+      // Normalização com compensação de escala/zoom
+      const coords = calculateNormalizedDropCoordinates(
+        e.clientX,
+        e.clientY,
+        canvasRef.current,
+        imageRef.current
+      );
 
-      let newX = Math.round(((dropPixelX / rect.width) * 100) * 10) / 10;
-      let newY = Math.round(((dropPixelY / rect.height) * 100) * 10) / 10;
-
-      newX = Math.max(5, Math.min(95, newX));
-      newY = Math.max(5, Math.min(95, newY));
-
-      updateField(key, { x: newX, y: newY, visible: true });
+      updateField(key, {
+        x: coords.x_percent,
+        y: coords.y_percent,
+        x_percent: coords.x_percent,
+        y_percent: coords.y_percent,
+        visible: true,
+      });
       setSelectedFieldKey(key);
-      showToast(`Campo "${template.fields[key].label}" posicionado em X: ${newX}% | Y: ${newY}%`);
+      showToast(`Campo "${template.fields[key].label}" posicionado em X: ${coords.x_percent}% | Y: ${coords.y_percent}%`);
     }
   };
 
@@ -2398,6 +2405,7 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
               {/* BACKGROUND 1: User custom uploaded image */}
               {currentCustomBg ? (
                 <img
+                  ref={imageRef}
                   src={currentCustomBg}
                   alt={`Arte de fundo ${activeSide}`}
                   className={`absolute inset-0 w-full h-full pointer-events-none select-none transition-all duration-150 ${
@@ -2765,9 +2773,12 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
                         <span className="material-symbols-outlined text-sm">drag_indicator</span>
                       </div>
                       <div className="truncate">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-bold text-text-primary truncate group-hover:text-primary transition-colors">
                             {field.label}
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-accent-gold/20 text-accent-gold border border-accent-gold/30 shrink-0">
+                            {field.tag || `{${field.key}}`}
                           </span>
                           {field.visible ? (
                             <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -2858,7 +2869,7 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
                 Como funciona a emissão:
               </span>
               <p className="text-[11px] text-text-tertiary leading-relaxed">
-                Toda vez que um novo certificado for emitido no sistema, os dados reais do aluno e do curso serão estampados exatamente nas coordenadas que você configurou aqui.
+                Toda vez que um novo certificado for emitido no sistema, os dados reais do aluno ({'{aluno}'}) e do curso ({'{curso}'}) serão estampados exatamente nas coordenadas que você configurou aqui.
               </p>
             </div>
 
@@ -2873,25 +2884,37 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
                 <span>Salvar Modelo de Certificado</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleExportHighResPng}
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                title="Gera e baixa um arquivo PNG em alta resolução de 1920 × 1080 pixels (16:9)"
-              >
-                <span className="material-symbols-outlined text-base">download</span>
-                <span>Baixar Versão Digital HD (1920 × 1080 px)</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportPdf}
+                  className="py-2.5 px-2 rounded-xl bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold border border-accent-gold/40 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Gera e descarrega o certificado oficial em PDF A4 Paisagem (29,7 × 21 cm) desenhado diretamente no Canvas"
+                >
+                  <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                  <span>Baixar PDF (A4)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportHighResPng}
+                  className="py-2.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  title="Gera e descarrega imagem PNG em alta resolução sem capturar tela com zoom"
+                >
+                  <span className="material-symbols-outlined text-base">image</span>
+                  <span>Baixar PNG HD</span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={handlePrint}
                   className="px-2.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-border-subtle text-[11px] font-semibold text-text-secondary hover:text-text-primary flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                  title="Imprimir ou salvar em PDF na proporção 16:9 (29,7 × 16,7 cm)"
+                  title="Imprimir ou salvar em PDF na proporção A4 (29,7 × 21 cm)"
                 >
                   <span className="material-symbols-outlined text-sm">print</span>
-                  <span>Imprimir (29,7×16,7 cm)</span>
+                  <span>Imprimir (A4)</span>
                 </button>
 
                 <button
@@ -2900,7 +2923,7 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
                   className="px-2.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-border-subtle text-[11px] font-semibold text-text-tertiary hover:text-red-400 flex items-center justify-center gap-1 cursor-pointer transition-colors"
                 >
                   <span className="material-symbols-outlined text-sm">restart_alt</span>
-                  <span>Restaurar 16:9</span>
+                  <span>Restaurar Padrão</span>
                 </button>
               </div>
             </div>

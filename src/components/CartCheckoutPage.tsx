@@ -81,14 +81,10 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   };
 
   const handleFinishOrder = () => {
-    if (!currentUser) {
-      onOpenAuth();
-      return;
-    }
     onCheckoutSuccess({
-      studentName,
-      studentEmail,
-      studentCpf,
+      studentName: studentName.trim() || currentUser?.name || 'Aluno Deds Academy',
+      studentEmail: studentEmail.trim() || currentUser?.email || 'aluno@dedsacademy.com.br',
+      studentCpf: studentCpf.trim() || currentUser?.cpf || '384.920.118-04',
       paymentMethod: paymentMode,
     });
   };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CertificateItem, UserAccount, Course } from '../../types';
 import { CertificateTemplateModal } from './CertificateTemplateModal';
+import { downloadCertificatePdf, downloadCertificatePng } from '../../utils/certificateGenerator';
 
 interface CertificatesTabProps {
   certificates: CertificateItem[];
@@ -455,6 +456,60 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
 
                               <button
                                 type="button"
+                                onClick={async () => {
+                                  try {
+                                    setOpenMenuCertId(null);
+                                    await downloadCertificatePdf({
+                                      studentName: cert.studentName,
+                                      studentCpf: cert.studentCpf,
+                                      studentCode: cert.studentCode,
+                                      courseTitle: cert.courseTitle,
+                                      courseCategory: cert.courseCategory,
+                                      hours: cert.hours,
+                                      issueDate: cert.issueDate,
+                                      code: cert.code,
+                                      instructor: cert.instructor,
+                                    });
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert('Erro ao descarregar PDF do certificado.');
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-semibold text-accent-gold hover:bg-surface-overlay flex items-center gap-2 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                                <span>Baixar PDF Oficial</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    setOpenMenuCertId(null);
+                                    await downloadCertificatePng({
+                                      studentName: cert.studentName,
+                                      studentCpf: cert.studentCpf,
+                                      studentCode: cert.studentCode,
+                                      courseTitle: cert.courseTitle,
+                                      courseCategory: cert.courseCategory,
+                                      hours: cert.hours,
+                                      issueDate: cert.issueDate,
+                                      code: cert.code,
+                                      instructor: cert.instructor,
+                                    }, undefined, 'frente');
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert('Erro ao descarregar imagem PNG do certificado.');
+                                  }
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-semibold text-emerald-400 hover:bg-surface-overlay flex items-center gap-2 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm">image</span>
+                                <span>Baixar PNG HD</span>
+                              </button>
+
+                              <button
+                                type="button"
                                 onClick={() => {
                                   handleCopyCode(cert.code);
                                   setOpenMenuCertId(null);
@@ -807,15 +862,43 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleCopyCode(previewCert.code)}
-                  className="px-3 py-2 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-xs font-bold text-text-primary flex items-center gap-1 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-sm">content_copy</span>
-                  <span>Copiar Hash</span>
-                </button>
+              <div className="flex items-center justify-between pt-2 gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(previewCert.code)}
+                    className="px-3 py-2 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-xs font-bold text-text-primary flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">content_copy</span>
+                    <span>Copiar Hash</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await downloadCertificatePdf({
+                          studentName: previewCert.studentName,
+                          studentCpf: previewCert.studentCpf,
+                          studentCode: previewCert.studentCode,
+                          courseTitle: previewCert.courseTitle,
+                          courseCategory: previewCert.courseCategory,
+                          hours: previewCert.hours,
+                          issueDate: previewCert.issueDate,
+                          code: previewCert.code,
+                          instructor: previewCert.instructor,
+                        });
+                      } catch (err) {
+                        console.error(err);
+                        alert('Erro ao gerar PDF do certificado.');
+                      }
+                    }}
+                    className="px-3 py-2 rounded-xl bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold border border-accent-gold/40 text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-sm">picture_as_pdf</span>
+                    <span>Baixar PDF Oficial</span>
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -823,7 +906,7 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                     setPreviewCert(null);
                     setIsTemplateModalOpen(true);
                   }}
-                  className="px-4 py-2 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md cursor-pointer flex items-center gap-1"
+                  className="px-3.5 py-2 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md cursor-pointer flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined text-sm">design_services</span>
                   <span>Ver no Modelo Gráfico</span>

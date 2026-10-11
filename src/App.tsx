@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { CoursesSection } from './components/CoursesSection';
@@ -24,10 +24,32 @@ import type { RegistrationData } from './components/RegisterPage';
 import { BlogPage } from './components/BlogPage';
 import { CoursesCatalogPage } from './components/CoursesCatalogPage';
 import { ContactPage } from './components/ContactPage';
+import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
+import { CertificateSection } from './components/CertificateSection';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
-import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES } from './data/usersData';
-import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER } from './types';
+import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS } from './data/usersData';
+import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
+
+/**
+ * SECURITY: Blocks unauthorized access to admin panel.
+ * Renders a "restricted" screen and triggers redirect on mount via useEffect.
+ * This ensures no admin content is ever rendered for non-admin users.
+ */
+const AdminAccessBlocked: React.FC<{ onRedirect: () => void }> = ({ onRedirect }) => {
+  useEffect(() => {
+    onRedirect();
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center space-y-4">
+        <span className="material-symbols-outlined text-6xl text-status-danger">shield</span>
+        <p className="text-text-secondary font-label-lg">Acesso restrito — redirecionando...</p>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   // Navigation View: 'inicio' | 'cursos' | 'categorias' | 'planos' | 'certificados' | 'blog' | 'contato' | 'carrinho' | 'aluno' | 'admin' | 'cadastro'
@@ -211,6 +233,55 @@ export default function App() {
     role: 'aluno',
   });
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [playerCourse, setPlayerCourse] = useState<Course | null>(null);
+
+  // Persistent reviews list synchronized across Home, Admin and Student flow
+  const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_course_reviews');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_COURSE_REVIEWS;
+  });
+
+  const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_certificates_list');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_CERTIFICATES;
+  });
+
+  // Dynamic recalculation of course ratings and review counts based on real student reviews
+  const enrichedCoursesList = useMemo(() => {
+    return coursesList.map((course) => {
+      const courseReviews = reviewsList.filter((r) => r.courseId === course.id);
+      if (courseReviews.length > 0) {
+        const sumRatings = courseReviews.reduce((sum, r) => sum + r.rating, 0);
+        const avg = sumRatings / courseReviews.length;
+        return {
+          ...course,
+          rating: Number(avg.toFixed(1)),
+          reviewsCount: Math.max(course.reviewsCount, courseReviews.length),
+        };
+      }
+      return course;
+    });
+  }, [coursesList, reviewsList]);
+
+  // Dynamic testimonials for the Home page derived from student reviews
+  const dynamicTestimonials: Testimonial[] = useMemo(() => {
+    const fromReviews: Testimonial[] = reviewsList
+      .filter((r) => r.comment && r.comment.trim().length > 8 && r.rating >= 4)
+      .map((r) => ({
+        id: `test-rev-${r.id}`,
+        name: r.studentName,
+        role: `Aluno(a) de ${r.courseTitle}`,
+        quote: `"${r.comment}"`,
+        avatar: r.studentAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      }));
+    return [...fromReviews, ...TESTIMONIALS].slice(0, 8);
+  }, [reviewsList]);
 
   // Cart state initialized with 3 courses matching the checkout design
   const [cartItems, setCartItems] = useState<CartItem[]>([
@@ -252,22 +323,81 @@ export default function App() {
   };
 
   const handleCheckoutSuccess = (checkoutData: CheckoutData) => {
-    // Add cart courses to current user enrolled list
+    const newCourseIds = cartItems.map((item) => item.course.id);
+    let targetUser: UserAccount;
+
     if (currentUser) {
-      const newCourseIds = cartItems.map((item) => item.course.id);
-      const updatedUser = {
+      targetUser = {
         ...currentUser,
         enrolledCourseIds: Array.from(
           new Set([...(currentUser.enrolledCourseIds || []), ...newCourseIds])
         ),
       };
-      setCurrentUser(updatedUser);
-      // Also update usersList so it persists to localStorage
-      handleUpdateUser(updatedUser);
+    } else {
+      const normalizedEmail = (checkoutData.studentEmail || '').trim().toLowerCase();
+      const existingUser = usersList.find(
+        (u) => u.email.trim().toLowerCase() === normalizedEmail
+      ) || usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno');
+
+      if (existingUser) {
+        targetUser = {
+          ...existingUser,
+          name: checkoutData.studentName?.trim() || existingUser.name,
+          cpf: checkoutData.studentCpf?.trim() || existingUser.cpf,
+          enrolledCourseIds: Array.from(
+            new Set([...(existingUser.enrolledCourseIds || []), ...newCourseIds])
+          ),
+        };
+      } else {
+        targetUser = {
+          id: `user-aluno-${Date.now()}`,
+          name: checkoutData.studentName?.trim() || 'Novo Aluno',
+          email: checkoutData.studentEmail?.trim() || 'aluno@dedsacademy.com.br',
+          role: 'aluno',
+          cpf: checkoutData.studentCpf?.trim() || '384.920.118-04',
+          studentCode: `ALU-${Math.floor(1000 + Math.random() * 9000)}`,
+          status: 'ativo',
+          registeredAt: new Date().toISOString().split('T')[0],
+          enrolledCourseIds: newCourseIds,
+          completedCourseIds: [],
+        };
+      }
     }
+
+    // Initialize progress in studentProgressMap for each enrolled course
+    setStudentProgressMap((prev) => {
+      const userProg = prev[targetUser.id] || {};
+      const updatedProg = { ...userProg };
+      newCourseIds.forEach((cId) => {
+        if (!updatedProg[cId]) {
+          const cObj = coursesList.find((c) => c.id === cId);
+          const totalLes = cObj?.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || cObj?.lessonsCount || 1;
+          updatedProg[cId] = {
+            courseId: cId,
+            percent: 0,
+            completedLessons: 0,
+            totalLessons: totalLes,
+            lastLessonTitle: 'Módulo 1: Introdução e Visão Geral',
+            lastAccessed: 'Agora mesmo',
+            completedLessonIds: [],
+          };
+        }
+      });
+      const nextMap = { ...prev, [targetUser.id]: updatedProg };
+      try { localStorage.setItem('deds_student_progress', JSON.stringify(nextMap)); } catch {}
+      return nextMap;
+    });
+
+    setCurrentUser(targetUser);
+    handleUpdateUser(targetUser);
+    try {
+      localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
+    } catch {}
+
     setCartItems([]);
+    setSelectedCourse(null);
     setActiveNavTab('aluno');
-    showToast('Matrícula confirmada com sucesso! Acesso aos cursos liberado na Área do Aluno.');
+    showToast(`Matrícula confirmada! Bem-vindo(a) ${targetUser.name}, seus cursos estão disponíveis.`);
   };
 
   const handleSearch = (query: string) => {
@@ -410,6 +540,8 @@ export default function App() {
       const totalLessons = course?.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course?.lessonsCount || 1;
       const newCompleted = existing ? Math.min(existing.completedLessons + 1, totalLessons) : 1;
       const newPercent = Math.round((newCompleted / totalLessons) * 100);
+      const existingLessonIds = existing?.completedLessonIds || [];
+      const updatedLessonIds = lessonId ? Array.from(new Set([...existingLessonIds, lessonId])) : existingLessonIds;
 
       const updated = {
         ...prev,
@@ -422,6 +554,7 @@ export default function App() {
             totalLessons,
             lastLessonTitle: lessonTitle,
             lastAccessed: 'Agora mesmo',
+            completedLessonIds: updatedLessonIds,
           },
         },
       };
@@ -444,6 +577,241 @@ export default function App() {
     });
   };
 
+  // Handle student course review submission and certificate issuance
+  const handleStudentSubmitReview = (review: CourseReview) => {
+    setReviewsList((prev) => {
+      const updated = [review, ...prev.filter((r) => r.id !== review.id)];
+      try { localStorage.setItem('deds_course_reviews', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    if (currentUser) {
+      const userId = currentUser.id;
+      const courseId = review.courseId;
+      const course = coursesList.find((c) => c.id === courseId);
+      const totalLessons = course?.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course?.lessonsCount || 1;
+
+      setStudentProgressMap((prev) => {
+        const userProgress = prev[userId] || {};
+        const existing = userProgress[courseId];
+        const allLessonIds = course?.modules?.flatMap((m) => m.lessons.map((l) => l.id)) || (existing?.completedLessonIds || []);
+
+        const updated = {
+          ...prev,
+          [userId]: {
+            ...userProgress,
+            [courseId]: {
+              courseId,
+              percent: 100,
+              completedLessons: totalLessons,
+              totalLessons,
+              lastLessonTitle: 'Curso 100% Concluído',
+              lastAccessed: 'Hoje (Concluído)',
+              completionDate: review.date,
+              rating: review.rating,
+              reviewComment: review.comment,
+              completedLessonIds: allLessonIds,
+            },
+          },
+        };
+        try { localStorage.setItem('deds_student_progress', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+
+      if (!currentUser.completedCourseIds.includes(courseId)) {
+        const updatedUser: UserAccount = {
+          ...currentUser,
+          completedCourseIds: [...currentUser.completedCourseIds, courseId],
+        };
+        setCurrentUser(updatedUser);
+        handleUpdateUser(updatedUser);
+      }
+
+      // Add to certificates list
+      const newCert: CertificateItem = {
+        id: `cert-${courseId}-${Date.now()}`,
+        courseId,
+        courseTitle: review.courseTitle,
+        courseCategory: review.courseCategory,
+        studentId: currentUser.id,
+        studentCode: currentUser.studentCode || `ALU-${currentUser.id.replace(/\D/g, '').slice(-4) || '9842'}`,
+        studentName: currentUser.certificateData?.customName || currentUser.name,
+        studentCpf: currentUser.certificateData?.customCpf || currentUser.cpf || '384.920.118-04',
+        hours: course?.hours || 40,
+        issueDate: review.date,
+        code: `DA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+        instructor: review.instructor || course?.instructor || 'Deds Academy',
+        status: 'valido',
+      };
+      setCertificatesList((prev) => {
+        const next = [newCert, ...prev.filter((c) => !(c.courseId === courseId && c.studentId === currentUser.id))];
+        try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
+        return next;
+      });
+
+      showToast(`Avaliação confirmada! Certificado de "${review.courseTitle}" liberado! 🎉`);
+    }
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    setReviewsList((prev) => {
+      const updated = prev.filter((r) => r.id !== reviewId);
+      try { localStorage.setItem('deds_course_reviews', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+    showToast('Avaliação removida com sucesso.');
+  };
+
+  const handleAdminIssueCertificate = (newCert: CertificateItem) => {
+    setCertificatesList((prev) => {
+      const next = [newCert, ...prev];
+      try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast(`Certificado para "${newCert.studentName}" emitido com sucesso!`);
+  };
+
+  const handleAdminCancelCertificate = (certId: string, reason?: string) => {
+    setCertificatesList((prev) => {
+      const next = prev.map((c) =>
+        c.id === certId
+          ? {
+              ...c,
+              status: 'cancelado' as const,
+              cancelledAt: new Date().toLocaleDateString('pt-BR'),
+              cancellationReason: reason || 'Cancelado pela administração',
+            }
+          : c
+      );
+      try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast('Certificado cancelado e revogado.');
+  };
+
+  // Direct student enrollment in a course
+  const handleEnrollCourse = (course: Course) => {
+    let targetUser: UserAccount;
+    if (!currentUser) {
+      const defaultStudent = usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno');
+      if (defaultStudent) {
+        targetUser = {
+          ...defaultStudent,
+          enrolledCourseIds: Array.from(new Set([...(defaultStudent.enrolledCourseIds || []), course.id])),
+        };
+      } else {
+        targetUser = {
+          id: 'user-aluno-1',
+          name: 'Aluno Deds Academy',
+          email: 'aluno@dedsacademy.com.br',
+          role: 'aluno',
+          cpf: '384.920.118-04',
+          studentCode: 'ALU-9842',
+          status: 'ativo',
+          registeredAt: new Date().toISOString().split('T')[0],
+          enrolledCourseIds: [course.id],
+          completedCourseIds: [],
+        };
+      }
+    } else {
+      targetUser = {
+        ...currentUser,
+        enrolledCourseIds: Array.from(new Set([...(currentUser.enrolledCourseIds || []), course.id])),
+      };
+    }
+
+    // Initialize progress if not set
+    setStudentProgressMap((prev) => {
+      const userProg = prev[targetUser.id] || {};
+      if (!userProg[course.id]) {
+        const totalLes = course.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course.lessonsCount || 1;
+        const nextMap = {
+          ...prev,
+          [targetUser.id]: {
+            ...userProg,
+            [course.id]: {
+              courseId: course.id,
+              percent: 0,
+              completedLessons: 0,
+              totalLessons: totalLes,
+              lastLessonTitle: 'Módulo 1: Introdução e Visão Geral',
+              lastAccessed: 'Agora mesmo',
+              completedLessonIds: [],
+            },
+          },
+        };
+        try { localStorage.setItem('deds_student_progress', JSON.stringify(nextMap)); } catch {}
+        return nextMap;
+      }
+      return prev;
+    });
+
+    setCurrentUser(targetUser);
+    handleUpdateUser(targetUser);
+    try {
+      localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
+    } catch {}
+    showToast(`Matrícula confirmada! "${course.title}" foi adicionado à sua lista de cursos.`);
+  };
+
+  // Launch classroom directly from presentation screen
+  const handleStartCourseFromPresentation = (course: Course) => {
+    let targetUser = currentUser;
+    if (!targetUser) {
+      targetUser = usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno') || {
+        id: 'user-aluno-1',
+        name: 'Aluno Deds Academy',
+        email: 'aluno@dedsacademy.com.br',
+        role: 'aluno',
+        cpf: '384.920.118-04',
+        studentCode: 'ALU-9842',
+        status: 'ativo',
+        registeredAt: new Date().toISOString().split('T')[0],
+        enrolledCourseIds: [course.id],
+        completedCourseIds: [],
+      };
+    }
+    if (!targetUser.enrolledCourseIds?.includes(course.id)) {
+      targetUser = {
+        ...targetUser,
+        enrolledCourseIds: [...(targetUser.enrolledCourseIds || []), course.id],
+      };
+      handleUpdateUser(targetUser);
+    }
+    setCurrentUser(targetUser);
+    try {
+      localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
+    } catch {}
+
+    // Initialize progress if not set
+    setStudentProgressMap((prev) => {
+      const userProg = prev[targetUser.id] || {};
+      if (!userProg[course.id]) {
+        const totalLes = course.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course.lessonsCount || 1;
+        const nextMap = {
+          ...prev,
+          [targetUser.id]: {
+            ...userProg,
+            [course.id]: {
+              courseId: course.id,
+              percent: 0,
+              completedLessons: 0,
+              totalLessons: totalLes,
+              lastLessonTitle: 'Módulo 1: Introdução e Visão Geral',
+              lastAccessed: 'Agora mesmo',
+              completedLessonIds: [],
+            },
+          },
+        };
+        try { localStorage.setItem('deds_student_progress', JSON.stringify(nextMap)); } catch {}
+        return nextMap;
+      }
+      return prev;
+    });
+
+    setPlayerCourse(course);
+  };
+
   // Fix 5b: Handle enrollment cancellation — remove courseIds from user's enrollment
   const handleCancelEnrollment = (courseIds: string[]) => {
     if (!currentUser) return;
@@ -459,7 +827,7 @@ export default function App() {
   };
 
   // Filter courses for public catalog — only 'publicado' status should appear on the public site
-  const displayedCourses = coursesList.filter((course) => {
+  const displayedCourses = enrichedCoursesList.filter((course) => {
     if (course.status !== 'publicado') return false;
 
     if (searchQuery.trim()) {
@@ -482,7 +850,7 @@ export default function App() {
   const addedCourseIds = cartItems.map((item) => item.course.id);
 
   // Student enrolled courses objects
-  const studentEnrolledCourses = coursesList.filter((c) =>
+  const studentEnrolledCourses = enrichedCoursesList.filter((c) =>
     currentUser?.enrolledCourseIds?.includes(c.id)
   );
 
@@ -501,6 +869,12 @@ export default function App() {
         <Header
           activeTab={selectedCourse ? '' : activeNavTab}
           setActiveTab={(tab) => {
+            // SECURITY: Block non-admin users from navigating to admin panel
+            if (tab === 'admin' && currentUser?.role !== 'admin') {
+              setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
+              showToast('Acesso negado. Faça login com credenciais de administrador.');
+              return;
+            }
             setSelectedCourse(null);
             setActiveNavTab(tab);
           }}
@@ -527,6 +901,12 @@ export default function App() {
             setActiveNavTab('aluno');
           }}
           onOpenAdminDashboard={() => {
+            // SECURITY: Verify admin role before granting access
+            if (!currentUser || currentUser.role !== 'admin') {
+              setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
+              showToast('Acesso negado. Faça login com credenciais de administrador.');
+              return;
+            }
             setSelectedCourse(null);
             setActiveNavTab('admin');
           }}
@@ -539,7 +919,7 @@ export default function App() {
         {selectedCourse ? (
           /* VIEW 0: DETALHES DO CURSO EM PÁGINA INTEIRA (SUBSTITUI A HOME AO SELECIONAR UM CURSO) */
           <CourseDetailPage
-            course={selectedCourse}
+            course={enrichedCoursesList.find((c) => c.id === selectedCourse.id) || selectedCourse}
             onBackToHome={() => {
               setSelectedCourse(null);
               setActiveNavTab('inicio');
@@ -554,6 +934,9 @@ export default function App() {
             }}
             isAdded={addedCourseIds.includes(selectedCourse.id)}
             onOpenCertificateModal={() => setIsCertModalOpen(true)}
+            onStartCourse={handleStartCourseFromPresentation}
+            isEnrolled={Boolean(currentUser?.enrolledCourseIds?.includes(selectedCourse.id))}
+            progressPercent={currentUser ? studentProgressMap[currentUser.id]?.[selectedCourse.id]?.percent : 0}
           />
         ) : activeNavTab === 'carrinho' ? (
           <CartCheckoutPage
@@ -568,7 +951,7 @@ export default function App() {
         ) : activeNavTab === 'cursos' ? (
           /* VIEW 1.5: CATÁLOGO DEDICADO DE CURSOS (COM SIDEBAR DE CATEGORIAS E OPÇÃO TODOS) */
           <CoursesCatalogPage
-            courses={coursesList.filter(c => c.status === 'publicado')}
+            courses={enrichedCoursesList.filter((c) => c.status === 'publicado')}
             categories={categoriesList}
             initialCategory={selectedCategory}
             onAddToCart={handleAddToCart}
@@ -579,6 +962,7 @@ export default function App() {
             addedCourseIds={addedCourseIds}
             currentUser={currentUser}
             onOpenStudentPortal={() => setActiveNavTab('aluno')}
+            onEnrollCourse={handleEnrollCourse}
             onNavigateHome={(sectionId) => {
               setActiveNavTab('inicio');
               scrollToSection(sectionId || 'hero-section');
@@ -591,8 +975,10 @@ export default function App() {
             user={currentUser}
             onUpdateUser={handleUpdateUser}
             enrolledCourses={studentEnrolledCourses}
+            allCourses={enrichedCoursesList.filter((c) => c.status === 'publicado')}
+            categories={categoriesList}
             progressData={(currentUser && studentProgressMap[currentUser.id]) || {}}
-            certificates={INITIAL_CERTIFICATES.filter((c) => c.studentId === currentUser?.id)}
+            certificates={certificatesList.filter((c) => c.studentId === currentUser?.id)}
             onNavigateHome={() => {
               setSelectedCategory(null);
               setActiveNavTab('cursos');
@@ -607,6 +993,9 @@ export default function App() {
             }}
             onCompleteLesson={handleCompleteLesson}
             onCancelEnrollment={handleCancelEnrollment}
+            onSubmitReview={handleStudentSubmitReview}
+            onEnrollCourse={handleEnrollCourse}
+            onStartCourse={handleStartCourseFromPresentation}
           />
           ) : (() => {
             // Redirect unauthenticated visitor to login
@@ -623,12 +1012,15 @@ export default function App() {
             </div>;
           })()
         ) : activeNavTab === 'admin' ? (
-          /* VIEW 3: PAINEL DO ADMIN — Fix 1: require admin role */
+          /* VIEW 3: PAINEL DO ADMIN — SECURITY: strict admin role guard */
           currentUser?.role === 'admin' ? (
           <AdminDashboard
-            courses={coursesList}
+            courses={enrichedCoursesList}
             users={usersList}
             categories={categoriesList}
+            certificates={certificatesList}
+            onIssueCertificate={handleAdminIssueCertificate}
+            onCancelCertificate={handleAdminCancelCertificate}
             heroBannerConfig={heroBannerConfig}
             onUpdateHeroBannerConfig={handleUpdateHeroBannerConfig}
             middleBannerConfig={middleBannerConfig}
@@ -640,21 +1032,20 @@ export default function App() {
             onUpdateUser={handleUpdateUser}
             onUpdateCategories={handleUpdateCategories}
             onLogout={handleLogout}
+            reviews={reviewsList}
+            onDeleteReview={handleDeleteReview}
+            progressMap={studentProgressMap}
           />
-          ) : (() => {
-            // Redirect non-admin user
-            setTimeout(() => {
-              setActiveNavTab('inicio');
-              setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
-              showToast('Acesso negado. Faça login com credenciais de administrador.');
-            }, 0);
-            return <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center space-y-4">
-                <span className="material-symbols-outlined text-6xl text-status-danger">shield</span>
-                <p className="text-text-secondary font-label-lg">Acesso restrito — redirecionando...</p>
-              </div>
-            </div>;
-          })()
+          ) : (
+            /* SECURITY: Non-admin access — show blocked screen and redirect immediately */
+            <AdminAccessBlocked
+              onRedirect={() => {
+                setActiveNavTab('inicio');
+                setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
+                showToast('Acesso negado. Faça login com credenciais de administrador.');
+              }}
+            />
+          )
         ) : activeNavTab === 'cadastro' ? (
           /* VIEW 4: PÁGINA DE CADASTRO COMPLETO */
           <RegisterPage
@@ -741,8 +1132,14 @@ export default function App() {
               onSelectCategory={handleSelectCategory}
             />
 
+            {/* Certificate Section with Real Validation (Área Pública) */}
+            <CertificateSection
+              certificatesList={certificatesList}
+              onOpenCertificateModal={() => setIsCertModalOpen(true)}
+            />
+
             {/* Student Testimonials */}
-            <TestimonialsSection testimonials={TESTIMONIALS} />
+            <TestimonialsSection testimonials={dynamicTestimonials} />
 
             {/* Final CTA Banner */}
             <CtaSection
@@ -791,6 +1188,7 @@ export default function App() {
       <CertificateModal
         isOpen={isCertModalOpen}
         onClose={() => setIsCertModalOpen(false)}
+        certificatesList={certificatesList}
       />
 
       {/* Unified Authentication Modal (Aluno & Admin) */}
@@ -803,6 +1201,20 @@ export default function App() {
         onOpenRegisterPage={() => setActiveNavTab('cadastro')}
         usersList={usersList}
       />
+
+      {/* Student Course Classroom Study Page for courses launched from Presentation screen */}
+      {playerCourse && (
+        <StudentCourseStudyPage
+          isOpen={!!playerCourse}
+          course={playerCourse}
+          onClose={() => setPlayerCourse(null)}
+          onCompleteLesson={handleCompleteLesson}
+          progress={currentUser ? studentProgressMap[currentUser.id]?.[playerCourse.id] : undefined}
+          currentUser={currentUser}
+          onSubmitReview={handleStudentSubmitReview}
+          onOpenCertificateModal={() => setIsCertModalOpen(true)}
+        />
+      )}
     </div>
   );
 }

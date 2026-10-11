@@ -1,38 +1,82 @@
 import React, { useState } from 'react';
+import { CertificateItem } from '../types';
+import { downloadCertificatePdf } from '../utils/certificateGenerator';
 
 interface CertificateModalProps {
   isOpen: boolean;
   onClose: () => void;
+  certificatesList?: CertificateItem[];
 }
 
-export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onClose }) => {
+export const CertificateModal: React.FC<CertificateModalProps> = ({
+  isOpen,
+  onClose,
+  certificatesList = [],
+}) => {
   const [certCode, setCertCode] = useState('#DA-2025-99841');
   const [validationResult, setValidationResult] = useState<{
-    status: 'valid' | 'invalid' | 'idle';
+    status: 'valid' | 'invalid' | 'cancelled' | 'idle';
     studentName?: string;
+    studentCpf?: string;
+    studentCode?: string;
     courseName?: string;
+    courseCategory?: string;
     workload?: string;
     issuedDate?: string;
+    instructor?: string;
+    cancellationReason?: string;
   }>({
     status: 'valid',
     studentName: 'Lucas M. Silveira',
+    studentCpf: '384.920.118-04',
     courseName: 'Inteligência Artificial & Machine Learning',
     workload: '60 Horas',
     issuedDate: '15 de Fevereiro de 2025',
+    instructor: 'Prof. Lucas M. Silveira',
   });
 
   if (!isOpen) return null;
 
   const handleValidate = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = certCode.trim().toUpperCase();
-    if (clean === '#DA-2025-99841' || clean === 'DA-2025-99841' || clean.includes('DA')) {
+    const clean = certCode.replace('#', '').trim().toLowerCase();
+
+    // Search in certificatesList
+    const foundCert = certificatesList.find(
+      (c) => c.code.replace('#', '').trim().toLowerCase() === clean
+    );
+
+    if (foundCert) {
+      if (foundCert.status === 'cancelado') {
+        setValidationResult({
+          status: 'cancelled',
+          studentName: foundCert.studentName,
+          courseName: foundCert.courseTitle,
+          workload: `${foundCert.hours} Horas`,
+          issuedDate: foundCert.issueDate,
+          cancellationReason: foundCert.cancellationReason || 'Revogado pela coordenação pedagógica',
+        });
+      } else {
+        setValidationResult({
+          status: 'valid',
+          studentName: foundCert.studentName,
+          studentCpf: foundCert.studentCpf,
+          studentCode: foundCert.studentCode,
+          courseName: foundCert.courseTitle,
+          courseCategory: foundCert.courseCategory,
+          workload: `${foundCert.hours} Horas`,
+          issuedDate: foundCert.issueDate,
+          instructor: foundCert.instructor,
+        });
+      }
+    } else if (clean === 'da-2025-99841' || clean === 'deds-exc-2025-9842') {
       setValidationResult({
         status: 'valid',
         studentName: 'Lucas M. Silveira',
         courseName: 'Inteligência Artificial & Machine Learning',
         workload: '60 Horas',
         issuedDate: '15 de Fevereiro de 2025',
+        instructor: 'Coordenação Acadêmica Deds',
       });
     } else {
       setValidationResult({
@@ -144,10 +188,23 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
               {/* Actions */}
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => alert('Download do PDF do certificado oficial iniciado.')}
-                  className="px-4 py-2 rounded-lg bg-surface-raised hover:bg-surface-overlay text-text-primary text-label-md font-semibold flex items-center gap-2 border border-border-subtle"
+                  onClick={async () => {
+                    try {
+                      await downloadCertificatePdf({
+                        studentName: validationResult.studentName || 'Lucas M. Silveira',
+                        courseTitle: validationResult.courseName || 'Inteligência Artificial & Machine Learning',
+                        hours: parseInt(validationResult.workload?.replace(/\D/g, '') || '60') || 60,
+                        issueDate: validationResult.issuedDate || '15-02-2025',
+                        code: certCode,
+                      });
+                    } catch (err) {
+                      console.error(err);
+                      alert('Erro ao gerar PDF do certificado.');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-surface-raised hover:bg-surface-overlay text-text-primary text-label-md font-semibold flex items-center gap-2 border border-border-subtle cursor-pointer transition-all"
                 >
-                  <span className="material-symbols-outlined text-body-md">download</span>
+                  <span className="material-symbols-outlined text-body-md text-accent-gold">picture_as_pdf</span>
                   <span>Baixar PDF com Assinatura</span>
                 </button>
                 <button
@@ -158,6 +215,19 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ isOpen, onCl
                   <span>Adicionar ao LinkedIn</span>
                 </button>
               </div>
+            </div>
+          ) : validationResult.status === 'cancelled' ? (
+            <div className="p-6 text-center text-status-danger bg-status-danger/10 border border-status-danger/30 rounded-xl space-y-2">
+              <span className="material-symbols-outlined text-headline-lg">cancel</span>
+              <p className="font-bold">Certificado Revogado / Cancelado</p>
+              <p className="text-body-sm text-text-secondary">
+                O documento emitido para <strong>{validationResult.studentName}</strong> referente ao curso <strong>{validationResult.courseName}</strong> foi cancelado pela coordenação acadêmica.
+              </p>
+              {validationResult.cancellationReason && (
+                <p className="text-xs text-status-danger italic">
+                  Motivo: {validationResult.cancellationReason}
+                </p>
+              )}
             </div>
           ) : (
             <div className="p-6 text-center text-status-danger bg-status-danger/10 border border-status-danger/30 rounded-xl space-y-2">

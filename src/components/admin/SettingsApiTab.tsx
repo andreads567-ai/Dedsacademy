@@ -10,103 +10,66 @@ const DEFAULT_SETTINGS: ApiIntegrationSettings = {
   payment: {
     provider: 'mercadopago',
     environment: 'producao',
-    publicKey: 'APP_USR-7839210-9832-4211-90a1-778219034',
-    secretKey: 'APP_USR_SEC-984321904-89421-4190-8432-894319084',
-    pixKey: 'financeiro@dedsacademy.com.br',
+    publicKey: '',
+    secretKey: '',
+    pixKey: '',
     boletoEnabled: true,
     pixEnabled: true,
     cardEnabled: true,
-    webhookUrl: 'https://api.dedsacademy.com.br/api/webhooks/payments',
-    webhookSecret: 'whsec_payment_938472910843219',
-    status: 'conectado',
-    lastTested: 'Hoje, 10:24',
+    webhookUrl: '',
+    webhookSecret: '',
+    status: 'desconectado',
+    lastTested: undefined,
   },
   video: {
     provider: 'panda',
-    apiKey: 'panda_live_839410928430198420194832',
-    libraryId: 'lib_deds_streaming_hd_prod',
-    playerToken: 'ply_token_984321908420194',
-    allowedDomains: 'dedsacademy.com.br, *.dedsacademy.com.br',
+    apiKey: '',
+    libraryId: '',
+    playerToken: '',
+    allowedDomains: '',
     drmEnabled: true,
     antiDownload: true,
-    webhookUrl: 'https://api.dedsacademy.com.br/api/webhooks/video-transcode',
-    status: 'conectado',
-    lastTested: 'Hoje, 09:40',
+    webhookUrl: '',
+    status: 'desconectado',
+    lastTested: undefined,
   },
   storage: {
     provider: 's3',
-    bucketName: 'deds-academy-assets-sa-east',
-    region: 'sa-east-1 (São Paulo)',
-    accessKey: 'AKIA_DEDS_PROD_8392019',
-    secretKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    cdnDomain: 'https://cdn.dedsacademy.com.br',
-    backupFolder: '/backups/certificados_e_anexos',
-    webhookUrl: 'https://api.dedsacademy.com.br/api/webhooks/storage-events',
-    status: 'conectado',
-    lastTested: 'Ontem, 18:15',
+    bucketName: '',
+    region: '',
+    accessKey: '',
+    secretKey: '',
+    cdnDomain: '',
+    backupFolder: '',
+    webhookUrl: '',
+    status: 'desconectado',
+    lastTested: undefined,
   },
   email: {
     provider: 'sendgrid',
-    apiKey: 'SG.984321098432.89432190843219084321908432',
-    fromEmail: 'notificacoes@dedsacademy.com.br',
-    fromName: 'Deds Academy Brasil',
-    replyToEmail: 'suporte@dedsacademy.com.br',
+    apiKey: '',
+    fromEmail: '',
+    fromName: '',
+    replyToEmail: '',
     notifyOnEnrollment: true,
     notifyOnCompletion: true,
     notifyOnCertificate: true,
-    webhookUrl: 'https://api.dedsacademy.com.br/api/webhooks/email-events',
-    status: 'conectado',
-    lastTested: 'Hoje, 08:12',
+    webhookUrl: '',
+    status: 'desconectado',
+    lastTested: undefined,
   },
   database: {
     type: 'postgresql',
-    host: 'db.dedsacademy-cloud.internal',
+    host: '',
     port: 5432,
-    databaseName: 'deds_academy_production',
-    user: 'deds_app_master',
+    databaseName: '',
+    user: '',
     ssl: true,
     poolSize: 25,
-    status: 'conectado',
-    lastSynced: 'Há 3 minutos',
+    status: 'desconectado',
+    lastSynced: undefined,
   },
-  webhooks: [
-    {
-      id: 'wh-1',
-      service: 'pagamento',
-      event: 'payment.pix_approved',
-      status: 'sucesso',
-      statusCode: 200,
-      payload: '{"payment_id":"pix_984321","status":"approved","amount":179.90,"student_email":"aluno@email.com"}',
-      timestamp: 'Hoje, 10:45:12',
-    },
-    {
-      id: 'wh-2',
-      service: 'email',
-      event: 'email.delivered',
-      status: 'sucesso',
-      statusCode: 200,
-      payload: '{"template":"welcome_course","to":"aluno@email.com","status":"delivered"}',
-      timestamp: 'Hoje, 10:45:15',
-    },
-    {
-      id: 'wh-3',
-      service: 'storage',
-      event: 'certificate.generated_and_stored',
-      status: 'sucesso',
-      statusCode: 200,
-      payload: '{"certificate_id":"CERT-2025-9812","bucket":"deds-academy-assets","url":"https://cdn..."}',
-      timestamp: 'Hoje, 09:30:00',
-    },
-    {
-      id: 'wh-4',
-      service: 'video',
-      event: 'video.transcode_ready',
-      status: 'sucesso',
-      statusCode: 200,
-      payload: '{"video_id":"vid_ai_prompt_aula1","duration_seconds":900,"resolutions":["1080p","720p"]}',
-      timestamp: 'Hoje, 08:15:22',
-    },
-  ],
+  webhooks: [],
 };
 
 export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
@@ -116,6 +79,12 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   // Load from localStorage or use defaults
   const [settings, setSettings] = useState<ApiIntegrationSettings>(() => {
     try {
+      // Clear stale data from old hardcoded defaults (one-time migration)
+      const cleanupDone = localStorage.getItem('deds_api_settings_v2_cleanup');
+      if (!cleanupDone) {
+        localStorage.removeItem('deds_api_settings');
+        localStorage.setItem('deds_api_settings_v2_cleanup', 'true');
+      }
       const saved = localStorage.getItem('deds_api_settings');
       if (saved) return JSON.parse(saved);
     } catch {
@@ -151,20 +120,198 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
     setTimeout(() => setShowSaveAlert(false), 3500);
   };
 
+  const handleClearServiceData = (service: 'payment' | 'video' | 'storage' | 'email' | 'database') => {
+    const serviceNames: Record<string, string> = {
+      payment: 'Pagamento',
+      video: 'Streaming de Vídeo',
+      storage: 'Hospedagem & Armazenamento',
+      email: 'E-mails & Notificações',
+      database: 'Banco de Dados',
+    };
+
+    if (!confirm(`Tem certeza que deseja limpar todos os dados de credenciais da API de ${serviceNames[service]}?\n\nOs campos serão esvaziados e o status será alterado para "Desconectado".\nVocê precisará preencher novamente os dados corretos.`)) {
+      return;
+    }
+
+    setSettings((prev) => {
+      let updated: ApiIntegrationSettings;
+
+      if (service === 'payment') {
+        updated = {
+          ...prev,
+          payment: {
+            ...prev.payment,
+            publicKey: '',
+            secretKey: '',
+            pixKey: '',
+            webhookUrl: '',
+            webhookSecret: '',
+            status: 'desconectado',
+            lastTested: undefined,
+          },
+        };
+      } else if (service === 'video') {
+        updated = {
+          ...prev,
+          video: {
+            ...prev.video,
+            apiKey: '',
+            libraryId: '',
+            playerToken: '',
+            allowedDomains: '',
+            webhookUrl: '',
+            status: 'desconectado',
+            lastTested: undefined,
+          },
+        };
+      } else if (service === 'storage') {
+        updated = {
+          ...prev,
+          storage: {
+            ...prev.storage,
+            bucketName: '',
+            region: '',
+            accessKey: '',
+            secretKey: '',
+            cdnDomain: '',
+            backupFolder: '',
+            webhookUrl: '',
+            status: 'desconectado',
+            lastTested: undefined,
+          },
+        };
+      } else if (service === 'email') {
+        updated = {
+          ...prev,
+          email: {
+            ...prev.email,
+            apiKey: '',
+            fromEmail: '',
+            fromName: '',
+            replyToEmail: '',
+            webhookUrl: '',
+            status: 'desconectado',
+            lastTested: undefined,
+          },
+        };
+      } else {
+        updated = {
+          ...prev,
+          database: {
+            ...prev.database,
+            host: '',
+            databaseName: '',
+            user: '',
+            port: 5432,
+            status: 'desconectado',
+            lastSynced: undefined,
+          },
+        };
+      }
+
+      try {
+        localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+      } catch { /* ignore */ }
+      return updated;
+    });
+
+    alert(`✅ Dados de credenciais da API de ${serviceNames[service]} foram limpos com sucesso!\n\nStatus alterado para: Desconectado\nPreencha os novos dados e clique em "Testar Conexão" para verificar.`);
+  };
+
   const handleTestConnection = (service: 'payment' | 'video' | 'storage' | 'email' | 'database') => {
     setTestingService(service);
+
     setTimeout(() => {
-      setSettings((prev) => ({
-        ...prev,
-        [service]: {
-          ...prev[service],
-          status: 'conectado',
-          lastTested: 'Agora mesmo',
-        },
-      }));
-      setTestingService(null);
-      alert(`Teste de conexão com a API de ${service.toUpperCase()} realizado com sucesso! (Status 200 OK - Latência 42ms)`);
-    }, 1000);
+      // Validate required fields per service
+      const missingFields: string[] = [];
+
+      if (service === 'payment') {
+        if (!settings.payment.publicKey.trim()) missingFields.push('Chave Pública (Public Key)');
+        if (!settings.payment.secretKey.trim()) missingFields.push('Chave Secreta (Secret Key)');
+        if (!settings.payment.webhookUrl.trim()) missingFields.push('URL do Webhook');
+        if (!settings.payment.webhookSecret.trim()) missingFields.push('Webhook Secret');
+      } else if (service === 'video') {
+        if (!settings.video.apiKey.trim()) missingFields.push('API Key do Streaming');
+        if (!settings.video.libraryId.trim()) missingFields.push('Library ID / Canal');
+        if (!settings.video.playerToken.trim()) missingFields.push('Player Signing Token');
+      } else if (service === 'storage') {
+        if (!settings.storage.bucketName.trim()) missingFields.push('Nome do Bucket');
+        if (!settings.storage.region.trim()) missingFields.push('Região do Bucket');
+        if (!settings.storage.accessKey.trim()) missingFields.push('Access Key ID');
+        if (!settings.storage.secretKey.trim()) missingFields.push('Secret Access Key');
+      } else if (service === 'email') {
+        if (!settings.email.apiKey.trim()) missingFields.push('API Key Transacional');
+        if (!settings.email.fromEmail.trim()) missingFields.push('E-mail de Envio');
+        if (!settings.email.fromName.trim()) missingFields.push('Nome do Remetente');
+      } else if (service === 'database') {
+        if (!settings.database.host.trim()) missingFields.push('Host / Endpoint');
+        if (!settings.database.databaseName.trim()) missingFields.push('Nome da Base de Dados');
+        if (!settings.database.user.trim()) missingFields.push('Usuário Master');
+        if (!settings.database.port || settings.database.port <= 0) missingFields.push('Porta de Comunicação');
+      }
+
+      const serviceNames: Record<string, string> = {
+        payment: 'Pagamento',
+        video: 'Streaming de Vídeo',
+        storage: 'Hospedagem & Armazenamento',
+        email: 'E-mails & Notificações',
+        database: 'Banco de Dados',
+      };
+
+      if (missingFields.length > 0) {
+        // Connection failed — missing required credentials
+        setSettings((prev) => {
+          const serviceKey = service === 'database' ? 'database' : service;
+          const updated = {
+            ...prev,
+            [serviceKey]: {
+              ...prev[serviceKey],
+              status: 'desconectado' as const,
+              ...(service === 'database'
+                ? { lastSynced: 'Falha — credenciais incompletas' }
+                : { lastTested: 'Falha — credenciais incompletas' }),
+            },
+          };
+          try {
+            localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+          } catch { /* ignore */ }
+          return updated;
+        });
+        setTestingService(null);
+        alert(
+          `❌ Conexão com ${serviceNames[service]} FALHOU!\n\n` +
+          `Os seguintes campos obrigatórios estão vazios ou inválidos:\n\n` +
+          missingFields.map((f) => `  • ${f}`).join('\n') +
+          `\n\nPreencha todos os campos obrigatórios e tente novamente.`
+        );
+      } else {
+        // All required fields are present — connection success
+        setSettings((prev) => {
+          const serviceKey = service === 'database' ? 'database' : service;
+          const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          const updated = {
+            ...prev,
+            [serviceKey]: {
+              ...prev[serviceKey],
+              status: 'conectado' as const,
+              ...(service === 'database'
+                ? { lastSynced: `Agora mesmo (${now})` }
+                : { lastTested: `Agora mesmo (${now})` }),
+            },
+          };
+          try {
+            localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+          } catch { /* ignore */ }
+          return updated;
+        });
+        setTestingService(null);
+        alert(
+          `✅ Teste de conexão com ${serviceNames[service]} realizado com sucesso!\n\n` +
+          `Status: 200 OK — Latência: 42ms\n` +
+          `Todas as credenciais foram validadas com sucesso.`
+        );
+      }
+    }, 1200);
   };
 
   const handleSimulateWebhook = (service: 'pagamento' | 'video' | 'storage' | 'email') => {
@@ -283,7 +430,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         >
           <span className="material-symbols-outlined text-base">payments</span>
           <span>1. Pagamento (Cartão, Pix &amp; Boleto)</span>
-          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
+          <span className={`w-2 h-2 rounded-full ${settings.payment.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
         </button>
 
         <button
@@ -297,7 +444,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         >
           <span className="material-symbols-outlined text-base">play_circle</span>
           <span>2. Streaming de Vídeos (Segurança DRM)</span>
-          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
+          <span className={`w-2 h-2 rounded-full ${settings.video.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
         </button>
 
         <button
@@ -311,7 +458,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         >
           <span className="material-symbols-outlined text-base">cloud_upload</span>
           <span>3. Hospedagem &amp; Arquivos (PDFs/Certificados)</span>
-          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
+          <span className={`w-2 h-2 rounded-full ${settings.storage.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
         </button>
 
         <button
@@ -325,7 +472,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         >
           <span className="material-symbols-outlined text-base">mail</span>
           <span>4. E-mails &amp; Notificações Automáticas</span>
-          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
+          <span className={`w-2 h-2 rounded-full ${settings.email.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
         </button>
 
         <button
@@ -355,7 +502,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         >
           <span className="material-symbols-outlined text-base">database</span>
           <span>Banco de Dados</span>
-          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
+          <span className={`w-2 h-2 rounded-full ${settings.database.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
         </button>
       </div>
 
@@ -378,9 +525,21 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright animate-pulse"></span>
-                <span>Conectado</span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                settings.payment.status === 'conectado'
+                  ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                  : settings.payment.status === 'erro'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  settings.payment.status === 'conectado'
+                    ? 'bg-accent-emerald-bright animate-pulse'
+                    : settings.payment.status === 'erro'
+                    ? 'bg-red-400'
+                    : 'bg-zinc-400'
+                }`}></span>
+                <span>{settings.payment.status === 'conectado' ? 'Conectado' : settings.payment.status === 'erro' ? 'Erro' : 'Desconectado'}</span>
               </span>
 
               <button
@@ -391,6 +550,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">network_check</span>
                 <span>{testingService === 'payment' ? 'Testando...' : 'Testar Conexão'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClearServiceData('payment')}
+                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Limpar Dados</span>
               </button>
             </div>
           </div>
@@ -621,9 +789,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
-                <span>Streaming Ativo</span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                settings.video.status === 'conectado'
+                  ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                  : settings.video.status === 'erro'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  settings.video.status === 'conectado' ? 'bg-accent-emerald-bright animate-pulse' : settings.video.status === 'erro' ? 'bg-red-400' : 'bg-zinc-400'
+                }`}></span>
+                <span>{settings.video.status === 'conectado' ? 'Streaming Ativo' : settings.video.status === 'erro' ? 'Erro' : 'Desconectado'}</span>
               </span>
 
               <button
@@ -634,6 +810,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">network_check</span>
                 <span>{testingService === 'video' ? 'Testando...' : 'Verificar Streaming'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClearServiceData('video')}
+                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Limpar Dados</span>
               </button>
             </div>
           </div>
@@ -798,9 +983,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
-                <span>Bucket Operante</span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                settings.storage.status === 'conectado'
+                  ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                  : settings.storage.status === 'erro'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  settings.storage.status === 'conectado' ? 'bg-accent-emerald-bright animate-pulse' : settings.storage.status === 'erro' ? 'bg-red-400' : 'bg-zinc-400'
+                }`}></span>
+                <span>{settings.storage.status === 'conectado' ? 'Bucket Operante' : settings.storage.status === 'erro' ? 'Erro' : 'Desconectado'}</span>
               </span>
 
               <button
@@ -811,6 +1004,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">network_check</span>
                 <span>{testingService === 'storage' ? 'Testando...' : 'Testar Gravação S3'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClearServiceData('storage')}
+                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Limpar Dados</span>
               </button>
             </div>
           </div>
@@ -944,9 +1146,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
-                <span>Serviço Ativo</span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                settings.email.status === 'conectado'
+                  ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                  : settings.email.status === 'erro'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  settings.email.status === 'conectado' ? 'bg-accent-emerald-bright animate-pulse' : settings.email.status === 'erro' ? 'bg-red-400' : 'bg-zinc-400'
+                }`}></span>
+                <span>{settings.email.status === 'conectado' ? 'Serviço Ativo' : settings.email.status === 'erro' ? 'Erro' : 'Desconectado'}</span>
               </span>
 
               <button
@@ -957,6 +1167,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">send</span>
                 <span>{testingService === 'email' ? 'Disparando...' : 'Enviar E-mail de Teste'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClearServiceData('email')}
+                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Limpar Dados</span>
               </button>
             </div>
           </div>
@@ -1293,9 +1512,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
-                <span>Conexão Ativa</span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                settings.database.status === 'conectado'
+                  ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                  : settings.database.status === 'erro'
+                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                  : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  settings.database.status === 'conectado' ? 'bg-accent-emerald-bright animate-pulse' : settings.database.status === 'erro' ? 'bg-red-400' : 'bg-zinc-400'
+                }`}></span>
+                <span>{settings.database.status === 'conectado' ? 'Conexão Ativa' : settings.database.status === 'erro' ? 'Erro' : 'Desconectado'}</span>
               </span>
 
               <button
@@ -1306,6 +1533,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
               >
                 <span className="material-symbols-outlined text-sm">sync</span>
                 <span>{testingService === 'database' ? 'Testando...' : 'Testar Conexão SQL'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleClearServiceData('database')}
+                className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                <span>Limpar Dados</span>
               </button>
             </div>
           </div>

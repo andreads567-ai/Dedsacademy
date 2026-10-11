@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig, StudentProgress } from '../types';
 import { CATEGORIES } from '../data/coursesData';
 import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
@@ -27,6 +27,9 @@ interface AdminDashboardProps {
   instructors?: Instructor[];
   blogPosts?: BlogPost[];
   certificates?: CertificateItem[];
+  reviews?: CourseReview[];
+  onDeleteReview?: (reviewId: string) => void;
+  progressMap?: Record<string, Record<string, StudentProgress>>;
   heroBannerConfig?: HeroBannerConfig;
   onUpdateHeroBannerConfig?: (config: HeroBannerConfig) => void;
   middleBannerConfig?: MiddlePromoBannerConfig;
@@ -38,6 +41,8 @@ interface AdminDashboardProps {
   onUpdateUser: (user: UserAccount) => void;
   onDeleteUser?: (userId: string) => void;
   onUpdateCategories?: (categories: Category[]) => void;
+  onIssueCertificate?: (certificate: CertificateItem) => void;
+  onCancelCertificate?: (certId: string, reason?: string) => void;
   onLogout: () => void;
 }
 
@@ -48,6 +53,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
   certificates: initialCertificates = INITIAL_CERTIFICATES,
+  reviews,
+  onDeleteReview,
+  progressMap,
   heroBannerConfig,
   onUpdateHeroBannerConfig,
   middleBannerConfig,
@@ -58,6 +66,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onAddUser,
   onUpdateUser,
   onUpdateCategories,
+  onIssueCertificate,
+  onCancelCertificate,
   onLogout,
 }) => {
   // Navigation: 10 options strictly requested by the user
@@ -69,7 +79,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [instructorsList, setInstructorsList] = useState<Instructor[]>(initialInstructors);
   const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(initialBlogPosts);
   const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(initialCertificates);
-  const [reviewsList, setReviewsList] = useState<CourseReview[]>(INITIAL_COURSE_REVIEWS);
+
+  useEffect(() => {
+    if (initialCertificates) {
+      setCertificatesList(initialCertificates);
+    }
+  }, [initialCertificates]);
+  const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
+    if (reviews && reviews.length > 0) return reviews;
+    try {
+      const saved = localStorage.getItem('deds_course_reviews');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_COURSE_REVIEWS;
+  });
+
+  useEffect(() => {
+    if (reviews) {
+      setReviewsList(reviews);
+    }
+  }, [reviews]);
   const [ticketsList, setTicketsList] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
   const [couponsList, setCouponsList] = useState<Coupon[]>(INITIAL_COUPONS);
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
@@ -205,6 +234,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Certificate Handlers
   const handleIssueCertificate = (cert: CertificateItem) => {
     setCertificatesList((prev) => [cert, ...prev]);
+    if (onIssueCertificate) onIssueCertificate(cert);
   };
 
   const handleCancelCertificate = (certId: string, reason?: string) => {
@@ -220,6 +250,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           : c
       )
     );
+    if (onCancelCertificate) onCancelCertificate(certId, reason);
   };
 
   // Review Handlers (Botão 11: Avaliação de Curso)
@@ -578,6 +609,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onQuickIssueCertificate={(student) => {
                 setActiveTab('certificado');
               }}
+              reviews={reviewsList}
+              progressMap={progressMap}
             />
           )}
 
