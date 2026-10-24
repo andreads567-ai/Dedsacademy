@@ -3,7 +3,11 @@ import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, Co
 import { INITIAL_ORDERS } from '../data/usersData';
 import { CancellationModal } from './CancellationModal';
 import { SignatureModal } from './SignatureModal';
+<<<<<<< HEAD
 import { StudentCoursePlayerModal } from './StudentCoursePlayerModal';
+=======
+import { StudentCourseStudyPage } from './StudentCourseStudyPage';
+>>>>>>> origin/main
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 
 interface StudentPortalProps {
@@ -1510,8 +1514,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           </div>
         )}
 
-        {/* Lesson Player Modal with Modules, Lessons, Videos, Materials (Word/Excel) & Quizzes */}
-        <StudentCoursePlayerModal
+        {/* Course Study Page Full Screen (Estilo Prime Cursos com Cadeados e Avaliação Obrigatória) */}
+        <StudentCourseStudyPage
           isOpen={activeLessonModal.isOpen}
           course={activeLessonModal.course}
           onClose={() => setActiveLessonModal({ isOpen: false, course: null, lessonTitle: '' })}

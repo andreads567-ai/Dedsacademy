@@ -24,7 +24,12 @@ import type { RegistrationData } from './components/RegisterPage';
 import { BlogPage } from './components/BlogPage';
 import { CoursesCatalogPage } from './components/CoursesCatalogPage';
 import { ContactPage } from './components/ContactPage';
+<<<<<<< HEAD
 import { StudentCoursePlayerModal } from './components/StudentCoursePlayerModal';
+=======
+import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
+import { CertificateSection } from './components/CertificateSection';
+>>>>>>> origin/main
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS } from './data/usersData';
 import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
@@ -661,6 +666,36 @@ export default function App() {
     showToast('Avaliação removida com sucesso.');
   };
 
+<<<<<<< HEAD
+=======
+  const handleAdminIssueCertificate = (newCert: CertificateItem) => {
+    setCertificatesList((prev) => {
+      const next = [newCert, ...prev];
+      try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast(`Certificado para "${newCert.studentName}" emitido com sucesso!`);
+  };
+
+  const handleAdminCancelCertificate = (certId: string, reason?: string) => {
+    setCertificatesList((prev) => {
+      const next = prev.map((c) =>
+        c.id === certId
+          ? {
+              ...c,
+              status: 'cancelado' as const,
+              cancelledAt: new Date().toLocaleDateString('pt-BR'),
+              cancellationReason: reason || 'Cancelado pela administração',
+            }
+          : c
+      );
+      try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    showToast('Certificado cancelado e revogado.');
+  };
+
+>>>>>>> origin/main
   // Direct student enrollment in a course
   const handleEnrollCourse = (course: Course) => {
     let targetUser: UserAccount;
@@ -990,6 +1025,9 @@ export default function App() {
             courses={enrichedCoursesList}
             users={usersList}
             categories={categoriesList}
+            certificates={certificatesList}
+            onIssueCertificate={handleAdminIssueCertificate}
+            onCancelCertificate={handleAdminCancelCertificate}
             heroBannerConfig={heroBannerConfig}
             onUpdateHeroBannerConfig={handleUpdateHeroBannerConfig}
             middleBannerConfig={middleBannerConfig}
@@ -1101,6 +1139,12 @@ export default function App() {
               onSelectCategory={handleSelectCategory}
             />
 
+            {/* Certificate Section with Real Validation (Área Pública) */}
+            <CertificateSection
+              certificatesList={certificatesList}
+              onOpenCertificateModal={() => setIsCertModalOpen(true)}
+            />
+
             {/* Student Testimonials */}
             <TestimonialsSection testimonials={dynamicTestimonials} />
 
@@ -1151,6 +1195,7 @@ export default function App() {
       <CertificateModal
         isOpen={isCertModalOpen}
         onClose={() => setIsCertModalOpen(false)}
+        certificatesList={certificatesList}
       />
 
       {/* Unified Authentication Modal (Aluno & Admin) */}
@@ -1164,9 +1209,15 @@ export default function App() {
         usersList={usersList}
       />
 
+<<<<<<< HEAD
       {/* Student Course Classroom Player Modal for courses launched from Presentation screen */}
       {playerCourse && (
         <StudentCoursePlayerModal
+=======
+      {/* Student Course Classroom Study Page for courses launched from Presentation screen */}
+      {playerCourse && (
+        <StudentCourseStudyPage
+>>>>>>> origin/main
           isOpen={!!playerCourse}
           course={playerCourse}
           onClose={() => setPlayerCourse(null)}
