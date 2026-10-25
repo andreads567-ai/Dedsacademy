@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: ApiIntegrationSettings = {
     boletoEnabled: true,
     pixEnabled: true,
     cardEnabled: true,
+
     webhookUrl: '',
     webhookSecret: '',
     status: 'desconectado',
@@ -258,7 +259,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
       if (service === 'payment') {
         if (!settings.payment.publicKey.trim()) missingFields.push('Chave Pública (Public Key)');
         if (!settings.payment.secretKey.trim()) missingFields.push('Chave Secreta (Secret Key)');
-        if (!settings.payment.webhookUrl.trim()) missingFields.push('URL do Webhook');
+        if (settings.payment.provider !== 'stripe' && !settings.payment.webhookUrl.trim()) missingFields.push('URL do Webhook');
         if (settings.payment.provider !== 'stripe' && !settings.payment.webhookSecret?.trim()) {
           missingFields.push('Webhook Secret');
         }

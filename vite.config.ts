@@ -2,8 +2,6 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv, Plugin } from 'vite';
-import { createStripeCheckoutSession } from './src/api/stripeHandler';
-import { processStripeWebhook } from './src/api/stripeWebhookHandler';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -12,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const stripeApiPlugin: Plugin = {
     name: 'stripe-checkout-api',
     configureServer(server) {
-      // 1. Criar sessão de checkout
+      // 1. Criar sessão de checkout no servidor local
       server.middlewares.use('/api/create-checkout-session', async (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -32,6 +30,7 @@ export default defineConfig(({ mode }) => {
             const host = req.headers.host || 'localhost:3000';
             const origin = `${protocol}://${host}`;
 
+            const { createStripeCheckoutSession } = await import('./src/api/stripeHandler');
             const session = await createStripeCheckoutSession(parsedBody, origin);
 
             res.setHeader('Content-Type', 'application/json');
@@ -48,7 +47,7 @@ export default defineConfig(({ mode }) => {
         });
       });
 
-      // 2. Receber e processar Webhooks da Stripe (checkout.session.completed, charge.succeeded)
+      // 2. Receber e processar Webhooks da Stripe no servidor local
       server.middlewares.use('/api/stripe-webhook', async (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -64,6 +63,7 @@ export default defineConfig(({ mode }) => {
         req.on('end', async () => {
           try {
             const parsedBody = body ? JSON.parse(body) : {};
+            const { processStripeWebhook } = await import('./src/api/stripeWebhookHandler');
             const result = await processStripeWebhook(parsedBody);
             res.setHeader('Content-Type', 'application/json');
             res.statusCode = 200;
