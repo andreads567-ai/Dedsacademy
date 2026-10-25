@@ -283,12 +283,32 @@ export default function App() {
     return [...fromReviews, ...TESTIMONIALS].slice(0, 8);
   }, [reviewsList]);
 
-  // Cart state initialized with 3 courses matching the checkout design
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    { course: coursesList[0], quantity: 1 },
-    { course: coursesList[1], quantity: 1 },
-    { course: coursesList[2], quantity: 1 },
-  ]);
+  // Cart state initialized empty or loaded from localStorage
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_cart_items');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  // State for pending registration when a student completes Stripe payment without an existing account
+  const [pendingRegistrationData, setPendingRegistrationData] = useState<{
+    name?: string;
+    email?: string;
+    cpf?: string;
+    pendingCourseIds?: string[];
+  } | null>(null);
+
+  // Synchronize cart items with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('deds_cart_items', JSON.stringify(cartItems));
+    } catch {}
+  }, [cartItems]);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -410,27 +430,131 @@ export default function App() {
     if (paymentStatus === 'success') {
       try {
         const saved = localStorage.getItem('deds_pending_checkout');
-        let pendingData: CheckoutData = {
-          studentName: 'Aluno Deds Academy',
-          studentEmail: 'aluno@dedsacademy.com.br',
-          studentCpf: '384.920.118-04',
-          paymentMethod: 'stripe',
+        let pendingData = {
+          studentName: '',
+          studentEmail: '',
+          studentCpf: '',
+          courseIds: [] as string[],
         };
 
         if (saved) {
           const parsed = JSON.parse(saved);
           pendingData = {
-            studentName: parsed.studentName || 'Aluno Deds Academy',
-            studentEmail: parsed.studentEmail || 'aluno@dedsacademy.com.br',
-            studentCpf: parsed.studentCpf || '384.920.118-04',
-            paymentMethod: 'stripe',
-            courseIds: parsed.courseIds,
+            studentName: parsed.studentName || '',
+            studentEmail: parsed.studentEmail || '',
+            studentCpf: parsed.studentCpf || '',
+            courseIds: parsed.courseIds || [],
           };
           localStorage.removeItem('deds_pending_checkout');
         }
 
-        handleCheckoutSuccess(pendingData);
-        showToast('🎉 Pagamento aprovado na Stripe! Sua matrícula foi confirmada com sucesso.');
+        // Clear cart
+        setCartItems([]);
+        try {
+          localStorage.removeItem('deds_cart_items');
+        } catch {}
+
+        // Identify if user already exists by email or CPF
+        const normalizedEmail = (pendingData.studentEmail || '').trim().toLowerCase();
+        const cleanCpf = (pendingData.studentCpf || '').replace(/\D/g, '');
+
+        const existingUser = usersList.find((u) => {
+          const userEmail = (u.email || '').trim().toLowerCase();
+          const userCpf = (u.cpf || '').replace(/\D/g, '');
+          return (
+            (normalizedEmail && userEmail === normalizedEmail) ||
+            (cleanCpf.length >= 11 && userCpf && userCpf === cleanCpf)
+          );
+        });
+
+        // Initialize progress for each enrolled course
+        const initProgress = (userId: string, courseIds: string[]) => {
+          setStudentProgressMap((prev) => {
+            const userProg = prev[userId] || {};
+            const updatedProg = { ...userProg };
+            courseIds.forEach((cId) => {
+              if (!updatedProg[cId]) {
+                const cObj = coursesList.find((c) => c.id === cId);
+                const totalLes =
+                  cObj?.modules?.reduce((acc, m) => acc + m.lessons.length, 0) ||
+                  cObj?.lessonsCount ||
+                  1;
+                updatedProg[cId] = {
+                  courseId: cId,
+                  percent: 0,
+                  completedLessons: 0,
+                  totalLessons: totalLes,
+                  lastLessonTitle: 'Módulo 1: Introdução e Visão Geral',
+                  lastAccessed: 'Agora mesmo',
+                  completedLessonIds: [],
+                };
+              }
+            });
+            const nextMap = { ...prev, [userId]: updatedProg };
+            try {
+              localStorage.setItem('deds_student_progress', JSON.stringify(nextMap));
+            } catch {}
+            return nextMap;
+          });
+        };
+
+        if (existingUser) {
+          // Student ALREADY has an account: enroll and unlock courses
+          const updatedEnrolled = Array.from(
+            new Set([...(existingUser.enrolledCourseIds || []), ...pendingData.courseIds])
+          );
+          const updatedUser: UserAccount = {
+            ...existingUser,
+            name: pendingData.studentName?.trim() || existingUser.name,
+            cpf: pendingData.studentCpf?.trim() || existingUser.cpf,
+            enrolledCourseIds: updatedEnrolled,
+            status: 'ativo',
+          };
+
+          handleUpdateUser(updatedUser);
+          initProgress(updatedUser.id, pendingData.courseIds);
+
+          if (currentUser && currentUser.id === existingUser.id) {
+            setCurrentUser(updatedUser);
+            try {
+              localStorage.setItem('deds_current_session', JSON.stringify(updatedUser));
+            } catch {}
+            setActiveNavTab('aluno');
+            showToast(`🎉 Pagamento aprovado na Stripe! Olá ${updatedUser.name}, seus novos cursos já estão liberados no seu painel.`);
+          } else {
+            setActiveNavTab('inicio');
+            setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' });
+            showToast(`🎉 Pagamento confirmado! Identificamos sua conta cadastrada (${updatedUser.email}). Faça login para acessar seus cursos liberados.`);
+          }
+        } else {
+          // Student does NOT have an account: redirect to registration with prefilled details
+          setPendingRegistrationData({
+            name: pendingData.studentName,
+            email: pendingData.studentEmail,
+            cpf: pendingData.studentCpf,
+            pendingCourseIds: pendingData.courseIds,
+          });
+          setActiveNavTab('cadastro');
+          showToast(`🎉 Pagamento aprovado na Stripe! Crie sua senha de acesso para liberar seus cursos na plataforma.`);
+        }
+
+        // Record simulated confirmation email log
+        try {
+          const emailLogs = JSON.parse(localStorage.getItem('deds_email_logs') || '[]');
+          emailLogs.unshift({
+            id: `mail-${Date.now()}`,
+            to: pendingData.studentEmail,
+            studentName: pendingData.studentName,
+            subject: existingUser
+              ? 'Matrícula Confirmada - Seus novos cursos na Deds Academy'
+              : 'Compra Confirmada - Conclua seu cadastro na Deds Academy',
+            type: existingUser ? 'enrollment_confirmation' : 'registration_invite',
+            timestamp: new Date().toISOString(),
+            courseIds: pendingData.courseIds,
+          });
+          localStorage.setItem('deds_email_logs', JSON.stringify(emailLogs.slice(0, 50)));
+        } catch {}
+
       } catch (err) {
         console.error('[Stripe Return Error]', err);
       }
@@ -441,7 +565,7 @@ export default function App() {
       setActiveNavTab('carrinho');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [usersList, currentUser, coursesList]);
   const _stripeInit = () => {
 
   };
@@ -992,6 +1116,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             onCheckoutSuccess={handleCheckoutSuccess}
             currentUser={currentUser}
             onOpenAuth={() => setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' })}
+            usersList={usersList}
           />
         ) : activeNavTab === 'cursos' ? (
           /* VIEW 1.5: CATÁLOGO DEDICADO DE CURSOS (COM SIDEBAR DE CATEGORIAS E OPÇÃO TODOS) */
@@ -1096,7 +1221,10 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
           <RegisterPage
             onNavigateHome={(sectionId) => scrollToSection(sectionId || 'hero-section')}
             onOpenLogin={() => setAuthModal({ isOpen: true, mode: 'login' })}
+            initialData={pendingRegistrationData}
+            isPostCheckoutNotice={!!pendingRegistrationData}
             onRegistrationSuccess={(data: RegistrationData) => {
+              const pendingCourses = pendingRegistrationData?.pendingCourseIds || [];
               const newUser: UserAccount = {
                 id: `user-${Date.now()}`,
                 name: data.name,
@@ -1110,13 +1238,14 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
                 status: 'ativo',
                 registeredAt: new Date().toLocaleDateString('pt-BR'),
                 lastAccess: 'Agora mesmo',
-                enrolledCourseIds: [],
+                enrolledCourseIds: pendingCourses,
                 completedCourseIds: [],
               };
               handleAddUser(newUser);
               setCurrentUser(newUser);
+              setPendingRegistrationData(null);
               setActiveNavTab('aluno');
-              showToast(`Cadastro realizado com sucesso! Bem-vindo(a), ${data.name}!`);
+              showToast(`Cadastro realizado com sucesso! Bem-vindo(a), ${data.name}! Seus cursos já estão disponíveis.`);
             }}
           />
         ) : activeNavTab === 'blog' ? (

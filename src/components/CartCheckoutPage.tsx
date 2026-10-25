@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CartItem, UserAccount } from '../types';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
 
@@ -18,6 +18,7 @@ interface CartCheckoutPageProps {
   onCheckoutSuccess: (data: CheckoutData) => void;
   currentUser: UserAccount | null;
   onOpenAuth: () => void;
+  usersList?: UserAccount[];
 }
 
 export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
@@ -28,25 +29,46 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   onCheckoutSuccess,
   currentUser,
   onOpenAuth,
+  usersList = [],
 }) => {
-  const [paymentMode, setPaymentMode] = useState<'stripe' | 'pix' | 'credit' | 'debit' | 'boleto'>('stripe');
+  // Payment methods: all processed via official Stripe checkout session
+  const [paymentMode, setPaymentMode] = useState<'credit' | 'pix' | 'debit' | 'boleto'>('credit');
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
-  const [couponCode, setCouponCode] = useState('DEDS10');
-  const [couponApplied, setCouponApplied] = useState(true);
-  const [couponDiscount, setCouponDiscount] = useState(23.98);
 
-  // Student form state - prefill from logged-in user
+  // Clean coupon state - starts empty as requested
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+
+  // Mandatory student form state - prefill from logged-in user if active
   const [studentName, setStudentName] = useState(currentUser?.name || '');
   const [studentEmail, setStudentEmail] = useState(currentUser?.email || '');
   const [studentCpf, setStudentCpf] = useState(currentUser?.cpf || '');
+  const [formErrors, setFormErrors] = useState<{
+    studentName?: string;
+    studentEmail?: string;
+    studentCpf?: string;
+  }>({});
 
-  // Credit Card fields
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [installments, setInstallments] = useState('10');
+  // Real-time check if student already has an account
+  const matchedUser = useMemo(() => {
+    if (currentUser) return currentUser;
+    const trimmedEmail = studentEmail.trim().toLowerCase();
+    const cleanCpfDigits = studentCpf.replace(/\D/g, '');
+    if (!trimmedEmail && cleanCpfDigits.length < 11) return null;
+
+    return (
+      usersList.find((u) => {
+        const userEmail = (u.email || '').trim().toLowerCase();
+        const userCpf = (u.cpf || '').replace(/\D/g, '');
+        return (
+          (trimmedEmail && userEmail === trimmedEmail) ||
+          (cleanCpfDigits.length >= 11 && userCpf === cleanCpfDigits)
+        );
+      }) || null
+    );
+  }, [currentUser, studentEmail, studentCpf, usersList]);
 
   // Calculations
   const originalSubtotal = items.reduce(
@@ -66,9 +88,33 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   const finalTotal = Math.max(0, baseTotal - pixDiscount);
   const totalSavings = comboDiscount + activeCouponDiscount + pixDiscount;
 
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 14) v = v.slice(0, 14);
+    if (v.length <= 11) {
+      v = v.replace(/(\d{3})(\d)/, '$1.$2');
+      v = v.replace(/(\d{3})(\d)/, '$1.$2');
+      v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+      v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+      v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+      v = v.replace(/(\d{4})(\d)/, '$1-$2');
+    }
+    setStudentCpf(v);
+    if (formErrors.studentCpf) {
+      setFormErrors((prev) => ({ ...prev, studentCpf: undefined }));
+    }
+  };
+
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const code = couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponApplied(false);
+      setCouponDiscount(0);
+      return;
+    }
     if (code === 'DEDS10' || code === 'BEMVINDO10') {
       setCouponApplied(true);
       setCouponDiscount(Math.round(currentSubtotal * 0.1 * 100) / 100);
@@ -81,18 +127,49 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     } else {
       setCouponApplied(false);
       setCouponDiscount(0);
+      alert('Cupom de desconto inválido ou expirado.');
     }
   };
 
+  const validateForm = (): boolean => {
+    const errors: { studentName?: string; studentEmail?: string; studentCpf?: string } = {};
+
+    if (!studentName.trim() || studentName.trim().length < 3) {
+      errors.studentName = 'O Nome Completo é obrigatório para a emissão do certificado.';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
+      errors.studentEmail = 'Informe um e-mail válido para envio do acesso e confirmação.';
+    }
+
+    const cleanCpfDigits = studentCpf.replace(/\D/g, '');
+    if (!cleanCpfDigits || cleanCpfDigits.length < 11) {
+      errors.studentCpf = 'Informe um CPF válido (11 dígitos) para identificar sua conta.';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handlePayWithStripe = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    if (items.length === 0) {
+      alert('Seu carrinho está vazio. Adicione pelo menos um curso para continuar.');
+      return;
+    }
+
     try {
       setIsProcessingStripe(true);
       setStripeError(null);
       await redirectToStripeCheckout({
         items,
-        studentName: studentName.trim() || currentUser?.name || 'Aluno Deds Academy',
-        studentEmail: studentEmail.trim() || currentUser?.email || 'aluno@dedsacademy.com.br',
-        studentCpf: studentCpf.trim() || currentUser?.cpf || '384.920.118-04',
+        studentName: studentName.trim(),
+        studentEmail: studentEmail.trim(),
+        studentCpf: studentCpf.trim(),
         couponCode: couponApplied ? couponCode : undefined,
         discountAmount: activeCouponDiscount + (paymentMode === 'pix' ? pixDiscount : 0),
         finalTotal,
@@ -105,14 +182,17 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   };
 
   const handleFinishOrder = (bypassStripe = false) => {
-    if (!bypassStripe && (paymentMode === 'stripe' || paymentMode === 'credit')) {
+    if (!bypassStripe) {
       handlePayWithStripe();
       return;
     }
+
+    if (!validateForm()) return;
+
     onCheckoutSuccess({
-      studentName: studentName.trim() || currentUser?.name || 'Aluno Deds Academy',
-      studentEmail: studentEmail.trim() || currentUser?.email || 'aluno@dedsacademy.com.br',
-      studentCpf: studentCpf.trim() || currentUser?.cpf || '384.920.118-04',
+      studentName: studentName.trim(),
+      studentEmail: studentEmail.trim(),
+      studentCpf: studentCpf.trim(),
       paymentMethod: paymentMode,
       courseIds: items.map((i) => i.course.id),
     });
@@ -138,7 +218,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
               Carrinho <span className="text-primary">de compras</span>
             </h1>
             <p className="font-body-md text-body-md text-text-secondary max-w-2xl">
-              Revise seus cursos selecionados, aplique cupons exclusivos e finalize sua matrícula com criptografia de ponta a ponta.
+              Revise seus cursos selecionados e finalize sua matrícula com pagamento integrado via Stripe.
             </p>
           </div>
 
@@ -160,7 +240,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm text-text-primary font-semibold">2. Pagamento</span>
-                <span className="font-body-sm text-[10px] text-text-tertiary">Condições</span>
+                <span className="font-body-sm text-[10px] text-text-tertiary">Stripe</span>
               </div>
             </div>
             <div className="w-8 h-0.5 bg-surface-container-high"></div>
@@ -170,7 +250,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
               </div>
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm text-text-tertiary">3. Acesso</span>
-                <span className="font-body-sm text-[10px] text-text-tertiary">Conclusão</span>
+                <span className="font-body-sm text-[10px] text-text-tertiary">Área do Aluno</span>
               </div>
             </div>
           </div>
@@ -183,11 +263,11 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
             </div>
             <h2 className="text-xl font-bold text-text-primary mb-2">Seu carrinho está vazio</h2>
             <p className="text-text-secondary text-sm mb-6">
-              Adicione cursos em tecnologia, negócios e marketing para acelerar sua carreira acadêmica e profissional.
+              Você ainda não adicionou nenhum curso ao carrinho. Escolha um curso do nosso catálogo oficial para continuar.
             </p>
             <button
               onClick={() => onNavigateHome('cursos-section')}
-              className="px-6 py-3 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-bold rounded-xl shadow-lg transition-all"
+              className="px-6 py-3 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-bold rounded-xl shadow-lg transition-all cursor-pointer"
             >
               Explorar Catálogo de Cursos
             </button>
@@ -195,7 +275,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
         ) : (
           /* Main Two-Column Layout */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Column: Cart Courses + Payment Methods + Invoicing Info */}
+            {/* Left Column: Cart Courses + Student Form + Payment Methods */}
             <div className="lg:col-span-8 flex flex-col gap-8">
               {/* Courses List Card */}
               <section className="bg-surface-raised rounded-xl p-5 lg:p-6 shadow-sm border border-border-subtle">
@@ -203,7 +283,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-headline-sm">auto_stories</span>
                     <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">
-                      Cursos selecionados <span className="font-body-md text-text-tertiary font-normal">({items.length} cursos)</span>
+                      Cursos selecionados <span className="font-body-md text-text-tertiary font-normal">({items.length} {items.length === 1 ? 'curso' : 'cursos'})</span>
                     </h2>
                   </div>
                   <button
@@ -215,7 +295,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </button>
                 </div>
 
-                {/* Course Items Table / Grid */}
+                {/* Course Items List */}
                 <div className="flex flex-col gap-3" id="cart-items-container">
                   {items.map((item) => (
                     <article
@@ -286,158 +366,149 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                     Continuar explorando cursos
                   </button>
                   <span className="text-text-tertiary font-body-sm text-body-sm flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Condições e cupons válidos por 15 minutos
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Pagamento e liberação 100% automatizados
                   </span>
                 </div>
               </section>
 
-              {/* Student Identification & Invoicing Data */}
+              {/* Student Identification & Mandatory Data */}
               <section className="bg-surface-raised rounded-xl p-5 lg:p-6 shadow-sm border border-border-subtle">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-border-subtle">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-headline-sm">badge</span>
                     <div>
                       <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">Dados do Aluno &amp; Faturamento</h2>
-                      <p className="font-body-sm text-body-sm text-text-tertiary">O certificado oficial e o acesso imediato serão emitidos para este cadastro.</p>
+                      <p className="font-body-sm text-body-sm text-text-tertiary">Preenchimento obrigatório para liberação do acesso e emissão do certificado oficial.</p>
                     </div>
                   </div>
                   <span className="px-2.5 py-1 bg-surface-overlay text-primary font-label-sm text-label-sm rounded-lg flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">lock</span> Protegido
                   </span>
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Nome Completo */}
                   <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-                    <label className="font-label-md text-label-md text-text-secondary">Nome Completo (p/ Certificado)</label>
+                    <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
+                      <span>Nome Completo <span className="text-status-danger">*</span></span>
+                      <span className="text-[11px] text-text-tertiary">(p/ Certificado)</span>
+                    </label>
                     <input
-                      className="bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border border-border-subtle focus:border-primary transition-all"
+                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
+                        formErrors.studentName ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
+                      }`}
+                      placeholder="Ex: André Silva"
                       type="text"
                       value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
+                      onChange={(e) => {
+                        setStudentName(e.target.value);
+                        if (formErrors.studentName) setFormErrors((prev) => ({ ...prev, studentName: undefined }));
+                      }}
                     />
+                    {formErrors.studentName && (
+                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        {formErrors.studentName}
+                      </span>
+                    )}
                   </div>
+
+                  {/* E-mail de Envio */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-label-md text-label-md text-text-secondary">E-mail para Envio do Acesso</label>
+                    <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
+                      <span>E-mail de Envio <span className="text-status-danger">*</span></span>
+                      <span className="text-[11px] text-text-tertiary">(Acesso e Recibo)</span>
+                    </label>
                     <input
-                      className="bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border border-border-subtle focus:border-primary transition-all"
+                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
+                        formErrors.studentEmail ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
+                      }`}
+                      placeholder="seu@email.com"
                       type="email"
                       value={studentEmail}
-                      onChange={(e) => setStudentEmail(e.target.value)}
+                      onChange={(e) => {
+                        setStudentEmail(e.target.value);
+                        if (formErrors.studentEmail) setFormErrors((prev) => ({ ...prev, studentEmail: undefined }));
+                      }}
                     />
+                    {formErrors.studentEmail && (
+                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        {formErrors.studentEmail}
+                      </span>
+                    )}
                   </div>
+
+                  {/* CPF / CNPJ */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-label-md text-label-md text-text-secondary">CPF / CNPJ (Nota Fiscal)</label>
+                    <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
+                      <span>CPF do Aluno <span className="text-status-danger">*</span></span>
+                      <span className="text-[11px] text-text-tertiary">(Identificação)</span>
+                    </label>
                     <input
-                      className="bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border border-border-subtle focus:border-primary transition-all"
+                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
+                        formErrors.studentCpf ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
+                      }`}
+                      placeholder="000.000.000-00"
                       type="text"
                       value={studentCpf}
-                      onChange={(e) => setStudentCpf(e.target.value)}
+                      onChange={handleCpfChange}
                     />
+                    {formErrors.studentCpf && (
+                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        {formErrors.studentCpf}
+                      </span>
+                    )}
                   </div>
+                </div>
+
+                {/* Account Status Real-Time Indicator */}
+                <div className="mt-4 pt-3 border-t border-border-subtle/50">
+                  {matchedUser ? (
+                    <div className="p-3 rounded-lg bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 text-accent-emerald-bright text-body-sm flex items-start gap-2.5">
+                      <span className="material-symbols-outlined text-body-lg flex-shrink-0">check_circle</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold">Conta existente identificada ({matchedUser.name})</span>
+                        <p className="text-text-secondary text-xs mt-0.5">
+                          Após o pagamento na Stripe, os novos cursos comprados serão vinculados diretamente à sua conta existente!
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-surface-container-low border border-border-subtle text-text-secondary text-body-sm flex items-start gap-2.5">
+                      <span className="material-symbols-outlined text-primary text-body-lg flex-shrink-0">person_add</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-text-primary">Novo aluno na Deds Academy</span>
+                        <p className="text-text-secondary text-xs mt-0.5">
+                          Após a conclusão do pagamento, você será direcionado para criar sua senha de acesso e enviamos a confirmação para seu e-mail.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
 
-              {/* Payment Method Selection Section */}
+              {/* Payment Methods Section (4 Clean Stripe-Integrated Options) */}
               <section className="bg-surface-raised rounded-xl p-5 lg:p-6 shadow-sm border border-border-subtle">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-border-subtle">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-headline-sm">payments</span>
                     <div>
                       <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">Escolha a Forma de Pagamento</h2>
-                      <p className="font-body-sm text-body-sm text-text-tertiary">Transações criptografadas com liquidação imediata e garantia total.</p>
+                      <p className="font-body-sm text-body-sm text-text-tertiary">Todas as opções são processadas de forma segura e conciliadas via Stripe.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Radio Options */}
-                <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-high border border-primary/30 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
-                      <span className="material-symbols-outlined text-headline-sm">security</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-headline-sm text-[15px] text-text-primary font-bold">Stripe Checkout Conectado</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">LIVE API</span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-tertiary">Transações processadas via infraestrutura oficial Stripe com proteção anti-fraude.</p>
-                    </div>
-                  </div>
-                </div>
+                {/* 4 Individual Payment Options */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  {/* Option 0: Stripe Hosted Checkout (Recomendado) */}
-                  <label
-                    onClick={() => setPaymentMode('stripe')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border sm:col-span-2 ${
-                      paymentMode === 'stripe'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'stripe'}
-                      onChange={() => setPaymentMode('stripe')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="stripe"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-primary text-body-lg">verified_user</span> Stripe Checkout Oficial (Recomendado)
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">
-                            RECOMENDADO
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">CARTÕES</span>
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">BOLETO</span>
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">PIX</span>
-                        </div>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Página de pagamento oficial da Stripe com suporte a parcelamento em até 10x sem juros, cartões nacionais e internacionais, boleto ou PIX.
-                      </p>
-                    </div>
-                  </label>
-                  {/* Option 1: PIX */}
-                  <label
-                    onClick={() => setPaymentMode('pix')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'pix'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.2)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'pix'}
-                      onChange={() => setPaymentMode('pix')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="pix"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-primary text-body-lg">qr_code_2</span> PIX Instantâneo
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">
-                          5% OFF EXTRA
-                        </span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Aprovação imediata e liberação do acesso em segundos via QR Code.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 2: Credit Card */}
+                  {/* Option 1: Cartão de Crédito */}
                   <label
                     onClick={() => setPaymentMode('credit')}
                     className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
                       paymentMode === 'credit'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.2)]'
+                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
                         : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
                     }`}
                   >
@@ -450,9 +521,9 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                       value="credit"
                     />
                     <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-secondary text-body-lg">credit_card</span> Cartão de Crédito
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-primary text-body-lg">credit_card</span> Cartão de Crédito
                         </span>
                         <div className="flex items-center gap-1">
                           <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">VISA</span>
@@ -460,48 +531,50 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                           <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">ELO</span>
                         </div>
                       </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Parcele em até 10x sem juros de R$ {(finalTotal / 10).toFixed(2).replace('.', ',')} ou use 2 cartões.
+                      <p className="font-body-sm text-body-sm text-text-secondary">
+                        Parcele em até 10x sem juros de R$ {(finalTotal / 10).toFixed(2).replace('.', ',')} no cartão.
                       </p>
                     </div>
                   </label>
 
-                  {/* Option 3: Debit Card */}
+                  {/* Option 2: PIX Instantâneo */}
                   <label
-                    onClick={() => setPaymentMode('debit')}
+                    onClick={() => setPaymentMode('pix')}
                     className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'debit'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.2)]'
+                      paymentMode === 'pix'
+                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
                         : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
                     }`}
                   >
                     <input
-                      checked={paymentMode === 'debit'}
-                      onChange={() => setPaymentMode('debit')}
+                      checked={paymentMode === 'pix'}
+                      onChange={() => setPaymentMode('pix')}
                       className="mt-1 accent-primary"
                       name="payment_mode"
                       type="radio"
-                      value="debit"
+                      value="pix"
                     />
                     <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-tertiary text-body-lg">account_balance_wallet</span> Cartão de Débito
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-primary text-body-lg">qr_code_2</span> PIX Instantâneo
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">À VISTA</span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">
+                          5% OFF EXTRA
+                        </span>
                       </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Aprovação ágil debitada diretamente da sua conta corrente bancária.
+                      <p className="font-body-sm text-body-sm text-text-secondary">
+                        Aprovação imediata e liberação do curso em segundos via QR Code.
                       </p>
                     </div>
                   </label>
 
-                  {/* Option 4: Boleto Bancário */}
+                  {/* Option 3: Boleto Bancário */}
                   <label
                     onClick={() => setPaymentMode('boleto')}
                     className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
                       paymentMode === 'boleto'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.2)]'
+                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
                         : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
                     }`}
                   >
@@ -514,145 +587,70 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                       value="boleto"
                     />
                     <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-text-tertiary text-body-lg">receipt_long</span> Boleto Bancário
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-tertiary text-body-lg">receipt_long</span> Boleto Bancário
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">1 DIA ÚTIL</span>
+                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">
+                          1 DIA ÚTIL
+                        </span>
                       </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Pague via app bancário ou lotéricas. Compensação em até 24h úteis.
+                      <p className="font-body-sm text-body-sm text-text-secondary">
+                        Pague em qualquer banco ou aplicativo. Compensação em até 24h úteis.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 4: Cartão de Débito */}
+                  <label
+                    onClick={() => setPaymentMode('debit')}
+                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
+                      paymentMode === 'debit'
+                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
+                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
+                    }`}
+                  >
+                    <input
+                      checked={paymentMode === 'debit'}
+                      onChange={() => setPaymentMode('debit')}
+                      className="mt-1 accent-primary"
+                      name="payment_mode"
+                      type="radio"
+                      value="debit"
+                    />
+                    <div className="flex flex-col flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-secondary text-body-lg">account_balance_wallet</span> Cartão de Débito
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">
+                          À VISTA
+                        </span>
+                      </div>
+                      <p className="font-body-sm text-body-sm text-text-secondary">
+                        Débito direto em conta com autenticação bancária ágil.
                       </p>
                     </div>
                   </label>
                 </div>
 
-                {/* Stripe Checkout Banner */}
-                {paymentMode === 'stripe' && (
-                  <div className="flex items-start gap-4 p-5 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-low border border-primary/30 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-headline-md">lock</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-headline-sm text-[16px] text-text-primary font-bold">Stripe Hosted Checkout</span>
-                        <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">SSL 256-BIT</span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
-                        Você será redirecionado para a página oficial da Stripe. Após o pagamento, o acesso aos seus cursos é liberado instantaneamente.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3 mt-3 text-[12px] text-text-tertiary">
-                        <span className="flex items-center gap-1 text-accent-emerald-bright">
-                          <span className="material-symbols-outlined text-[14px]">check_circle</span> Criptografia ponta a ponta
-                        </span>
-                        <span className="flex items-center gap-1 text-accent-emerald-bright">
-                          <span className="material-symbols-outlined text-[14px]">check_circle</span> Proteção 3D-Secure 2.0
-                        </span>
-                      </div>
-                    </div>
+                {/* Selected Method Stripe Sync Banner */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-low border border-primary/20 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-headline-sm">verified_user</span>
                   </div>
-                )}
-                {/* Dynamic Panel: Credit Card Inputs */}
-                {paymentMode === 'credit' && (
-                  <div className="flex flex-col gap-4 p-5 rounded-xl bg-surface-container-low mb-4 border border-border-subtle">
-                    <div className="flex items-center justify-between">
-                      <span className="font-label-lg text-label-lg text-text-primary font-bold">Insira os dados do cartão</span>
-                      <span className="font-body-sm text-body-sm text-primary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">shield</span> Tokenização PCI-DSS
+                  <div className="flex flex-col flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-text-primary text-[14px]">
+                        Opção selecionada: {paymentMode === 'credit' ? 'Cartão de Crédito' : paymentMode === 'pix' ? 'PIX Instantâneo' : paymentMode === 'boleto' ? 'Boleto Bancário' : 'Cartão de Débito'}
                       </span>
+                      <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">STRIPE CHECKOUT</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1 sm:col-span-2">
-                        <label className="font-label-md text-label-md text-text-secondary">Número do Cartão</label>
-                        <div className="relative flex items-center">
-                          <input
-                            className="w-full bg-surface-raised text-text-primary px-3 h-11 rounded-lg outline-none font-body-md text-body-md pl-10 border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
-                            placeholder="0000 0000 0000 0000"
-                            type="text"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                          />
-                          <span className="material-symbols-outlined absolute left-3 text-text-tertiary text-body-md">credit_card</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1 sm:col-span-2">
-                        <label className="font-label-md text-label-md text-text-secondary">Nome Impresso no Cartão</label>
-                        <input
-                          className="w-full bg-surface-raised text-text-primary px-3 h-11 rounded-lg outline-none font-body-md text-body-md uppercase border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
-                          placeholder="ANDRE S SILVA"
-                          type="text"
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="font-label-md text-label-md text-text-secondary">Validade (MM/AA)</label>
-                        <input
-                          className="w-full bg-surface-raised text-text-primary px-3 h-11 rounded-lg outline-none font-body-md text-body-md border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
-                          placeholder="08/29"
-                          type="text"
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="font-label-md text-label-md text-text-secondary">Código de Segurança (CVV)</label>
-                        <input
-                          className="w-full bg-surface-raised text-text-primary px-3 h-11 rounded-lg outline-none font-body-md text-body-md border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
-                          maxLength={4}
-                          placeholder="123"
-                          type="password"
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 sm:col-span-2">
-                        <label className="font-label-md text-label-md text-text-secondary">Opções de Parcelamento</label>
-                        <select
-                          value={installments}
-                          onChange={(e) => setInstallments(e.target.value)}
-                          className="w-full bg-surface-raised text-text-primary px-3 h-11 rounded-lg outline-none font-body-md text-body-md cursor-pointer border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
-                        >
-                          <option value="1">1x de R$ {finalTotal.toFixed(2).replace('.', ',')} (sem juros)</option>
-                          <option value="2">2x de R$ {(finalTotal / 2).toFixed(2).replace('.', ',')} (sem juros)</option>
-                          <option value="3">3x de R$ {(finalTotal / 3).toFixed(2).replace('.', ',')} (sem juros)</option>
-                          <option value="6">6x de R$ {(finalTotal / 6).toFixed(2).replace('.', ',')} (sem juros)</option>
-                          <option value="10">10x de R$ {(finalTotal / 10).toFixed(2).replace('.', ',')} (sem juros no cartão)</option>
-                        </select>
-                      </div>
-                    </div>
+                    <p className="text-text-secondary text-xs mt-1">
+                      Ao clicar em <strong>Pagamento Checkout</strong>, a sessão segura de pagamento será iniciada com suporte oficial a {paymentMode === 'credit' ? 'parcelamento em até 10x sem juros' : paymentMode === 'pix' ? 'QR Code PIX com confirmação em tempo real' : paymentMode === 'boleto' ? 'boleto registrado' : 'débito em conta'}.
+                    </p>
                   </div>
-                )}
-
-                {/* PIX Preview Banner */}
-                {paymentMode === 'pix' && (
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-high/70 border border-primary/20">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-headline-md">bolt</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-headline-sm text-[15px] text-text-primary font-bold">Liberação Imediata via PIX</span>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        Ao clicar em finalizar, você receberá o QR Code e a chave copia-e-cola com valor já recalculado com desconto adicional de 5% (R$ {finalTotal.toFixed(2).replace('.', ',')}).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Boleto Banner */}
-                {paymentMode === 'boleto' && (
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-low border border-border-subtle">
-                    <div className="w-12 h-12 rounded-xl bg-surface-overlay text-text-tertiary flex items-center justify-center flex-shrink-0">
-                      <span className="material-symbols-outlined text-headline-md">description</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="font-headline-sm text-[15px] text-text-primary font-bold">Boleto Bancário Registrado</span>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        O boleto será gerado para impressão com prazo de 3 dias corridos. O acesso aos cursos é liberado assim que o banco liquidar a transação.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                </div>
               </section>
             </div>
 
@@ -665,7 +663,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-border-subtle">
                   <h2 className="font-headline-md text-headline-sm text-text-primary font-bold">Resumo do pedido</h2>
                   <span className="px-2.5 py-0.5 rounded-full bg-surface-overlay text-primary font-label-sm text-label-sm font-semibold">
-                    {items.length} cursos
+                    {items.length} {items.length === 1 ? 'curso' : 'cursos'}
                   </span>
                 </div>
 
@@ -706,12 +704,14 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 </div>
 
                 {/* Savings Pill */}
-                <div className="bg-surface-container-high rounded-lg p-3 mb-4 flex items-center gap-2 border border-primary/20">
-                  <span className="text-[18px]">🎉</span>
-                  <span className="font-label-sm text-label-sm text-primary font-bold">
-                    Você está economizando R$ {totalSavings.toFixed(2).replace('.', ',')} hoje!
-                  </span>
-                </div>
+                {totalSavings > 0 && (
+                  <div className="bg-surface-container-high rounded-lg p-3 mb-4 flex items-center gap-2 border border-primary/20">
+                    <span className="text-[18px]">🎉</span>
+                    <span className="font-label-sm text-label-sm text-primary font-bold">
+                      Você está economizando R$ {totalSavings.toFixed(2).replace('.', ',')} hoje!
+                    </span>
+                  </div>
+                )}
 
                 {/* Divider */}
                 <div className="h-px bg-surface-container-high my-2"></div>
@@ -731,7 +731,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </div>
                 </div>
 
-                {/* Coupon Code Input */}
+                {/* Clean Coupon Input Form */}
                 <form onSubmit={handleApplyCoupon} className="my-2">
                   <label className="font-label-sm text-label-sm text-text-secondary block mb-1">Cupom de Desconto</label>
                   <div className="flex items-center gap-2">
@@ -739,6 +739,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                       <input
                         className="w-full uppercase font-label-md text-label-md bg-surface-container-low text-text-primary px-3 h-10 rounded-lg outline-none border border-border-subtle focus:border-primary focus:bg-surface-overlay transition-all"
                         id="coupon-input"
+                        placeholder="Inserir cupom..."
                         type="text"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
@@ -769,14 +770,14 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                       <button
                         type="button"
                         onClick={() => handlePayWithStripe()}
-                        className="text-xs bg-status-danger text-white px-2.5 py-1 rounded hover:opacity-90 transition-opacity"
+                        className="text-xs bg-status-danger text-white px-2.5 py-1 rounded hover:opacity-90 transition-opacity cursor-pointer"
                       >
                         Tentar Novamente
                       </button>
                       <button
                         type="button"
                         onClick={() => handleFinishOrder(true)}
-                        className="text-xs underline text-text-secondary hover:text-text-primary"
+                        className="text-xs underline text-text-secondary hover:text-text-primary cursor-pointer"
                       >
                         Concluir como teste simulado
                       </button>
@@ -784,14 +785,14 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </div>
                 )}
 
-                {/* Primary Checkout Button */}
+                {/* Primary Button: Pagamento Checkout */}
                 <button
                   onClick={() => handleFinishOrder(false)}
-                  disabled={isProcessingStripe}
+                  disabled={isProcessingStripe || items.length === 0}
                   className="w-full mt-4 py-3.5 px-6 bg-primary-container hover:bg-accent-emerald-bright disabled:opacity-60 disabled:cursor-not-allowed text-on-primary font-headline-sm text-headline-sm font-bold rounded-xl shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer group"
                 >
                   <span className="material-symbols-outlined text-headline-md group-hover:scale-110 transition-transform">lock</span>
-                  {isProcessingStripe ? 'Conectando à Stripe Segura...' : (paymentMode === 'stripe' ? 'Pagar com Stripe Checkout' : 'Finalizar Compra Segura')}
+                  {isProcessingStripe ? 'Conectando ao Checkout Seguro...' : `Pagamento Checkout • R$ ${finalTotal.toFixed(2).replace('.', ',')}`}
                 </button>
 
                 {/* Security Badges */}
@@ -800,7 +801,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                     <span className="material-symbols-outlined text-[15px]">verified_user</span> Ambiente 100% Criptografado &amp; Seguro (SSL 256-bit)
                   </span>
                   <p className="text-[11px] text-text-tertiary leading-normal">
-                    Seus dados financeiros não ficam armazenados em nossos servidores.
+                    Seus dados financeiros são processados diretamente pela Stripe.
                   </p>
                 </div>
               </div>
@@ -811,8 +812,8 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   <span className="material-symbols-outlined text-headline-sm">help_outline</span>
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="font-headline-sm text-[15px] text-text-primary font-bold">Precisa de ajuda para comprar?</span>
-                  <p className="font-body-sm text-body-sm text-text-tertiary">Chame nossos especialistas via WhatsApp</p>
+                  <span className="font-headline-sm text-[15px] text-text-primary font-bold">Dúvidas sobre o pagamento?</span>
+                  <p className="font-body-sm text-body-sm text-text-tertiary">Chame nossa equipe via WhatsApp</p>
                   <a
                     className="text-primary font-label-md text-label-md hover:underline inline-flex items-center gap-1 mt-0.5"
                     href="https://wa.me/5511999999999"
@@ -870,7 +871,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
               <span className="material-symbols-outlined text-headline-md">support_agent</span>
             </div>
             <div className="flex flex-col">
-              <h4 className="font-headline-sm text-[15px] text-text-primary font-bold">Suporte Ativo com Tutores</h4>
+              <h4 className="font-headline-sm text-[15px] text-text-primary font-bold">Suporte Ativo ao Aluno</h4>
               <p className="font-body-sm text-body-sm text-text-tertiary mt-1">
                 Comunidade exclusiva e canais diretos para tirar todas as dúvidas técnicas.
               </p>

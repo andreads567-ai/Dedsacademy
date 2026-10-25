@@ -1,9 +1,23 @@
+/**
+ * Vercel Serverless Function: /api/stripe-webhook
+ * Receives and processes events from Stripe Webhooks (checkout.session.completed, charge.succeeded, etc.)
+ */
 import { processStripeWebhook } from '../src/api/stripeWebhookHandler';
 
 export default async function handler(req: any, res: any) {
+  // Allow GET for ping/health check
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      status: 'online',
+      service: 'Deds Academy Stripe Webhook Endpoint',
+      timestamp: new Date().toISOString(),
+      acceptedEvents: ['checkout.session.completed', 'charge.succeeded', 'payment_intent.succeeded'],
+    });
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method Not Allowed - Webhooks aceitam apenas requisições POST' });
+    res.setHeader('Allow', 'POST, GET');
+    return res.status(405).json({ error: 'Method Not Allowed - Webhooks aceitam requisições POST' });
   }
 
   try {

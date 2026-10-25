@@ -17,27 +17,44 @@ export interface RegistrationData {
   };
 }
 
+export interface RegisterInitialData {
+  name?: string;
+  email?: string;
+  cpf?: string;
+  pendingCourseIds?: string[];
+}
+
 interface RegisterPageProps {
   onNavigateHome: (sectionId?: string) => void;
   onOpenLogin: () => void;
   onRegistrationSuccess: (data: RegistrationData) => void;
+  initialData?: RegisterInitialData | null;
+  isPostCheckoutNotice?: boolean;
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({
   onNavigateHome,
   onOpenLogin,
   onRegistrationSuccess,
+  initialData,
+  isPostCheckoutNotice = false,
 }) => {
   // Form fields
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [nome, setNome] = useState(initialData?.name || '');
+  const [email, setEmail] = useState(initialData?.email || '');
   const [senha, setSenha] = useState('');
   const [confirmaSenha, setConfirmaSenha] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [showConfirmaSenha, setShowConfirmaSenha] = useState(false);
-  const [cpf, setCpf] = useState('');
+  const [cpf, setCpf] = useState(initialData?.cpf || '');
   const [nascimento, setNascimento] = useState('');
   const [telefone, setTelefone] = useState('');
+
+  React.useEffect(() => {
+    if (initialData?.name) setNome(initialData.name);
+    if (initialData?.email) setEmail(initialData.email);
+    if (initialData?.cpf) setCpf(initialData.cpf);
+  }, [initialData]);
 
   const [cep, setCep] = useState('');
   const [rua, setRua] = useState('');
@@ -159,6 +176,30 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
           <span>/</span>
           <span className="text-primary font-label-md">Cadastre-se na Deds Academy</span>
         </div>
+
+        {/* Post-Checkout Notice Banner */}
+        {isPostCheckoutNotice && (
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-accent-emerald-bright/20 via-primary/15 to-surface-container-high border border-primary/40 shadow-lg flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-3xl">verified</span>
+            </div>
+            <div className="flex flex-col flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-text-primary text-base">🎉 Pagamento Confirmado via Stripe!</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-accent-emerald-bright/20 text-accent-emerald-bright">
+                  Acesso Liberado
+                </span>
+              </div>
+              <p className="text-text-secondary text-sm mt-1">
+                Identificamos sua compra com sucesso. Como você ainda não possui senha cadastrada na plataforma, basta definir sua senha de acesso abaixo para ativar imediatamente seu Painel do Aluno e acessar seus cursos.
+              </p>
+              <div className="flex items-center gap-2 mt-2 text-xs text-text-tertiary">
+                <span className="material-symbols-outlined text-[15px] text-primary">mail</span>
+                <span>Enviamos também as instruções da compra para o e-mail: <strong className="text-primary font-semibold">{email || initialData?.email}</strong></span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Header Title & Subtitle */}
         <div className="mb-space-xl text-center md:text-left">

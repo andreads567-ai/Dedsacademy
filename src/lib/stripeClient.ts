@@ -52,7 +52,15 @@ export async function redirectToStripeCheckout(options: StripeCheckoutOptions): 
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
+  const responseText = await response.text();
+  let data: any = {};
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error(
+      `O servidor retornou uma resposta inesperada (${response.status}). Verifique se a variável STRIPE_SECRET_KEY está configurada no painel da Vercel.`
+    );
+  }
 
   if (!response.ok || !data.url) {
     throw new Error(data.error || 'Não foi possível iniciar o checkout com a Stripe. Tente novamente.');
