@@ -20,9 +20,11 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Brand Info */}
           <div className="lg:col-span-2 flex flex-col gap-space-md pr-space-lg">
             <div className="flex items-center gap-space-xs text-text-primary">
-              <div className="w-10 h-10 rounded-lg bg-surface-overlay flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-headline-sm">school</span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="Deds Academy"
+                className="w-10 h-10 object-contain rounded-full shadow-[0_0_12px_rgba(0,192,160,0.25)] shrink-0"
+              />
               <span className="font-headline-sm text-headline-sm tracking-tight text-text-primary font-bold">
                 Deds <span className="text-primary">Academy</span>
               </span>

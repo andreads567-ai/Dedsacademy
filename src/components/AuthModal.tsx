@@ -122,13 +122,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <div className="relative w-full max-w-md bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Top Header: Bem-vindo */}
         <div className="flex items-center justify-between px-6 pt-6 pb-2">
-          <div>
-            <h2 className="text-2xl font-black text-text-primary tracking-tight">
-              Bem-vindo
-            </h2>
-            <p className="text-xs text-text-tertiary mt-0.5">
-              Digite seus dados para acessar sua conta
-            </p>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Deds Academy"
+              className="w-11 h-11 object-contain rounded-full shadow-[0_0_12px_rgba(0,192,160,0.3)] shrink-0"
+            />
+            <div>
+              <h2 className="text-2xl font-black text-text-primary tracking-tight">
+                Bem-vindo
+              </h2>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                Digite seus dados para acessar sua conta
+              </p>
+            </div>
           </div>
           <button
             type="button"

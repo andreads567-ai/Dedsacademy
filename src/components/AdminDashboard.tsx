@@ -367,9 +367,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Mobile Top Header (Only for Admin dashboard toggle & logout) */}
       <div className="md:hidden flex items-center justify-between p-4 bg-[#0B0F17] border-b border-[#1F293D]/60 sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center font-bold">
-            <span className="material-symbols-outlined text-lg">shield_person</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Deds Academy"
+            className="w-8 h-8 object-contain rounded-full shadow-[0_0_10px_rgba(0,192,160,0.3)] shrink-0"
+          />
           <div>
             <span className="font-bold text-sm text-text-primary block">Deds Gestão</span>
             <span className="text-[10px] text-text-tertiary">Painel Administrativo</span>
@@ -406,9 +408,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Admin Brand Badge */}
             <div className="pb-5 mb-4 border-b border-border-subtle flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-container/20 border border-primary/40 text-primary flex items-center justify-center shadow-[0_0_15px_rgba(0,176,116,0.2)]">
-                  <span className="material-symbols-outlined text-2xl">admin_panel_settings</span>
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="Deds Academy"
+                  className="w-10 h-10 object-contain rounded-full shadow-[0_0_15px_rgba(0,192,160,0.35)] shrink-0"
+                />
                 <div>
                   <h1 className="font-bold text-sm text-text-primary tracking-tight">Deds Academy</h1>
                   <div className="flex items-center gap-1.5 mt-0.5">

@@ -103,9 +103,11 @@ export const Header: React.FC<HeaderProps> = ({
                 }
               }}
             >
-              <div className="w-10 h-10 rounded-lg bg-surface-overlay flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
-                <span className="material-symbols-outlined text-headline-sm">school</span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="Deds Academy"
+                className="w-10 h-10 object-contain rounded-full shadow-[0_0_12px_rgba(0,192,160,0.35)] group-hover:scale-105 transition-transform shrink-0"
+              />
               <span className="font-headline-sm text-headline-sm tracking-tight text-text-primary group-hover:text-primary transition-colors font-bold">
                 Deds <span className="text-primary">Academy</span>
               </span>

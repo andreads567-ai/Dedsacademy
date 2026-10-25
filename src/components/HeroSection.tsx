@@ -69,7 +69,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </span>
             </div>
 
-            {/* Headline with interactive Deds Orbit Animation in the central gap */}
+            {/* Headline with interactive Deds Orbit Animation positioned cleanly above text */}
             <div className="relative">
               <h1 className="font-display text-display font-extrabold text-text-primary tracking-tight leading-none">
                 Aprenda.<br />
@@ -79,14 +79,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </span>
               </h1>
 
-              {/* Desktop position: precisely positioned in the empty gap between the text and the photo banner card */}
-              <div className="hidden lg:block absolute -top-14 right-0 xl:-right-8 w-[340px] xl:w-[380px] aspect-square pointer-events-none z-20">
+              {/* Desktop position: raised up to avoid overlapping paragraph text and search bar */}
+              <div className="hidden lg:block absolute -top-24 xl:-top-28 right-0 xl:-right-6 w-[310px] xl:w-[350px] aspect-square pointer-events-none z-20">
                 <DedsOrbitAnimation className="w-full h-full" />
               </div>
             </div>
 
             {/* Mobile / Tablet position: centered gracefully between headline and text */}
-            <div className="lg:hidden w-full max-w-[320px] sm:max-w-[340px] aspect-square mx-auto my-2 pointer-events-none">
+            <div className="lg:hidden w-full max-w-[280px] sm:max-w-[310px] aspect-square mx-auto my-1 pointer-events-none">
               <DedsOrbitAnimation className="w-full h-full" />
             </div>
 

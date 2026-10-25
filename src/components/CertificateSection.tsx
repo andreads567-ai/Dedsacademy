@@ -229,9 +229,11 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
                 {/* Golden Certificate Header */}
                 <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-sm">
-                      DA
-                    </div>
+                    <img
+                      src="/logo.png"
+                      alt="Deds Academy"
+                      className="w-8 h-8 object-contain rounded-full shadow-sm shrink-0"
+                    />
                     <span className="font-headline-sm text-label-md font-bold text-text-primary">
                       Deds Academy
                     </span>

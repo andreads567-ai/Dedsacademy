@@ -180,9 +180,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               </div>
 
               <div className="flex items-center gap-space-xs mb-space-md">
-                <div className="w-11 h-11 rounded-lg bg-surface-overlay flex items-center justify-center text-primary shadow-sm">
-                  <span className="material-symbols-outlined text-headline-md">school</span>
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="Deds Academy"
+                  className="w-12 h-12 object-contain rounded-full shadow-[0_0_15px_rgba(0,192,160,0.35)] shrink-0"
+                />
                 <div>
                   <span className="font-headline-sm text-headline-sm text-text-primary block tracking-tight font-bold">
                     Deds <span className="text-primary">Academy</span>

@@ -2445,8 +2445,8 @@ export const CertificateTemplateModal: React.FC<CertificateTemplateModalProps> =
                   )}
 
                   {/* Watermark Crest Icon */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-5">
-                    <span className="material-symbols-outlined text-[170px] text-accent-gold">school</span>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+                    <img src="/logo.png" alt="Deds Academy" className="w-[180px] h-[180px] object-contain rounded-full" />
                   </div>
                 </div>
               )}

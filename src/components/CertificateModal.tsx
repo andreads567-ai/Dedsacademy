@@ -157,6 +157,11 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
 
               {/* Certificate Layout */}
               <div className="text-center py-4 space-y-2">
+                <img
+                  src="/logo.png"
+                  alt="Deds Academy"
+                  className="w-16 h-16 object-contain rounded-full shadow-[0_0_15px_rgba(0,192,160,0.3)] mx-auto mb-2"
+                />
                 <span className="text-label-sm text-text-tertiary uppercase tracking-widest block">
                   Deds Academy • Certificação Profissional
                 </span>

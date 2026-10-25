@@ -461,9 +461,11 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
           {/* Top Prime Cursos Style Bar */}
           <header className="w-full bg-white dark:bg-[#0F172A] border-b border-slate-200 dark:border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-xl">school</span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="Deds Academy"
+                className="w-8 h-8 object-contain rounded-full shadow-[0_0_10px_rgba(0,192,160,0.3)] shrink-0"
+              />
               <div className="min-w-0">
                 <span className="text-[11px] font-bold text-primary uppercase tracking-wider block">
                   Deds Academy • Sala de Aula
