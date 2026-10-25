@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-<<<<<<< HEAD
-=======
 import { CertificateItem } from '../types';
->>>>>>> origin/main
 import { downloadCertificatePdf } from '../utils/certificateGenerator';
 
 interface CertificateModalProps {
