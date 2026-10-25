@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig } from '../types';
 import { MiddlePromoBanner } from './MiddlePromoBanner';
 import { DedsOrbitAnimation } from './DedsOrbitAnimation';
+import { KnowledgeRocketEarthAnimation } from './KnowledgeRocketEarthAnimation';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
@@ -68,7 +69,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </span>
             </div>
 
-            {/* Headline */}
+            {/* Headline with interactive Deds Orbit Animation in the central gap */}
             <div className="relative">
               <h1 className="font-display text-display font-extrabold text-text-primary tracking-tight leading-none">
                 Aprenda.<br />
@@ -77,10 +78,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   Conquiste.
                 </span>
               </h1>
+
+              {/* Desktop position: precisely positioned in the empty gap between the text and the photo banner card */}
+              <div className="hidden lg:block absolute -top-14 right-0 xl:-right-8 w-[340px] xl:w-[380px] aspect-square pointer-events-none z-20">
+                <DedsOrbitAnimation className="w-full h-full" />
+              </div>
             </div>
 
-            {/* Mobile / Tablet: Deds Orbit Animation */}
-            <div className="lg:hidden w-full max-w-[340px] aspect-square mx-auto my-2">
+            {/* Mobile / Tablet position: centered gracefully between headline and text */}
+            <div className="lg:hidden w-full max-w-[320px] sm:max-w-[340px] aspect-square mx-auto my-2 pointer-events-none">
               <DedsOrbitAnimation className="w-full h-full" />
             </div>
 
@@ -135,54 +141,84 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Visual Stage with Deds Orbit Animation (Transparent Background) */}
-          <div className="hidden lg:flex lg:col-span-5 relative justify-center lg:justify-end items-center">
-            {/* Main Hero Visual Stage: Deds Orbit Animation */}
-            <div className="relative w-full max-w-[480px] aspect-square flex items-center justify-center">
-              <DedsOrbitAnimation className="w-full h-full" />
+          {/* Right Column: Visual Stage with Photo Banner Card & Floating Badges */}
+          <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+            {/* Main Hero Visual Card (Banner Anterior Devolvido) */}
+            <div className="relative w-full max-w-md aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl bg-surface-raised border border-border-subtle">
+              <img
+                className="w-full h-full object-cover"
+                alt="Banner Principal Deds Academy"
+                src={banner.imageUrl}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent" />
 
-              {/* Floating Metric Badge 1 (Top Left Overlapping) */}
-              <div
-                className="absolute -top-3 -left-3 sm:-left-6 p-3 rounded-xl bg-surface-overlay/95 backdrop-blur-md shadow-xl hidden sm:flex items-center gap-3 animate-bounce border border-border-subtle z-40"
-                style={{ animationDuration: '4s' }}
-              >
-                <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-body-lg">verified</span>
+              {/* Capstone Academy Graphic Overlay */}
+              <div className="absolute bottom-6 left-6 right-6 p-4 rounded-xl bg-surface-overlay/90 backdrop-blur-md flex items-center justify-between border border-border-subtle/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined text-headline-sm">workspace_premium</span>
+                  </div>
+                  <div>
+                    <div className="font-headline-sm text-label-lg font-bold text-text-primary leading-tight">
+                      {banner.overlayTitle}
+                    </div>
+                    <div className="font-body-sm text-body-sm text-accent-emerald-bright font-medium">
+                      {banner.overlaySubtitle}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="block font-headline-sm text-label-lg text-text-primary font-bold leading-none">
-                    {banner.badge1Number}
+                <div className="flex items-center text-accent-gold font-label-md text-label-md">
+                  <span className="material-symbols-outlined text-body-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    star
                   </span>
-                  <span className="font-label-sm text-label-sm text-text-secondary">
-                    {banner.badge1Text}
+                  <span className="ml-1 text-text-primary font-bold">
+                    {banner.ratingScore.includes('/') ? banner.ratingScore.split('/')[0].trim() : banner.ratingScore}
                   </span>
                 </div>
               </div>
+            </div>
 
-              {/* Floating Metric Badge 2 (Bottom Right) */}
-              <div className="absolute -bottom-4 -right-2 sm:-right-4 p-3.5 rounded-xl bg-surface-raised/95 backdrop-blur-md shadow-2xl flex flex-col gap-1.5 max-w-[200px] border border-border-subtle z-40">
-                <div className="flex items-center justify-between">
-                  <span className="font-label-sm text-label-sm uppercase font-bold text-text-tertiary">
-                    Avaliações
-                  </span>
-                  <div className="flex text-accent-gold text-label-sm">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <span
-                        key={s}
-                        className="material-symbols-outlined text-label-md"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
-                      >
-                        star
-                      </span>
-                    ))}
-                  </div>
+            {/* Floating Metric Badge 1 (Top Left Overlapping) */}
+            <div
+              className="absolute -top-4 -left-4 sm:-left-8 p-3.5 rounded-xl bg-surface-overlay/95 backdrop-blur-md shadow-xl hidden sm:flex items-center gap-3 animate-bounce border border-border-subtle"
+              style={{ animationDuration: '4s' }}
+            >
+              <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-body-lg">verified</span>
+              </div>
+              <div>
+                <span className="block font-headline-sm text-label-lg text-text-primary font-bold leading-none">
+                  {banner.badge1Number}
+                </span>
+                <span className="font-label-sm text-label-sm text-text-secondary">
+                  {banner.badge1Text}
+                </span>
+              </div>
+            </div>
+
+            {/* Floating Metric Badge 2 (Bottom Right) */}
+            <div className="absolute -bottom-6 -right-2 sm:-right-6 p-4 rounded-xl bg-surface-raised shadow-2xl flex flex-col gap-2 max-w-[210px] border border-border-subtle">
+              <div className="flex items-center justify-between">
+                <span className="font-label-sm text-label-sm uppercase font-bold text-text-tertiary">
+                  Avaliações
+                </span>
+                <div className="flex text-accent-gold text-label-sm">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <span
+                      key={s}
+                      className="material-symbols-outlined text-label-md"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      star
+                    </span>
+                  ))}
                 </div>
-                <div className="font-headline-sm text-headline-sm font-bold text-text-primary">
-                  {banner.ratingScore}
-                </div>
-                <div className="font-body-sm text-body-sm text-text-tertiary text-xs">
-                  {banner.reviewsCountText}
-                </div>
+              </div>
+              <div className="font-headline-sm text-headline-sm font-bold text-text-primary">
+                {banner.ratingScore}
+              </div>
+              <div className="font-body-sm text-body-sm text-text-tertiary">
+                {banner.reviewsCountText}
               </div>
             </div>
           </div>
