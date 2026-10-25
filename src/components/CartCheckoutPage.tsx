@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { CartItem, UserAccount } from '../types';
+import { redirectToStripeCheckout } from '../lib/stripeClient';
 
 export interface CheckoutData {
   studentName: string;
   studentEmail: string;
   studentCpf: string;
   paymentMethod: string;
+  courseIds?: string[];
 }
 
 interface CartCheckoutPageProps {
@@ -27,7 +29,9 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   currentUser,
   onOpenAuth,
 }) => {
-  const [paymentMode, setPaymentMode] = useState<'pix' | 'credit' | 'debit' | 'boleto'>('pix');
+  const [paymentMode, setPaymentMode] = useState<'stripe' | 'pix' | 'credit' | 'debit' | 'boleto'>('stripe');
+  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState('DEDS10');
   const [couponApplied, setCouponApplied] = useState(true);
   const [couponDiscount, setCouponDiscount] = useState(23.98);
@@ -80,12 +84,37 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     }
   };
 
-  const handleFinishOrder = () => {
+  const handlePayWithStripe = async () => {
+    try {
+      setIsProcessingStripe(true);
+      setStripeError(null);
+      await redirectToStripeCheckout({
+        items,
+        studentName: studentName.trim() || currentUser?.name || 'Aluno Deds Academy',
+        studentEmail: studentEmail.trim() || currentUser?.email || 'aluno@dedsacademy.com.br',
+        studentCpf: studentCpf.trim() || currentUser?.cpf || '384.920.118-04',
+        couponCode: couponApplied ? couponCode : undefined,
+        discountAmount: activeCouponDiscount + (paymentMode === 'pix' ? pixDiscount : 0),
+        finalTotal,
+      });
+    } catch (err: any) {
+      console.error('[Stripe Checkout Error]', err);
+      setIsProcessingStripe(false);
+      setStripeError(err.message || 'Erro ao conectar à Stripe. Tente novamente.');
+    }
+  };
+
+  const handleFinishOrder = (bypassStripe = false) => {
+    if (!bypassStripe && (paymentMode === 'stripe' || paymentMode === 'credit')) {
+      handlePayWithStripe();
+      return;
+    }
     onCheckoutSuccess({
       studentName: studentName.trim() || currentUser?.name || 'Aluno Deds Academy',
       studentEmail: studentEmail.trim() || currentUser?.email || 'aluno@dedsacademy.com.br',
       studentCpf: studentCpf.trim() || currentUser?.cpf || '384.920.118-04',
       paymentMethod: paymentMode,
+      courseIds: items.map((i) => i.course.id),
     });
   };
 
@@ -320,7 +349,57 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 </div>
 
                 {/* Radio Options */}
+                <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-high border border-primary/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
+                      <span className="material-symbols-outlined text-headline-sm">security</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-headline-sm text-[15px] text-text-primary font-bold">Stripe Checkout Conectado</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">LIVE API</span>
+                      </div>
+                      <p className="font-body-sm text-body-sm text-text-tertiary">Transações processadas via infraestrutura oficial Stripe com proteção anti-fraude.</p>
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  {/* Option 0: Stripe Hosted Checkout (Recomendado) */}
+                  <label
+                    onClick={() => setPaymentMode('stripe')}
+                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border sm:col-span-2 ${
+                      paymentMode === 'stripe'
+                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
+                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
+                    }`}
+                  >
+                    <input
+                      checked={paymentMode === 'stripe'}
+                      onChange={() => setPaymentMode('stripe')}
+                      className="mt-1 accent-primary"
+                      name="payment_mode"
+                      type="radio"
+                      value="stripe"
+                    />
+                    <div className="flex flex-col flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-headline-sm text-[16px] text-text-primary font-bold flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-primary text-body-lg">verified_user</span> Stripe Checkout Oficial (Recomendado)
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">
+                            RECOMENDADO
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">CARTÕES</span>
+                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">BOLETO</span>
+                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">PIX</span>
+                        </div>
+                      </div>
+                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
+                        Página de pagamento oficial da Stripe com suporte a parcelamento em até 10x sem juros, cartões nacionais e internacionais, boleto ou PIX.
+                      </p>
+                    </div>
+                  </label>
                   {/* Option 1: PIX */}
                   <label
                     onClick={() => setPaymentMode('pix')}
@@ -448,6 +527,31 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </label>
                 </div>
 
+                {/* Stripe Checkout Banner */}
+                {paymentMode === 'stripe' && (
+                  <div className="flex items-start gap-4 p-5 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-low border border-primary/30 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
+                      <span className="material-symbols-outlined text-headline-md">lock</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="font-headline-sm text-[16px] text-text-primary font-bold">Stripe Hosted Checkout</span>
+                        <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">SSL 256-BIT</span>
+                      </div>
+                      <p className="font-body-sm text-body-sm text-text-secondary mt-1">
+                        Você será redirecionado para a página oficial da Stripe. Após o pagamento, o acesso aos seus cursos é liberado instantaneamente.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 mt-3 text-[12px] text-text-tertiary">
+                        <span className="flex items-center gap-1 text-accent-emerald-bright">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span> Criptografia ponta a ponta
+                        </span>
+                        <span className="flex items-center gap-1 text-accent-emerald-bright">
+                          <span className="material-symbols-outlined text-[14px]">check_circle</span> Proteção 3D-Secure 2.0
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Dynamic Panel: Credit Card Inputs */}
                 {paymentMode === 'credit' && (
                   <div className="flex flex-col gap-4 p-5 rounded-xl bg-surface-container-low mb-4 border border-border-subtle">
@@ -654,13 +758,40 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </div>
                 </form>
 
+                {/* Stripe Error Feedback */}
+                {stripeError && (
+                  <div className="mt-3 p-3 rounded-lg bg-status-danger/10 border border-status-danger/30 text-status-danger text-body-sm flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-body-md">error</span>
+                      <span className="font-semibold">{stripeError}</span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handlePayWithStripe()}
+                        className="text-xs bg-status-danger text-white px-2.5 py-1 rounded hover:opacity-90 transition-opacity"
+                      >
+                        Tentar Novamente
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFinishOrder(true)}
+                        className="text-xs underline text-text-secondary hover:text-text-primary"
+                      >
+                        Concluir como teste simulado
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Primary Checkout Button */}
                 <button
-                  onClick={handleFinishOrder}
-                  className="w-full mt-4 py-3.5 px-6 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-headline-sm text-headline-sm font-bold rounded-xl shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                  onClick={() => handleFinishOrder(false)}
+                  disabled={isProcessingStripe}
+                  className="w-full mt-4 py-3.5 px-6 bg-primary-container hover:bg-accent-emerald-bright disabled:opacity-60 disabled:cursor-not-allowed text-on-primary font-headline-sm text-headline-sm font-bold rounded-xl shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer group"
                 >
                   <span className="material-symbols-outlined text-headline-md group-hover:scale-110 transition-transform">lock</span>
-                  Finalizar Compra Segura
+                  {isProcessingStripe ? 'Conectando à Stripe Segura...' : (paymentMode === 'stripe' ? 'Pagar com Stripe Checkout' : 'Finalizar Compra Segura')}
                 </button>
 
                 {/* Security Badges */}

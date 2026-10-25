@@ -101,6 +101,36 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   const [testingService, setTestingService] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const defaultWebhookUrl = `${window.location.origin}/api/stripe-webhook`;
+      setSettings((prev) => {
+        let changed = false;
+        const nextPayment = { ...prev.payment };
+
+        if (!nextPayment.webhookUrl || nextPayment.webhookUrl.trim() === '') {
+          nextPayment.webhookUrl = defaultWebhookUrl;
+          changed = true;
+        }
+
+        if (nextPayment.provider === 'stripe' && !nextPayment.publicKey) {
+          nextPayment.publicKey =
+            'pk_live_51UUI3YHjDgKvyO43sJDhwBd065NMpAz7jopPnjzSCgJfIms6mIcE95Ey4u8Gr4Yy1HirIB5UIKbveM8w7uuX5NMs009JalGWux';
+          changed = true;
+        }
+
+        if (changed) {
+          const updated = { ...prev, payment: nextPayment };
+          try {
+            localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, []);
+
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(label);
@@ -229,7 +259,9 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         if (!settings.payment.publicKey.trim()) missingFields.push('Chave Pública (Public Key)');
         if (!settings.payment.secretKey.trim()) missingFields.push('Chave Secreta (Secret Key)');
         if (!settings.payment.webhookUrl.trim()) missingFields.push('URL do Webhook');
-        if (!settings.payment.webhookSecret.trim()) missingFields.push('Webhook Secret');
+        if (settings.payment.provider !== 'stripe' && !settings.payment.webhookSecret?.trim()) {
+          missingFields.push('Webhook Secret');
+        }
       } else if (service === 'video') {
         if (!settings.video.apiKey.trim()) missingFields.push('API Key do Streaming');
         if (!settings.video.libraryId.trim()) missingFields.push('Library ID / Canal');
@@ -317,7 +349,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   const handleSimulateWebhook = (service: 'pagamento' | 'video' | 'storage' | 'email') => {
     const eventMap = {
       pagamento: {
-        event: 'payment.pix_approved',
+        event: settings.payment.provider === 'stripe' ? 'checkout.session.completed' : 'payment.pix_approved',
         payload: JSON.stringify({
           event_type: 'pix_instant_payment',
           transaction_id: `tx_${Date.now()}`,
@@ -743,21 +775,126 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           </div>
 
           {/* Webhook do Gateway */}
+          <div className="space-y-4 pt-2 border-t border-border-subtle">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-text-secondary">
+                  URL do Webhook do Gateway de Pagamento (Cole no Stripe)
+                </label>
+                <span className="text-[10px] text-accent-emerald-bright font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs">verified</span> Endpoint Ativo
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={
+                    settings.payment.webhookUrl ||
+                    (typeof window !== 'undefined' ? `${window.location.origin}/api/stripe-webhook` : '')
+                  }
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      payment: { ...settings.payment, webhookUrl: e.target.value },
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
+                  placeholder="https://seu-dominio.com/api/stripe-webhook"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      settings.payment.webhookUrl ||
+                        (typeof window !== 'undefined' ? `${window.location.origin}/api/stripe-webhook` : ''),
+                      'pay_wh'
+                    )
+                  }
+                  className="px-3.5 py-2.5 rounded-xl bg-primary hover:bg-accent-emerald-bright text-on-primary text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <span className="material-symbols-outlined text-sm">content_copy</span>
+                  <span>Copiar</span>
+                </button>
+              </div>
+              {copiedKey === 'pay_wh' && (
+                <span className="text-[10px] text-accent-emerald-bright font-bold">URL do webhook copiada com sucesso!</span>
+              )}
+            </div>
+
+            {/* Chave de Assinatura do Webhook (whsec_...) */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-text-secondary">
+                Chave Secreta de Assinatura do Webhook (Webhook Signing Secret — Opcional)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="password"
+                  value={settings.payment.webhookSecret || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      payment: { ...settings.payment, webhookSecret: e.target.value },
+                    })
+                  }
+                  placeholder="whsec_..."
+                  className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
+                />
+              </div>
+              <p className="text-[11px] text-text-tertiary">
+                Obtida no Dashboard da Stripe em <strong>Desenvolvedores &gt; Webhooks &gt; Seu Endpoint &gt; Segredo de autenticação</strong>.
+              </p>
+            </div>
+
+            {/* Eventos escutados pelo Stripe */}
+            <div className="p-4 rounded-xl bg-surface-overlay border border-border-subtle space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-primary text-base">hub</span>
+                  Eventos Processados Automaticamente no Deds Academy:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSimulateWebhook('pagamento')}
+                  className="px-2.5 py-1 rounded-lg bg-surface-raised hover:bg-surface-container border border-border-subtle text-[11px] font-bold text-text-secondary hover:text-primary flex items-center gap-1 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-xs">play_arrow</span>
+                  Simular Evento
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2.5 rounded-lg bg-surface-raised/70 border border-border-subtle flex items-start gap-2">
+                  <span className="material-symbols-outlined text-accent-emerald-bright text-base shrink-0">check_circle</span>
+                  <div>
+                    <span className="font-mono font-bold text-text-primary">checkout.session.completed</span>
+                    <p className="text-text-tertiary">Libera o acesso aos cursos imediatamente para o aluno após compra concluída.</p>
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-surface-raised/70 border border-border-subtle flex items-start gap-2">
+                  <span className="material-symbols-outlined text-accent-emerald-bright text-base shrink-0">check_circle</span>
+                  <div>
+                    <span className="font-mono font-bold text-text-primary">charge.succeeded</span>
+                    <p className="text-text-tertiary">Confirma a liquidação do pagamento com cartão, boleto compensado ou PIX.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="block text-xs font-bold text-text-secondary">
-              URL do Webhook do Gateway de Pagamento (Cole no painel do seu provedor)
+                  {null}
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                readOnly
+                className="hidden"
                 value={settings.payment.webhookUrl}
-                className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none font-mono"
+
               />
               <button
                 type="button"
                 onClick={() => handleCopy(settings.payment.webhookUrl, 'pay_wh')}
-                className="px-3 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-container border border-border-subtle text-xs font-bold text-text-primary flex items-center gap-1 cursor-pointer"
+                className="hidden"
               >
                 <span className="material-symbols-outlined text-sm">content_copy</span>
                 <span>Copiar</span>

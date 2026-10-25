@@ -5,6 +5,7 @@
   "installCommand": "echo 'Install handled in buildCommand'",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

@@ -323,7 +323,10 @@ export default function App() {
   };
 
   const handleCheckoutSuccess = (checkoutData: CheckoutData) => {
-    const newCourseIds = cartItems.map((item) => item.course.id);
+    const newCourseIds =
+      checkoutData.courseIds && checkoutData.courseIds.length > 0
+        ? checkoutData.courseIds
+        : cartItems.map((item) => item.course.id);
     let targetUser: UserAccount;
 
     if (currentUser) {
@@ -398,6 +401,49 @@ export default function App() {
     setSelectedCourse(null);
     setActiveNavTab('aluno');
     showToast(`Matrícula confirmada! Bem-vindo(a) ${targetUser.name}, seus cursos estão disponíveis.`);
+  };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment_status');
+
+    if (paymentStatus === 'success') {
+      try {
+        const saved = localStorage.getItem('deds_pending_checkout');
+        let pendingData: CheckoutData = {
+          studentName: 'Aluno Deds Academy',
+          studentEmail: 'aluno@dedsacademy.com.br',
+          studentCpf: '384.920.118-04',
+          paymentMethod: 'stripe',
+        };
+
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          pendingData = {
+            studentName: parsed.studentName || 'Aluno Deds Academy',
+            studentEmail: parsed.studentEmail || 'aluno@dedsacademy.com.br',
+            studentCpf: parsed.studentCpf || '384.920.118-04',
+            paymentMethod: 'stripe',
+            courseIds: parsed.courseIds,
+          };
+          localStorage.removeItem('deds_pending_checkout');
+        }
+
+        handleCheckoutSuccess(pendingData);
+        showToast('🎉 Pagamento aprovado na Stripe! Sua matrícula foi confirmada com sucesso.');
+      } catch (err) {
+        console.error('[Stripe Return Error]', err);
+      }
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'cancel') {
+      showToast('O pagamento na Stripe foi cancelado. Seus itens continuam salvos no carrinho.');
+      setActiveNavTab('carrinho');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+  const _stripeInit = () => {
+
   };
 
   const handleSearch = (query: string) => {
