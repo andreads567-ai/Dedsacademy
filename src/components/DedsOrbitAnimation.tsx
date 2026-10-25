@@ -709,9 +709,9 @@ export const DedsOrbitAnimation: React.FC<DedsOrbitAnimationProps> = ({
         </div>
       </div>
 
-      {/* Subtle Micro Floating Label in Corner */}
-      <div className="absolute right-3 bottom-1 pointer-events-none z-30">
-        <span className="text-[10px] font-extrabold tracking-widest uppercase flex items-center gap-1.5 text-[#00f0ff]/70 drop-shadow-[0_0_6px_rgba(0,240,255,0.4)]">
+      {/* Subtle Micro Floating Label in Corner - Raised up to stay well clear of the search bar */}
+      <div className="absolute right-5 bottom-8 pointer-events-none z-30">
+        <span className="text-[10px] font-extrabold tracking-widest uppercase flex items-center gap-1.5 text-[#00f0ff]/80 drop-shadow-[0_0_8px_rgba(0,240,255,0.5)]">
           <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-ping" />
           Deds Orbit
         </span>
