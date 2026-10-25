@@ -79,15 +79,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [instructorsList, setInstructorsList] = useState<Instructor[]>(initialInstructors);
   const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(initialBlogPosts);
   const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(initialCertificates);
-<<<<<<< HEAD
-=======
-
   useEffect(() => {
     if (initialCertificates) {
       setCertificatesList(initialCertificates);
     }
   }, [initialCertificates]);
->>>>>>> origin/main
   const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
     if (reviews && reviews.length > 0) return reviews;
     try {

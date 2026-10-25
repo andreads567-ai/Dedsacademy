@@ -3,11 +3,7 @@ import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, Co
 import { INITIAL_ORDERS } from '../data/usersData';
 import { CancellationModal } from './CancellationModal';
 import { SignatureModal } from './SignatureModal';
-<<<<<<< HEAD
-import { StudentCoursePlayerModal } from './StudentCoursePlayerModal';
-=======
 import { StudentCourseStudyPage } from './StudentCourseStudyPage';
->>>>>>> origin/main
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 
 interface StudentPortalProps {
