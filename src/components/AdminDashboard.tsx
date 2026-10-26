@@ -27,6 +27,9 @@ interface AdminDashboardProps {
   categories?: Category[];
   instructors?: Instructor[];
   blogPosts?: BlogPost[];
+  onAddPost?: (post: BlogPost) => void;
+  onUpdatePost?: (post: BlogPost) => void;
+  onDeletePost?: (postId: string) => void;
   certificates?: CertificateItem[];
   reviews?: CourseReview[];
   onDeleteReview?: (reviewId: string) => void;
@@ -55,6 +58,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   categories: initialCategories = CATEGORIES,
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
+  onAddPost,
+  onUpdatePost,
+  onDeletePost,
   certificates: initialCertificates = INITIAL_CERTIFICATES,
   reviews,
   onDeleteReview,
@@ -83,6 +89,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories);
   const [instructorsList, setInstructorsList] = useState<Instructor[]>(initialInstructors);
   const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(initialBlogPosts);
+  useEffect(() => {
+    if (initialBlogPosts) {
+      setBlogPostsList(initialBlogPosts);
+    }
+  }, [initialBlogPosts]);
   const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(initialCertificates);
   useEffect(() => {
     if (initialCertificates) {
@@ -205,12 +216,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Blog Handlers
   const handleAddBlogPost = (post: BlogPost) => {
     setBlogPostsList((prev) => [post, ...prev]);
+    onAddPost?.(post);
   };
   const handleUpdateBlogPost = (post: BlogPost) => {
     setBlogPostsList((prev) => prev.map((p) => (p.id === post.id ? post : p)));
+    onUpdatePost?.(post);
   };
   const handleDeleteBlogPost = (postId: string) => {
     setBlogPostsList((prev) => prev.filter((p) => p.id !== postId));
+    onDeletePost?.(postId);
   };
   const handleAddAnnouncement = (title: string) => {
     setAnnouncements((prev) => [

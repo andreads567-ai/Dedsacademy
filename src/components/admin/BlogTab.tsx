@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BlogPost, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig } from '../../types';
 import { CheckoutBannerManagerTab } from './CheckoutBannerManagerTab';
 import { HeroBannerManagerTab } from './HeroBannerManagerTab';
@@ -38,12 +38,13 @@ export const BlogTab: React.FC<BlogTabProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [newAnnouncementText, setNewAnnouncementText] = useState('');
+  const [imageFileName, setImageFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     title: '',
     category: 'Horas Complementares',
     author: 'Coordenação Pedagógica Deds',
-    readTime: '5 min',
     image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
     summary: '',
     status: 'publicado' as 'publicado' | 'rascunho',
@@ -51,11 +52,11 @@ export const BlogTab: React.FC<BlogTabProps> = ({
 
   const handleOpenCreate = () => {
     setEditingPost(null);
+    setImageFileName('');
     setForm({
       title: '',
       category: 'Horas Complementares',
       author: 'Coordenação Pedagógica Deds',
-      readTime: '5 min',
       image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
       summary: '',
       status: 'publicado',
@@ -65,16 +66,32 @@ export const BlogTab: React.FC<BlogTabProps> = ({
 
   const handleOpenEdit = (post: BlogPost) => {
     setEditingPost(post);
+    setImageFileName('');
     setForm({
       title: post.title,
       category: post.category,
       author: post.author,
-      readTime: post.readTime,
       image: post.image,
       summary: post.summary,
       status: post.status,
     });
     setIsModalOpen(true);
+  };
+
+  const handleImageFileUpload = (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione um arquivo de imagem válido (PNG, JPG, WebP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setForm((prev) => ({ ...prev, image: reader.result as string }));
+        setImageFileName(file.name);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -87,7 +104,6 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         title: form.title.trim(),
         category: form.category,
         author: form.author,
-        readTime: form.readTime,
         image: form.image,
         summary: form.summary,
         status: form.status,
@@ -99,7 +115,6 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         category: form.category,
         author: form.author,
         date: new Date().toLocaleDateString('pt-BR'),
-        readTime: form.readTime || '5 min',
         image: form.image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
         summary: form.summary,
         status: form.status,
@@ -240,7 +255,7 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         />
       )}
 
-            {/* Tab 4: Banner Pagamentos (Checkout) */}
+      {/* Tab 4: Banner Pagamentos (Checkout) */}
       {subTab === 'banner-pagamentos' && (
         <CheckoutBannerManagerTab
           currentConfig={checkoutBannerConfig}
@@ -260,120 +275,124 @@ export const BlogTab: React.FC<BlogTabProps> = ({
       {subTab === 'artigos' && (
         <div className="space-y-6">
 
-      {/* Quick Announcement Publisher Banner */}
-      <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-sm">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="material-symbols-outlined text-primary text-lg">campaign</span>
-          <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">
-            Publicar Aviso Imediato no Painel de Todos os Alunos
-          </h3>
-        </div>
-        <form onSubmit={handleCreateNotice} className="flex flex-col sm:flex-row gap-2.5">
-          <input
-            type="text"
-            placeholder="Ex: Atualização no módulo de Python liberada; plantão de dúvidas na quinta-feira..."
-            value={newAnnouncementText}
-            onChange={(e) => setNewAnnouncementText(e.target.value)}
-            className="flex-1 px-3.5 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap"
-          >
-            Emitir Comunicado
-          </button>
-        </form>
-      </div>
+          {/* Quick Announcement Publisher Banner */}
+          <div className="bg-surface-raised p-5 rounded-2xl border border-border-subtle shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-primary text-lg">campaign</span>
+              <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                Publicar Aviso Imediato no Painel de Todos os Alunos
+              </h3>
+            </div>
+            <form onSubmit={handleCreateNotice} className="flex flex-col sm:flex-row gap-2.5">
+              <input
+                type="text"
+                placeholder="Ex: Atualização no módulo de Python liberada; plantão de dúvidas na quinta-feira..."
+                value={newAnnouncementText}
+                onChange={(e) => setNewAnnouncementText(e.target.value)}
+                className="flex-1 px-3.5 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap"
+              >
+                Emitir Comunicado
+              </button>
+            </form>
+          </div>
 
-      {/* Search and Blog Posts Grid */}
-      <div className="space-y-4">
-        <div className="relative max-w-md">
-          <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-tertiary text-base">
-            search
-          </span>
-          <input
-            type="text"
-            placeholder="Buscar por título do artigo, autor ou tag..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
-          />
-        </div>
+          {/* Search and Blog Posts Grid */}
+          <div className="space-y-4">
+            <div className="relative max-w-md">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-text-tertiary text-base">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar por título do artigo, autor ou tag..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
+              />
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredPosts.map((post) => (
-            <div
-              key={post.id}
-              className="p-5 rounded-2xl bg-surface-raised border border-border-subtle hover:border-border-strong transition-all flex flex-col justify-between shadow-sm group"
-            >
-              <div>
-                <div className="flex items-start gap-4 mb-3">
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="w-20 h-16 rounded-xl object-cover bg-surface-overlay shrink-0 border border-border-subtle"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
-                        {post.category}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          post.status === 'publicado'
-                            ? 'bg-accent-emerald-bright/20 text-accent-emerald-bright'
-                            : 'bg-accent-gold/20 text-accent-gold'
-                        }`}
-                      >
-                        {post.status === 'publicado' ? 'Publicado' : 'Rascunho'}
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="p-5 rounded-2xl bg-surface-raised border border-border-subtle hover:border-border-strong transition-all flex flex-col justify-between shadow-sm group"
+                >
+                  <div>
+                    <div className="flex items-start gap-4 mb-3">
+                      <img
+                        src={post.image}
+                        alt={post.title}
+                        className="w-20 h-16 rounded-xl object-cover bg-surface-overlay shrink-0 border border-border-subtle"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
+                            {post.category}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              post.status === 'publicado'
+                                ? 'bg-accent-emerald-bright/20 text-accent-emerald-bright'
+                                : 'bg-accent-gold/20 text-accent-gold'
+                            }`}
+                          >
+                            {post.status === 'publicado' ? 'Publicado' : 'Rascunho'}
+                          </span>
+                        </div>
+
+                        <h4 className="text-sm font-bold text-text-primary mt-1 line-clamp-2 group-hover:text-primary transition-colors">
+                          {post.title}
+                        </h4>
+                      </div>
                     </div>
 
-                    <h4 className="text-sm font-bold text-text-primary mt-1 line-clamp-2 group-hover:text-primary transition-colors">
-                      {post.title}
-                    </h4>
+                    <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
+                      {post.summary}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border-subtle/60 flex items-center justify-between text-xs">
+                    <span className="text-text-tertiary text-[11px]">
+                      Por {post.author} • {post.date}
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEdit(post)}
+                        className="p-1.5 rounded-lg bg-surface-overlay hover:bg-surface-container text-text-secondary hover:text-text-primary text-xs cursor-pointer"
+                        title="Editar Artigo"
+                      >
+                        <span className="material-symbols-outlined text-base">edit</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Deseja remover a matéria "${post.title}"?`)) {
+                            onDeletePost(post.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg bg-surface-overlay hover:bg-status-danger/20 text-text-secondary hover:text-status-danger text-xs cursor-pointer"
+                        title="Excluir Artigo"
+                      >
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
-                  {post.summary}
-                </p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-border-subtle/60 flex items-center justify-between text-xs">
-                <span className="text-text-tertiary text-[11px]">
-                  Por {post.author} • {post.date} ({post.readTime})
-                </span>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleOpenEdit(post)}
-                    className="p-1.5 rounded-lg bg-surface-overlay hover:bg-surface-container text-text-secondary hover:text-text-primary text-xs cursor-pointer"
-                    title="Editar Artigo"
-                  >
-                    <span className="material-symbols-outlined text-base">edit</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Deseja remover a matéria "${post.title}"?`)) {
-                        onDeletePost(post.id);
-                      }
-                    }}
-                    className="p-1.5 rounded-lg bg-surface-overlay hover:bg-status-danger/20 text-text-secondary hover:text-status-danger text-xs cursor-pointer"
-                    title="Excluir Artigo"
-                  >
-                    <span className="material-symbols-outlined text-base">delete</span>
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-    </div>
-  )}
+      )}
 
-  {/* Modal: Criar / Editar Artigo */}
+      {/* Modal: Criar / Editar Artigo */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
@@ -385,7 +404,7 @@ export const BlogTab: React.FC<BlogTabProps> = ({
                   {editingPost ? 'Atualizar Artigo do Blog' : 'Criar Nova Matéria no Blog'}
                 </h3>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-text-tertiary hover:text-text-primary">
+              <button onClick={() => setIsModalOpen(false)} className="text-text-tertiary hover:text-text-primary cursor-pointer">
                 <span className="material-symbols-outlined text-lg">close</span>
               </button>
             </div>
@@ -439,19 +458,6 @@ export const BlogTab: React.FC<BlogTabProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-text-secondary mb-1">
-                    Tempo Estimado de Leitura
-                  </label>
-                  <input
-                    type="text"
-                    value={form.readTime}
-                    onChange={(e) => setForm({ ...form, readTime: e.target.value })}
-                    placeholder="Ex: 5 min"
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">
                     Status de Publicação
                   </label>
                   <select
@@ -465,17 +471,69 @@ export const BlogTab: React.FC<BlogTabProps> = ({
                 </div>
               </div>
 
+              {/* Upload e Imagem de Destaque */}
               <div>
                 <label className="block text-xs font-bold text-text-secondary mb-1">
-                  URL da Imagem de Destaque
+                  Imagem de Destaque
                 </label>
+                
                 <input
-                  type="text"
-                  value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      handleImageFileUpload(e.target.files[0]);
+                    }
+                  }}
+                  className="hidden"
                 />
+
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3.5 py-2 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-base">cloud_upload</span>
+                      <span>Fazer Upload da Imagem</span>
+                    </button>
+                    {imageFileName && (
+                      <span className="text-xs text-accent-emerald-bright font-medium truncate max-w-[220px]">
+                        ✓ {imageFileName}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {form.image && (
+                      <div className="w-20 h-14 rounded-xl overflow-hidden border border-border-subtle shrink-0 bg-surface-overlay">
+                        <img
+                          src={form.image}
+                          alt="Prévia"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={form.image}
+                        onChange={(e) => {
+                          setForm({ ...form, image: e.target.value });
+                          setImageFileName('');
+                        }}
+                        placeholder="Ou cole a URL da imagem (https://...)"
+                        className="w-full px-3.5 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>

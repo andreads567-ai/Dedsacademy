@@ -27,8 +27,8 @@ import { ContactPage } from './components/ContactPage';
 import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
 import { CertificateSection } from './components/CertificateSection';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
-import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS } from './data/usersData';
-import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
+import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS } from './data/usersData';
+import { Course, CartItem, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 
@@ -142,6 +142,48 @@ export default function App() {
 
     const sectionId = targetUrl.startsWith('#') ? targetUrl.substring(1) : targetUrl;
     scrollToSection(sectionId);
+  };
+
+  // Blog posts state synchronized between Blog and Admin Module 9
+  const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_blog_posts');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_BLOG_POSTS;
+  });
+
+  const handleAddBlogPost = (post: BlogPost) => {
+    setBlogPostsList((prev) => {
+      const updated = [post, ...prev];
+      try {
+        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    showToast('Artigo publicado no blog com sucesso!');
+  };
+
+  const handleUpdateBlogPost = (post: BlogPost) => {
+    setBlogPostsList((prev) => {
+      const updated = prev.map((p) => (p.id === post.id ? post : p));
+      try {
+        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    showToast('Artigo atualizado no blog com sucesso!');
+  };
+
+  const handleDeleteBlogPost = (postId: string) => {
+    setBlogPostsList((prev) => {
+      const updated = prev.filter((p) => p.id !== postId);
+      try {
+        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    showToast('Artigo removido com sucesso!');
   };
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -1208,6 +1250,10 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
           <AdminDashboard
             courses={enrichedCoursesList}
             users={usersList}
+            blogPosts={blogPostsList}
+            onAddPost={handleAddBlogPost}
+            onUpdatePost={handleUpdateBlogPost}
+            onDeletePost={handleDeleteBlogPost}
             categories={categoriesList}
             certificates={certificatesList}
             onIssueCertificate={handleAdminIssueCertificate}
@@ -1274,6 +1320,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
         ) : activeNavTab === 'blog' ? (
           /* VIEW 5: PÁGINA DO BLOG & CENTRAL DE DÚVIDAS */
           <BlogPage
+            blogPosts={blogPostsList}
             onNavigateHome={(sectionId) => scrollToSection(sectionId || 'hero-section')}
             onOpenSupportTicket={() => showToast('Canal de suporte ao aluno acionado!')}
             onOpenCertModal={() => setIsCertModalOpen(true)}

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { BlogPost } from '../types';
+import { INITIAL_BLOG_POSTS } from '../data/usersData';
 
 interface BlogPageProps {
+  blogPosts?: BlogPost[];
   onNavigateHome: (sectionId?: string) => void;
   onOpenSupportTicket?: () => void;
   onOpenCertModal?: () => void;
@@ -8,6 +11,7 @@ interface BlogPageProps {
 }
 
 export const BlogPage: React.FC<BlogPageProps> = ({
+  blogPosts = INITIAL_BLOG_POSTS,
   onNavigateHome,
   onOpenSupportTicket,
   onOpenCertModal,
@@ -58,6 +62,31 @@ export const BlogPage: React.FC<BlogPageProps> = ({
     const queryMatches = !searchQuery.trim() || textToSearch.toLowerCase().includes(searchQuery.toLowerCase());
     return categoryMatches && queryMatches;
   };
+
+  const filteredGuides = blogPosts.filter((post) => {
+    if (post.status && post.status !== 'publicado') return false;
+
+    let categoryMatches = activeCategory === 'all';
+    if (!categoryMatches) {
+      const cat = (post.category || '').toLowerCase();
+      if (activeCategory === 'horas') categoryMatches = cat.includes('horas') || cat.includes('aacc');
+      else if (activeCategory === 'institucional') categoryMatches = cat.includes('institucional') || cat.includes('legal');
+      else if (activeCategory === 'certificacao') categoryMatches = cat.includes('certifica');
+      else if (activeCategory === 'seguranca') categoryMatches = cat.includes('seguran');
+      else if (activeCategory === 'suporte') categoryMatches = cat.includes('suporte');
+      else categoryMatches = cat.includes(activeCategory.toLowerCase());
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    const queryMatches =
+      !q ||
+      post.title.toLowerCase().includes(q) ||
+      post.summary.toLowerCase().includes(q) ||
+      (post.category && post.category.toLowerCase().includes(q)) ||
+      (post.author && post.author.toLowerCase().includes(q));
+
+    return categoryMatches && queryMatches;
+  });
 
   return (
     <div className="flex flex-col w-full">
@@ -184,7 +213,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({
                   Esclarecimento Regulatório
                 </span>
                 <span className="font-body-sm text-body-sm text-text-tertiary">
-                  Publicação Oficial Deds Academy • Tempo de leitura: 4 min
+                  Publicação Oficial Deds Academy
                 </span>
               </div>
               <h2 className="font-headline-lg text-headline-lg text-text-primary tracking-tight font-bold">
@@ -504,109 +533,63 @@ export const BlogPage: React.FC<BlogPageProps> = ({
                 Guias de Orientação & Dicas Acadêmicas
               </h3>
             </div>
-            <span className="font-body-sm text-body-sm text-text-tertiary">3 novos artigos indexados</span>
+            <span className="font-body-sm text-body-sm text-text-tertiary">
+              {filteredGuides.length} {filteredGuides.length === 1 ? 'artigo indexado' : 'artigos indexados'}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
-            {/* Guide 1: Comprovar horas na faculdade */}
-            <article className="bg-surface-raised rounded-xl shadow-md overflow-hidden flex flex-col justify-between group hover:-translate-y-1 transition-all border border-border-subtle">
-              <div className="flex flex-col">
-                <div className="w-full h-44 bg-surface-container-lowest overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    alt="University student reviewing academic transcripts"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRUfyBVrgXE6BffKHvD8k-pbeYWR3caHdnfuRK0MBk42lYFW3BGHTJ5HsgMyFSkmIWIsrCZzDHZCSLvW8tFlukXapvMh46hlUtBEek5BR9Ksn1hTwE3XIUl0Vwzugtto5m8cxd1-w51dtVJIgEIdkPS9mocCNoAg8P66iUFHdTytJTDKX6wx0gW24Llm473FPAj4qpc0L7ekF5RmsdS4H0vXBpleaVMPPNOLA_UtG8H_vxLPIvy3CUcA"
-                  />
-                </div>
-                <div className="p-space-lg flex flex-col gap-space-xs">
-                  <div className="flex items-center gap-space-xs">
-                    <span className="px-space-xs py-0.5 rounded bg-surface-overlay text-primary font-label-sm text-label-sm font-semibold">
-                      AACC / Horas
-                    </span>
-                    <span className="font-body-sm text-body-sm text-text-tertiary">5 min leitura</span>
+          {filteredGuides.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+              {filteredGuides.map((guide) => (
+                <article
+                  key={guide.id}
+                  className="bg-surface-raised rounded-xl shadow-md overflow-hidden flex flex-col justify-between group hover:-translate-y-1 transition-all border border-border-subtle"
+                >
+                  <div className="flex flex-col">
+                    <div className="w-full h-48 bg-surface-container-lowest overflow-hidden">
+                      <img
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        alt={guide.title}
+                        src={guide.image}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                    </div>
+                    <div className="p-space-lg flex flex-col gap-space-xs">
+                      <div className="flex items-center gap-space-xs">
+                        <span className="px-space-xs py-0.5 rounded bg-surface-overlay text-primary font-label-sm text-label-sm font-semibold">
+                          {guide.category}
+                        </span>
+                      </div>
+                      <h4 className="font-headline-sm text-headline-sm text-text-primary group-hover:text-accent-emerald-bright transition-colors font-bold mt-1">
+                        {guide.title}
+                      </h4>
+                      <p className="font-body-sm text-body-sm text-text-secondary leading-relaxed mt-2">
+                        {guide.summary}
+                      </p>
+                    </div>
                   </div>
-                  <h4 className="font-headline-sm text-headline-sm text-text-primary group-hover:text-accent-emerald-bright transition-colors font-bold">
-                    Como comprovar horas complementares na sua faculdade com certificados Deds Academy
-                  </h4>
-                  <p className="font-body-sm text-body-sm text-text-secondary line-clamp-3">
-                    Entenda o rito de protocolo nas secretarias de graduação, como preencher os relatórios de equivalência e como apresentar o link de validação pública ao seu coordenador.
-                  </p>
-                </div>
-              </div>
-              <div className="px-space-lg pb-space-lg pt-space-xs flex items-center justify-between">
-                <span className="font-label-sm text-label-sm text-text-tertiary">Publicado em Nov 2024</span>
-                <span className="font-label-md text-label-md text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform font-bold cursor-pointer">
-                  Ler guia <span className="material-symbols-outlined text-body-sm">arrow_forward</span>
-                </span>
-              </div>
-            </article>
-
-            {/* Guide 2: Organização de tempo */}
-            <article className="bg-surface-raised rounded-xl shadow-md overflow-hidden flex flex-col justify-between group hover:-translate-y-1 transition-all border border-border-subtle">
-              <div className="flex flex-col">
-                <div className="w-full h-44 bg-surface-container-lowest overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    alt="Productivity timer dashboard and workspace"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF9CaUBBxd0AIgPNRkuEpDF80gHPrUNkk-z1aGy8I718EHokpwuKZ82l-5pPjxNuTDTCTh9ijfoBU_N7YWgkcSTQmaH0w--CoHTWoKGklMsDBEXb7UXHZPOA2btFgjqST-EzY_PpH2j1PzCwMVf44BLcdULkXRb6rmTxCLnfOHMurhh7Ykv1IaLqBjCX9e-QwSu9r30u877UTQP9zsVE6fC5Ct_lRFX9N_ESIKtGpwNelKG4QL-h3H7A"
-                  />
-                </div>
-                <div className="p-space-lg flex flex-col gap-space-xs">
-                  <div className="flex items-center gap-space-xs">
-                    <span className="px-space-xs py-0.5 rounded bg-surface-overlay text-tertiary font-label-sm text-label-sm font-semibold">
-                      Produtividade
+                  <div className="px-space-lg pb-space-lg pt-space-xs flex items-center justify-between border-t border-border-subtle/40 mt-auto text-text-tertiary font-label-sm text-label-sm">
+                    <span>
+                      {guide.date ? (guide.date.startsWith('Publicado') ? guide.date : `Publicado em ${guide.date}`) : 'Publicado recentemente'}
                     </span>
-                    <span className="font-body-sm text-body-sm text-text-tertiary">3 min leitura</span>
+                    {guide.author && (
+                      <span>
+                        Por {guide.author}
+                      </span>
+                    )}
                   </div>
-                  <h4 className="font-headline-sm text-headline-sm text-text-primary group-hover:text-accent-emerald-bright transition-colors font-bold">
-                    Dicas de organização de tempo para concluir seus cursos e bootcamps no prazo
-                  </h4>
-                  <p className="font-body-sm text-body-sm text-text-secondary line-clamp-3">
-                    Aprenda a aplicar o método Pomodoro adaptado para trilhas de tecnologia, como reservar blocos profundos de estudo e como atingir 100% de progresso semanal sem sobrecarga.
-                  </p>
-                </div>
-              </div>
-              <div className="px-space-lg pb-space-lg pt-space-xs flex items-center justify-between">
-                <span className="font-label-sm text-label-sm text-text-tertiary">Publicado em Out 2024</span>
-                <span className="font-label-md text-label-md text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform font-bold cursor-pointer">
-                  Ler guia <span className="material-symbols-outlined text-body-sm">arrow_forward</span>
-                </span>
-              </div>
-            </article>
-
-            {/* Guide 3: Autenticidade digital QR code */}
-            <article className="bg-surface-raised rounded-xl shadow-md overflow-hidden flex flex-col justify-between group hover:-translate-y-1 transition-all border border-border-subtle">
-              <div className="flex flex-col">
-                <div className="w-full h-44 bg-surface-container-lowest overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    alt="Smartphone scanning encrypted QR code on certificate"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjFmNxFI07XsEA-fYbLERF1wLaXyIIsOaYA_NrX3gBzC66oLXgvedMasB7tgVI75weMbn9yfCxM9GsSkarEV91Z67zwFnPrJfoz6DCf6iAoRupCwblXsO-s4sKTXU8feWTnmCGF_5Bag5ZbZDZKDkna8ONyo1_ubkY-TFs-NmXg8SgqLX_41IGrM7VvqTolQqT3uC6wb7NwT6vwGLXUntHU2EnbWrkOoKHOPXCPYPilHRGKJKbrCdRaQ"
-                  />
-                </div>
-                <div className="p-space-lg flex flex-col gap-space-xs">
-                  <div className="flex items-center gap-space-xs">
-                    <span className="px-space-xs py-0.5 rounded bg-surface-overlay text-accent-gold font-label-sm text-label-sm font-semibold">
-                      Tecnologia Segura
-                    </span>
-                    <span className="font-body-sm text-body-sm text-text-tertiary">4 min leitura</span>
-                  </div>
-                  <h4 className="font-headline-sm text-headline-sm text-text-primary group-hover:text-accent-emerald-bright transition-colors font-bold">
-                    Autenticidade digital: como funciona a validação pública de certificados via QR Code
-                  </h4>
-                  <p className="font-body-sm text-body-sm text-text-secondary line-clamp-3">
-                    Conheça a infraestrutura por trás do nosso portal de autenticidade, que impede qualquer tipo de adulteração física ou cópia não autorizada de diplomas.
-                  </p>
-                </div>
-              </div>
-              <div className="px-space-lg pb-space-lg pt-space-xs flex items-center justify-between">
-                <span className="font-label-sm text-label-sm text-text-tertiary">Publicado em Out 2024</span>
-                <span className="font-label-md text-label-md text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform font-bold cursor-pointer">
-                  Ler guia <span className="material-symbols-outlined text-body-sm">arrow_forward</span>
-                </span>
-              </div>
-            </article>
-          </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 rounded-xl bg-surface-raised border border-border-subtle text-center text-text-secondary">
+              <span className="material-symbols-outlined text-4xl text-text-tertiary mb-2">article</span>
+              <p className="font-body-md">Nenhum artigo encontrado para o filtro selecionado.</p>
+            </div>
+          )}
         </div>
 
         {/* FAQ ACCORDION SECTION */}

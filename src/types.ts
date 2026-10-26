@@ -241,7 +241,7 @@ export interface BlogPost {
   category: string;
   author: string;
   date: string;
-  readTime: string;
+  readTime?: string;
   image: string;
   summary: string;
   content?: string;
