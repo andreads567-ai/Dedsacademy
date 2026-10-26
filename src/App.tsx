@@ -304,13 +304,29 @@ export default function App() {
     return [];
   });
 
-  // State for pending registration when a student completes Stripe payment without an existing account
+  // State for pending registration when a student completes Stripe payment without an existing account or clicks Quero me Matricular
   const [pendingRegistrationData, setPendingRegistrationData] = useState<{
     name?: string;
     email?: string;
     cpf?: string;
     pendingCourseIds?: string[];
+    isFromPayment?: boolean;
   } | null>(null);
+
+  // Open registration page (Cadastre-se) from course presentation / CTA
+  const handleOpenRegisterFromCourse = (course?: Course) => {
+    if (course) {
+      setPendingRegistrationData({
+        pendingCourseIds: [course.id],
+        isFromPayment: false,
+      });
+    } else {
+      setPendingRegistrationData(null);
+    }
+    setSelectedCourse(null);
+    setActiveNavTab('cadastro');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Synchronize cart items with localStorage
   useEffect(() => {
@@ -542,6 +558,7 @@ export default function App() {
             email: pendingData.studentEmail,
             cpf: pendingData.studentCpf,
             pendingCourseIds: pendingData.courseIds,
+            isFromPayment: true,
           });
           setActiveNavTab('cadastro');
           showToast(`🎉 Pagamento aprovado na Stripe! Crie sua senha de acesso para liberar seus cursos na plataforma.`);
@@ -1079,6 +1096,8 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
               setActiveNavTab('carrinho');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
+            onRegister={(course) => handleOpenRegisterFromCourse(course)}
+            onOpenRegister={() => handleOpenRegisterFromCourse(selectedCourse || undefined)}
             isAdded={addedCourseIds.includes(selectedCourse.id)}
             onOpenCertificateModal={() => setIsCertModalOpen(true)}
             onStartCourse={handleStartCourseFromPresentation}
@@ -1202,7 +1221,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             onNavigateHome={(sectionId) => scrollToSection(sectionId || 'hero-section')}
             onOpenLogin={() => setAuthModal({ isOpen: true, mode: 'login' })}
             initialData={pendingRegistrationData}
-            isPostCheckoutNotice={!!pendingRegistrationData}
+            isPostCheckoutNotice={Boolean(pendingRegistrationData?.isFromPayment)}
             onRegistrationSuccess={(data: RegistrationData) => {
               const pendingCourses = pendingRegistrationData?.pendingCourseIds || [];
               const newUser: UserAccount = {

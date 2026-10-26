@@ -7,6 +7,8 @@ interface CourseDetailPageProps {
   onBackToHome: () => void;
   onAddToCart: (course: Course) => void;
   onBuyNow?: (course: Course) => void;
+  onRegister?: (course: Course) => void;
+  onOpenRegister?: () => void;
   isAdded: boolean;
   onOpenCertificateModal?: () => void;
   onStartCourse?: (course: Course) => void;
@@ -21,6 +23,8 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   onBackToHome,
   onAddToCart,
   onBuyNow,
+  onRegister,
+  onOpenRegister,
   isAdded,
   onOpenCertificateModal,
   onStartCourse,
@@ -270,22 +274,29 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 ) : (
                   <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-3">
-                      {onBuyNow && (
-                        <button
-                          type="button"
-                          onClick={() => onBuyNow(course)}
-                          className="px-7 py-3.5 rounded-xl font-bold text-sm bg-primary hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.4)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2 active:scale-95 group"
-                          id="btn-hero-buy-now"
-                        >
-                          <span className="material-symbols-outlined text-lg">school</span>
-                          <span className="text-sm font-extrabold uppercase tracking-wide">
-                            {course.currentPrice === 0 ? 'Matricular-se Gratuitamente' : 'Quero me Matricular'}
-                          </span>
-                          <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
-                            arrow_forward
-                          </span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onRegister) {
+                            onRegister(course);
+                          } else if (onOpenRegister) {
+                            onOpenRegister();
+                          } else if (onBuyNow) {
+                            onBuyNow(course);
+                          }
+                        }}
+                        className="px-7 py-3.5 rounded-xl font-bold text-sm bg-primary hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.4)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2 active:scale-95 group"
+                        id="btn-hero-register"
+                        title="Ir para o cadastro na Deds Academy"
+                      >
+                        <span className="material-symbols-outlined text-lg">school</span>
+                        <span className="text-sm font-extrabold uppercase tracking-wide">
+                          Quero me Matricular
+                        </span>
+                        <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                          arrow_forward
+                        </span>
+                      </button>
 
                       <button
                         type="button"
@@ -829,16 +840,36 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                       <p className="text-text-tertiary leading-relaxed">
                         A sala de aula, vídeos, apostilas e certificados são liberados exclusivamente para alunos autenticados após a matrícula.
                       </p>
-                      {!currentUser && onOpenAuthModal && (
-                        <div className="pt-1 border-t border-border-subtle/50">
-                          <span className="text-text-tertiary">Já possui conta? </span>
-                          <button
-                            type="button"
-                            onClick={onOpenAuthModal}
-                            className="text-primary hover:underline font-bold cursor-pointer inline"
-                          >
-                            Faça login no painel do aluno
-                          </button>
+                      {!currentUser && (
+                        <div className="pt-1.5 border-t border-border-subtle/50 flex flex-col gap-1 text-[11px]">
+                          <div>
+                            <span className="text-text-tertiary">Novo por aqui? </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onRegister) {
+                                  onRegister(course);
+                                } else if (onOpenRegister) {
+                                  onOpenRegister();
+                                }
+                              }}
+                              className="text-accent-emerald-bright hover:underline font-bold cursor-pointer inline"
+                            >
+                              Cadastre-se na plataforma
+                            </button>
+                          </div>
+                          {onOpenAuthModal && (
+                            <div>
+                              <span className="text-text-tertiary">Já possui conta? </span>
+                              <button
+                                type="button"
+                                onClick={onOpenAuthModal}
+                                className="text-primary hover:underline font-bold cursor-pointer inline"
+                              >
+                                Faça login no painel do aluno
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
