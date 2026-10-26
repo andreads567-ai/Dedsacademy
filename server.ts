@@ -4,6 +4,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createStripeCheckoutSession } from './src/api/stripeHandler';
 import { processStripeWebhook } from './src/api/stripeWebhookHandler';
+import {
+  exchangeZohoGrantToken,
+  refreshZohoAccessToken,
+  sendZohoEmailMessage,
+} from './src/api/zohoHandler';
 
 dotenv.config();
 dotenv.config({ path: '.env.local' });
@@ -14,7 +19,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // 1. Endpoint para criar sessão de checkout
 app.post('/api/create-checkout-session', async (req, res) => {
@@ -36,6 +41,51 @@ app.post('/api/stripe-webhook', async (req, res) => {
   } catch (err: any) {
     console.error('[Stripe Express Webhook Error]', err);
     res.status(400).json({ received: false, error: err.message || 'Erro ao processar webhook' });
+  }
+});
+
+// 3. Endpoint para troca de Grant Token Zoho (OAuth2 Self-Client)
+app.post('/api/zoho-auth', async (req, res) => {
+  try {
+    const result = await exchangeZohoGrantToken(req.body);
+    if (!result.success) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (err: any) {
+    console.error('[Zoho Express Auth Error]', err);
+    res.status(500).json({ success: false, error: err.message || 'Erro ao autenticar Zoho' });
+  }
+});
+
+// 4. Endpoint para renovar Access Token Zoho
+app.post('/api/zoho-refresh', async (req, res) => {
+  try {
+    const result = await refreshZohoAccessToken(req.body);
+    if (!result.success) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (err: any) {
+    console.error('[Zoho Express Refresh Error]', err);
+    res.status(500).json({ success: false, error: err.message || 'Erro ao renovar token Zoho' });
+  }
+});
+
+// 5. Endpoint para disparo de E-mail Zoho Mail
+app.post('/api/zoho-send-email', async (req, res) => {
+  try {
+    const result = await sendZohoEmailMessage(req.body);
+    if (!result.success) {
+      res.status(400).json(result);
+    } else {
+      res.status(200).json(result);
+    }
+  } catch (err: any) {
+    console.error('[Zoho Express Send Error]', err);
+    res.status(500).json({ success: false, error: err.message || 'Erro ao enviar e-mail via Zoho' });
   }
 });
 

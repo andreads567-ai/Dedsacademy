@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CartItem, UserAccount } from '../types';
+import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER } from '../types';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
 
 export interface CheckoutData {
@@ -19,6 +19,7 @@ interface CartCheckoutPageProps {
   currentUser: UserAccount | null;
   onOpenAuth: () => void;
   usersList?: UserAccount[];
+  checkoutBannerConfig?: CheckoutPaymentBannerConfig;
 }
 
 export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
@@ -30,6 +31,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   currentUser,
   onOpenAuth,
   usersList = [],
+  checkoutBannerConfig = DEFAULT_CHECKOUT_PAYMENT_BANNER,
 }) => {
   // Payment methods: all processed via official Stripe checkout session
   const [paymentMode, setPaymentMode] = useState<'credit' | 'pix' | 'debit' | 'boleto'>('credit');
@@ -50,6 +52,8 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     studentEmail?: string;
     studentCpf?: string;
   }>({});
+  const [cpfNoticeMessage, setCpfNoticeMessage] = useState<string | null>(null);
+  const [isExistingAccount, setIsExistingAccount] = useState<boolean>(false);
 
   // Real-time check if student already has an account
   const matchedUser = useMemo(() => {
@@ -88,22 +92,49 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   const finalTotal = Math.max(0, baseTotal - pixDiscount);
   const totalSavings = comboDiscount + activeCouponDiscount + pixDiscount;
 
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '');
-    if (v.length > 14) v = v.slice(0, 14);
-    if (v.length <= 11) {
-      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-      v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    } else {
-      v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-      v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-      v = v.replace(/(\d{4})(\d)/, '$1-$2');
-    }
+    if (v.length > 11) v = v.slice(0, 11);
+    const rawDigits = v;
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d)/, '$1.$2');
+    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
     setStudentCpf(v);
+
     if (formErrors.studentCpf) {
       setFormErrors((prev) => ({ ...prev, studentCpf: undefined }));
+    }
+
+    if (rawDigits.length === 11) {
+      const foundUser = usersList.find((u) => u.cpf?.replace(/\D/g, '') === rawDigits);
+      if (foundUser) {
+        setIsExistingAccount(true);
+        const nameDiffers = studentName.trim() && studentName.trim().toLowerCase() !== foundUser.name.trim().toLowerCase();
+        const emailDiffers = studentEmail.trim() && studentEmail.trim().toLowerCase() !== foundUser.email.trim().toLowerCase();
+
+        // Auto-fill existing student name and email
+        setStudentName(foundUser.name);
+        setStudentEmail(foundUser.email);
+        setFormErrors({});
+
+        if (nameDiffers || emailDiffers) {
+          setCpfNoticeMessage(
+            `Identificamos um cadastro existente para este CPF. O Nome Completo e E-mail foram alterados e preenchidos automaticamente com os dados oficiais cadastrados no sistema (${foundUser.name} • ${foundUser.email}).`
+          );
+        } else {
+          setCpfNoticeMessage(
+            `Cadastro oficial localizado com sucesso! Dados de ${foundUser.name} preenchidos automaticamente.`
+          );
+        }
+      } else {
+        setIsExistingAccount(false);
+        setCpfNoticeMessage(
+          'CPF não cadastrado na plataforma. Para novos alunos, o preenchimento do Nome Completo e E-mail de Envio é obrigatório.'
+        );
+      }
+    } else {
+      setCpfNoticeMessage(null);
+      setIsExistingAccount(false);
     }
   };
 
@@ -131,21 +162,41 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     }
   };
 
-  const validateForm = (): boolean => {
+    const validateForm = (): boolean => {
     const errors: { studentName?: string; studentEmail?: string; studentCpf?: string } = {};
-
-    if (!studentName.trim() || studentName.trim().length < 3) {
-      errors.studentName = 'O Nome Completo é obrigatório para a emissão do certificado.';
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
-      errors.studentEmail = 'Informe um e-mail válido para envio do acesso e confirmação.';
-    }
-
     const cleanCpfDigits = studentCpf.replace(/\D/g, '');
+
+    // 1. CPF is always mandatory for identification
     if (!cleanCpfDigits || cleanCpfDigits.length < 11) {
-      errors.studentCpf = 'Informe um CPF válido (11 dígitos) para identificar sua conta.';
+      errors.studentCpf = 'O CPF do Aluno é obrigatório (11 dígitos) para identificar seu cadastro.';
+      setFormErrors(errors);
+      return false;
+    }
+
+    const foundUser = usersList.find((u) => u.cpf?.replace(/\D/g, '') === cleanCpfDigits);
+
+    if (foundUser) {
+      // User exists in system: guarantee their registered name and email are used
+      if (!studentName.trim()) setStudentName(foundUser.name);
+      if (!studentEmail.trim()) setStudentEmail(foundUser.email);
+    } else {
+      // New user: Name and Email are strictly mandatory
+      if (!studentName.trim() || studentName.trim().length < 3) {
+        errors.studentName = 'O Nome Completo é obrigatório para cadastrar o novo aluno e emitir certificados.';
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
+        errors.studentEmail = 'O E-mail de Envio é obrigatório e deve ser válido para envio do acesso.';
+      } else {
+        // Strict duplicate check: e-mail cannot belong to another CPF
+        const emailOwner = usersList.find(
+          (u) => u.email?.trim().toLowerCase() === studentEmail.trim().toLowerCase() && u.cpf?.replace(/\D/g, '') !== cleanCpfDigits
+        );
+        if (emailOwner) {
+          errors.studentEmail = `Este e-mail já pertence a outro aluno cadastrado (${emailOwner.name}). Use seu próprio e-mail ou faça login.`;
+        }
+      }
     }
 
     setFormErrors(errors);
@@ -463,6 +514,26 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   </div>
                 </div>
 
+                {cpfNoticeMessage && (
+                  <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 transition-all mt-3 ${
+                    isExistingAccount
+                      ? 'bg-accent-emerald-bright/10 border-accent-emerald-bright/30 text-accent-emerald-bright'
+                      : 'bg-primary/10 border-primary/25 text-primary'
+                  }`}>
+                    <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">
+                      {isExistingAccount ? 'how_to_reg' : 'info'}
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-bold leading-relaxed">{cpfNoticeMessage}</p>
+                      {isExistingAccount && (
+                        <p className="text-text-secondary text-[11px] mt-1">
+                          Seu cadastro existente foi sincronizado com este pedido. Ao concluir o pagamento, os cursos serão liberados imediatamente para você.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Account Status Real-Time Indicator */}
                 <div className="mt-4 pt-3 border-t border-border-subtle/50">
                   {matchedUser ? (
@@ -489,165 +560,59 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 </div>
               </section>
 
-              {/* Payment Methods Section (4 Clean Stripe-Integrated Options) */}
-              <section className="bg-surface-raised rounded-xl p-5 lg:p-6 shadow-sm border border-border-subtle">
-                <div className="flex items-center justify-between pb-4 mb-4 border-b border-border-subtle">
+                            {/* Payment Section: Official Stripe Checkout Banner & Option */}
+              <section className="bg-surface-raised rounded-xl p-5 lg:p-6 shadow-sm border border-border-subtle space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-headline-sm">payments</span>
                     <div>
-                      <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">Escolha a Forma de Pagamento</h2>
-                      <p className="font-body-sm text-body-sm text-text-tertiary">Todas as opções são processadas de forma segura e conciliadas via Stripe.</p>
+                      <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">
+                        Forma de Pagamento
+                      </h2>
+                      <p className="font-body-sm text-body-sm text-text-tertiary">
+                        Todas as transações são processadas com segurança máxima e criptografia de ponta a ponta via Stripe.
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* 4 Individual Payment Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  {/* Option 1: Cartão de Crédito */}
-                  <label
-                    onClick={() => setPaymentMode('credit')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'credit'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'credit'}
-                      onChange={() => setPaymentMode('credit')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="credit"
+                {/* Checkout Banner (From Admin Module 9) */}
+                {checkoutBannerConfig?.enabled !== false && checkoutBannerConfig?.imageUrl && (
+                  <div className="rounded-2xl overflow-hidden border border-border-subtle shadow-md group relative">
+                    <img
+                      src={checkoutBannerConfig.imageUrl}
+                      alt={checkoutBannerConfig.altText || 'Banner Oficial de Pagamentos Stripe Checkout'}
+                      className="w-full max-h-56 sm:max-h-64 object-cover group-hover:scale-[1.01] transition-transform duration-500"
                     />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-primary text-body-lg">credit_card</span> Cartão de Crédito
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">VISA</span>
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">MC</span>
-                          <span className="px-1.5 py-0.5 rounded bg-surface-overlay text-[10px] font-bold text-text-secondary">ELO</span>
-                        </div>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        Parcele em até 10x sem juros de R$ {(finalTotal / 10).toFixed(2).replace('.', ',')} no cartão.
-                      </p>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-xs">
+                      <span className="px-2.5 py-1 rounded-md bg-black/70 backdrop-blur-md font-bold flex items-center gap-1.5 border border-white/10">
+                        <span className="material-symbols-outlined text-sm text-accent-emerald-bright">verified_user</span>
+                        Checkout Seguro Oficial
+                      </span>
+                      <span className="px-2.5 py-1 rounded-md bg-black/70 backdrop-blur-md font-mono text-[11px] text-text-secondary border border-white/10">
+                        Stripe Protected
+                      </span>
                     </div>
-                  </label>
+                  </div>
+                )}
 
-                  {/* Option 2: PIX Instantâneo */}
-                  <label
-                    onClick={() => setPaymentMode('pix')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'pix'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'pix'}
-                      onChange={() => setPaymentMode('pix')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="pix"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-primary text-body-lg">qr_code_2</span> PIX Instantâneo
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-label-sm bg-accent-emerald-bright/20 text-accent-emerald-bright font-bold">
-                          5% OFF EXTRA
-                        </span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        Aprovação imediata e liberação do curso em segundos via QR Code.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 3: Boleto Bancário */}
-                  <label
-                    onClick={() => setPaymentMode('boleto')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'boleto'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'boleto'}
-                      onChange={() => setPaymentMode('boleto')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="boleto"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-tertiary text-body-lg">receipt_long</span> Boleto Bancário
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">
-                          1 DIA ÚTIL
-                        </span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        Pague em qualquer banco ou aplicativo. Compensação em até 24h úteis.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 4: Cartão de Débito */}
-                  <label
-                    onClick={() => setPaymentMode('debit')}
-                    className={`relative flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all border ${
-                      paymentMode === 'debit'
-                        ? 'bg-surface-container-high border-primary shadow-[0_0_15px_rgba(0,176,116,0.25)]'
-                        : 'bg-surface-container-low border-border-subtle hover:bg-surface-overlay'
-                    }`}
-                  >
-                    <input
-                      checked={paymentMode === 'debit'}
-                      onChange={() => setPaymentMode('debit')}
-                      className="mt-1 accent-primary"
-                      name="payment_mode"
-                      type="radio"
-                      value="debit"
-                    />
-                    <div className="flex flex-col flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-headline-sm text-[15px] text-text-primary font-bold flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-secondary text-body-lg">account_balance_wallet</span> Cartão de Débito
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-surface-overlay text-[10px] font-label-sm text-text-tertiary">
-                          À VISTA
-                        </span>
-                      </div>
-                      <p className="font-body-sm text-body-sm text-text-secondary">
-                        Débito direto em conta com autenticação bancária ágil.
-                      </p>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Selected Method Stripe Sync Banner */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-low border border-primary/20 flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-headline-sm">verified_user</span>
+                {/* Seleção de cartão de crédito Stripe Checkout */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 via-surface-container-high to-surface-container-low border border-primary/20 flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="material-symbols-outlined text-headline-sm">credit_card</span>
                   </div>
                   <div className="flex flex-col flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-text-primary text-[14px]">
-                        Opção selecionada: {paymentMode === 'credit' ? 'Cartão de Crédito' : paymentMode === 'pix' ? 'PIX Instantâneo' : paymentMode === 'boleto' ? 'Boleto Bancário' : 'Cartão de Débito'}
+                        Seleção de cartão de crédito Stripe Checkout
                       </span>
-                      <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">STRIPE CHECKOUT</span>
+                      <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold">
+                        STRIPE CHECKOUT
+                      </span>
                     </div>
-                    <p className="text-text-secondary text-xs mt-1">
-                      Ao clicar em <strong>Pagamento Checkout</strong>, a sessão segura de pagamento será iniciada com suporte oficial a {paymentMode === 'credit' ? 'parcelamento em até 10x sem juros' : paymentMode === 'pix' ? 'QR Code PIX com confirmação em tempo real' : paymentMode === 'boleto' ? 'boleto registrado' : 'débito em conta'}.
+                    <p className="text-text-secondary text-xs mt-1 leading-relaxed">
+                      Ao clicar em <strong>Prosseguir para o pagamento</strong>, você será direcionado para o ambiente seguro e oficial da Stripe para concluir sua compra com suporte oficial a parcelamento no cartão de crédito em até 10x sem juros, Pix ou boleto com aprovação imediata.
                     </p>
                   </div>
                 </div>
@@ -792,7 +757,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   className="w-full mt-4 py-3.5 px-6 bg-primary-container hover:bg-accent-emerald-bright disabled:opacity-60 disabled:cursor-not-allowed text-on-primary font-headline-sm text-headline-sm font-bold rounded-xl shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer group"
                 >
                   <span className="material-symbols-outlined text-headline-md group-hover:scale-110 transition-transform">lock</span>
-                  {isProcessingStripe ? 'Conectando ao Checkout Seguro...' : `Pagamento Checkout • R$ ${finalTotal.toFixed(2).replace('.', ',')}`}
+                  {isProcessingStripe ? 'Conectando ao Checkout Seguro...' : 'Prosseguir para o pagamento'}
                 </button>
 
                 {/* Security Badges */}

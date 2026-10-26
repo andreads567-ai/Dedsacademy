@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { compareSync } from 'bcryptjs';
 import { UserAccount } from '../types';
+import { sendPasswordResetEmail } from '../services/emailService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -48,9 +49,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   const handleForgotPassword = () => {
-    const targetEmail = email.trim() || 'seu e-mail';
+    const targetEmail = email.trim();
+    if (!targetEmail) {
+      setErrorMessage('Por favor, digite seu e-mail de acesso para receber as instruções.');
+      return;
+    }
+    // 2. Notificação de recuperação de senha segura
+    sendPasswordResetEmail(targetEmail).catch(console.error);
     setForgotFeedback(
-      `Instruções para redefinição de senha foram enviadas para ${targetEmail}.`
+      `Instruções seguras para redefinição de senha foram enviadas para ${targetEmail}. Verifique sua caixa de entrada.`
     );
     setErrorMessage('');
   };

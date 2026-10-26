@@ -28,8 +28,9 @@ import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
 import { CertificateSection } from './components/CertificateSection';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS } from './data/usersData';
-import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
+import { Course, CartItem, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
+import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 
 /**
  * SECURITY: Blocks unauthorized access to admin panel.
@@ -660,6 +661,8 @@ export default function App() {
       return next;
     });
     upsertCourse(newCourse).catch(console.error);
+    // 5. Notificação de divulgação de cursos novos
+    sendNewCourseBroadcastEmail({ course: newCourse, students: usersList }).catch(console.error);
     showToast(`Curso "${newCourse.title}" publicado com sucesso!`);
   };
 
@@ -756,6 +759,15 @@ export default function App() {
       };
       try { localStorage.setItem('deds_student_progress', JSON.stringify(updated)); } catch {}
 
+      // 3. Notificação de conclusão de aula
+      sendLessonCompleteEmail({
+        studentEmail: currentUser.email,
+        studentName: currentUser.name,
+        courseTitle: course?.title || 'Curso Deds Academy',
+        lessonTitle: lessonTitle,
+        progressPercent: newPercent,
+      }).catch(console.error);
+
       // If course is 100% complete, add to completedCourseIds
       if (newPercent >= 100 && currentUser && !currentUser.completedCourseIds.includes(courseId)) {
         const updatedUser = {
@@ -844,6 +856,16 @@ export default function App() {
         try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
         return next;
       });
+
+      // 3b. Notificação de emissão do certificado com PDF automático
+      sendCertificateEmail({
+        studentEmail: currentUser.email,
+        studentName: currentUser.certificateData?.customName || currentUser.name,
+        courseTitle: review.courseTitle,
+        hours: course?.hours || 40,
+        instructor: review.instructor || course?.instructor || 'Deds Academy',
+        certCode: newCert.code,
+      }).catch(console.error);
 
       showToast(`Avaliação confirmada! Certificado de "${review.courseTitle}" liberado! 🎉`);
     }
@@ -1242,6 +1264,8 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
               };
               handleAddUser(newUser);
               setCurrentUser(newUser);
+              // 1. Notificação de boas-vindas e orientação de acesso
+              sendWelcomeEmail(newUser).catch(console.error);
               setPendingRegistrationData(null);
               setActiveNavTab('aluno');
               showToast(`Cadastro realizado com sucesso! Bem-vindo(a), ${data.name}! Seus cursos já estão disponíveis.`);

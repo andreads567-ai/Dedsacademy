@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig, StudentProgress } from '../types';
+import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig, StudentProgress } from '../types';
 import { CATEGORIES } from '../data/coursesData';
 import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
@@ -19,6 +19,7 @@ import { SupportTicketsTab } from './admin/SupportTicketsTab';
 import { SettingsApiTab } from './admin/SettingsApiTab';
 import { PromotionsTab } from './admin/PromotionsTab';
 import { CourseEditModal } from './admin/CourseEditModal';
+import { sendCouponBroadcastEmail } from '../services/emailService';
 
 interface AdminDashboardProps {
   courses: Course[];
@@ -34,6 +35,8 @@ interface AdminDashboardProps {
   onUpdateHeroBannerConfig?: (config: HeroBannerConfig) => void;
   middleBannerConfig?: MiddlePromoBannerConfig;
   onUpdateMiddleBannerConfig?: (config: MiddlePromoBannerConfig) => void;
+  checkoutBannerConfig?: CheckoutPaymentBannerConfig;
+  onUpdateCheckoutBannerConfig?: (config: CheckoutPaymentBannerConfig) => void;
   onAddCourse: (course: Course) => void;
   onUpdateCourse: (course: Course) => void;
   onDeleteCourse: (courseId: string) => void;
@@ -60,6 +63,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateHeroBannerConfig,
   middleBannerConfig,
   onUpdateMiddleBannerConfig,
+  checkoutBannerConfig,
+  onUpdateCheckoutBannerConfig,
   onAddCourse,
   onUpdateCourse,
   onDeleteCourse,
@@ -104,6 +109,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleAddCoupon = (newCoupon: Coupon) => {
     setCouponsList((prev) => [newCoupon, ...prev]);
+    // 4. Notificação de divulgação de cupons de desconto
+    sendCouponBroadcastEmail({ coupon: newCoupon, students: users }).catch(console.error);
   };
 
   const handleUpdateCoupon = (updatedCoupon: Coupon) => {
@@ -639,6 +646,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onUpdateHeroBannerConfig={onUpdateHeroBannerConfig}
               middleBannerConfig={middleBannerConfig}
               onUpdateMiddleBannerConfig={onUpdateMiddleBannerConfig}
+              checkoutBannerConfig={checkoutBannerConfig}
+              onUpdateCheckoutBannerConfig={onUpdateCheckoutBannerConfig}
             />
           )}
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UserAccount } from '../types';
 
 export interface RegistrationData {
   name: string;
@@ -66,6 +67,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
 
   const [termos, setTermos] = useState(true);
   const [promocoes, setPromocoes] = useState(true);
+  const [cpfDuplicateError, setCpfDuplicateError] = useState<string | null>(null);
 
   // Masks
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -580,7 +582,23 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                           className="w-full h-12 pl-12 pr-space-md bg-surface-container-low rounded-lg text-text-primary font-body-md text-body-md placeholder:text-text-tertiary focus:outline-none focus:bg-surface-container border border-border-subtle focus:border-primary transition-all"
                           type="text"
                         />
-                      </div>
+                                            </div>
+                      {cpfDuplicateError && (
+                        <div className="p-3 rounded-xl bg-status-danger/10 border border-status-danger/30 text-status-danger text-xs flex items-start gap-2 mt-1">
+                          <span className="material-symbols-outlined text-base shrink-0 mt-0.5">error</span>
+                          <div className="flex-1">
+                            <p className="font-bold leading-snug">{cpfDuplicateError}</p>
+                            <button
+                              type="button"
+                              onClick={onOpenLogin}
+                              className="text-primary hover:underline font-bold mt-1.5 inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>Fazer login com minha conta</span>
+                              <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Data de Nascimento */}

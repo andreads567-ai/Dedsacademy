@@ -7,8 +7,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   Object.assign(process.env, env);
 
-  const stripeApiPlugin: Plugin = {
-    name: 'stripe-checkout-api',
+  const localApiPlugin: Plugin = {
+    name: 'local-backend-api-plugin',
     configureServer(server) {
       // 1. Criar sessão de checkout no servidor local
       server.middlewares.use('/api/create-checkout-session', async (req, res) => {
@@ -76,11 +76,101 @@ export default defineConfig(({ mode }) => {
           }
         });
       });
+
+      // 3. Trocar Grant Token do Zoho Mail (OAuth2 Self-Client)
+      server.middlewares.use('/api/zoho-auth', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => {
+          body += chunk.toString();
+        });
+
+        req.on('end', async () => {
+          try {
+            const parsedBody = body ? JSON.parse(body) : {};
+            const { exchangeZohoGrantToken } = await import('./src/api/zohoHandler');
+            const result = await exchangeZohoGrantToken(parsedBody);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = result.success ? 200 : 400;
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            console.error('[API Zoho Auth Error]', err);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message || 'Erro ao autenticar Zoho' }));
+          }
+        });
+      });
+
+      // 4. Renovar Access Token Zoho via Refresh Token permanente
+      server.middlewares.use('/api/zoho-refresh', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => {
+          body += chunk.toString();
+        });
+
+        req.on('end', async () => {
+          try {
+            const parsedBody = body ? JSON.parse(body) : {};
+            const { refreshZohoAccessToken } = await import('./src/api/zohoHandler');
+            const result = await refreshZohoAccessToken(parsedBody);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = result.success ? 200 : 400;
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            console.error('[API Zoho Refresh Error]', err);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message || 'Erro ao renovar token' }));
+          }
+        });
+      });
+
+      // 5. Enviar e-mail via API REST do Zoho Mail
+      server.middlewares.use('/api/zoho-send-email', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+          return;
+        }
+
+        let body = '';
+        req.on('data', (chunk: any) => {
+          body += chunk.toString();
+        });
+
+        req.on('end', async () => {
+          try {
+            const parsedBody = body ? JSON.parse(body) : {};
+            const { sendZohoEmailMessage } = await import('./src/api/zohoHandler');
+            const result = await sendZohoEmailMessage(parsedBody);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = result.success ? 200 : 400;
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            console.error('[API Zoho Send Error]', err);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message || 'Erro ao enviar e-mail' }));
+          }
+        });
+      });
     },
   };
 
   return {
-    plugins: [react(), tailwindcss(), stripeApiPlugin],
+    plugins: [react(), tailwindcss(), localApiPlugin],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BlogPost, HeroBannerConfig, MiddlePromoBannerConfig } from '../../types';
+import { BlogPost, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig } from '../../types';
+import { CheckoutBannerManagerTab } from './CheckoutBannerManagerTab';
 import { HeroBannerManagerTab } from './HeroBannerManagerTab';
 import { MiddleBannerManagerTab } from './MiddleBannerManagerTab';
 
@@ -14,6 +15,8 @@ interface BlogTabProps {
   onUpdateHeroBannerConfig?: (config: HeroBannerConfig) => void;
   middleBannerConfig?: MiddlePromoBannerConfig;
   onUpdateMiddleBannerConfig?: (config: MiddlePromoBannerConfig) => void;
+  checkoutBannerConfig?: CheckoutPaymentBannerConfig;
+  onUpdateCheckoutBannerConfig?: (config: CheckoutPaymentBannerConfig) => void;
 }
 
 export const BlogTab: React.FC<BlogTabProps> = ({
@@ -27,8 +30,10 @@ export const BlogTab: React.FC<BlogTabProps> = ({
   onUpdateHeroBannerConfig,
   middleBannerConfig,
   onUpdateMiddleBannerConfig,
+  checkoutBannerConfig,
+  onUpdateCheckoutBannerConfig,
 }) => {
-  const [subTab, setSubTab] = useState<'artigos' | 'banner-home' | 'banner-faixa'>('artigos');
+  const [subTab, setSubTab] = useState<'artigos' | 'banner-home' | 'banner-faixa' | 'banner-pagamentos'>('artigos');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
@@ -203,6 +208,28 @@ export const BlogTab: React.FC<BlogTabProps> = ({
             {middleBannerConfig?.enabled !== false ? 'Ativo' : 'Oculto'}
           </span>
         </button>
+      
+        <button
+          type="button"
+          onClick={() => setSubTab('banner-pagamentos')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            subTab === 'banner-pagamentos'
+              ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">credit_card</span>
+          <span>4. Banner Pagamentos</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              checkoutBannerConfig?.enabled !== false
+                ? 'bg-accent-emerald-bright/20 text-accent-emerald-bright border-accent-emerald-bright/30'
+                : 'bg-surface-overlay text-text-tertiary border-border-subtle'
+            }`}
+          >
+            {checkoutBannerConfig?.enabled !== false ? 'Ativo' : 'Oculto'}
+          </span>
+        </button>
       </div>
 
       {/* Tab 2: Banner Principal da Home */}
@@ -210,6 +237,14 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         <HeroBannerManagerTab
           currentConfig={heroBannerConfig}
           onSaveConfig={onUpdateHeroBannerConfig || (() => {})}
+        />
+      )}
+
+            {/* Tab 4: Banner Pagamentos (Checkout) */}
+      {subTab === 'banner-pagamentos' && (
+        <CheckoutBannerManagerTab
+          currentConfig={checkoutBannerConfig}
+          onSaveConfig={onUpdateCheckoutBannerConfig || (() => {})}
         />
       )}
 

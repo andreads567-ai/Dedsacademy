@@ -356,16 +356,39 @@ export interface ApiIntegrationSettings {
     lastTested?: string;
   };
   email: {
-    provider: 'sendgrid' | 'resend' | 'ses' | 'mailgun';
+    provider: 'zoho' | 'sendgrid' | 'resend' | 'ses' | 'mailgun' | 'zeptomail';
     apiKey: string;
     fromEmail: string;
     fromName: string;
     replyToEmail: string;
+    // Zoho Mail OAuth2 Self-Client & REST API
+    zohoClientId?: string;
+    zohoClientSecret?: string;
+    zohoUser?: string;
+    zohoAccountId?: string;
+    zohoRegion?: 'com' | 'com.br' | 'eu' | 'in' | 'com.au';
+    zohoGrantToken?: string;
+    zohoRefreshToken?: string;
+    zohoAccessToken?: string;
+    zohoTokenExpiresAt?: number;
+    zohoScope?: string;
+    adminAlertEmail?: string;
+
+    // 5 Fluxos de Notificações Automáticas Deds Academy
+    notifyOnWelcome?: boolean;       // 1. Boas-vindas e orientação de acesso
+    notifyOnPasswordReset?: boolean; // 2. Recuperação de senha
+    notifyOnLessonComplete?: boolean;// 3. Conclusão de aula
+    notifyOnCertificate: boolean;   // 3b. Emissão do certificado (PDF automático)
+    notifyOnNewCoupon?: boolean;     // 4. Divulgação de cupons de desconto
+    notifyOnNewCourse?: boolean;     // 5. Divulgação de cursos novos
+
+    // Compatibilidade reversa
     notifyOnEnrollment: boolean;
     notifyOnCompletion: boolean;
-    notifyOnCertificate: boolean;
+
     webhookUrl: string;
     status: 'conectado' | 'desconectado' | 'erro';
+    statusDetails?: string;
     lastTested?: string;
   };
   database: {
@@ -552,6 +575,18 @@ export const DEFAULT_MIDDLE_PROMO_BANNER: MiddlePromoBannerConfig = {
   imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1600&auto=format&fit=crop&q=80',
   targetUrl: '#courses-section',
   altText: 'Formações Profissionais e Tecnológicas com Certificado Válido - Deds Academy',
+};
+
+export interface CheckoutPaymentBannerConfig {
+  enabled: boolean;
+  imageUrl: string;
+  altText: string;
+}
+
+export const DEFAULT_CHECKOUT_PAYMENT_BANNER: CheckoutPaymentBannerConfig = {
+  enabled: true,
+  imageUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1200&auto=format&fit=crop&q=80',
+  altText: 'Banner Oficial de Pagamentos e Checkout - Deds Academy',
 };
 
 
