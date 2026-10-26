@@ -21,10 +21,13 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
     try {
       const saved = localStorage.getItem('deds_coupons_list');
       const list: Coupon[] = saved ? JSON.parse(saved) : INITIAL_COUPONS;
-      const active = list.find((c) => c.status === 'ativo');
-      return active || list[0] || null;
+      if (Array.isArray(list) && list.length > 0) {
+        const active = list.find((c) => c && c.status === 'ativo');
+        return active || list[0] || null;
+      }
+      return (Array.isArray(INITIAL_COUPONS) && INITIAL_COUPONS.length > 0) ? INITIAL_COUPONS[0] : null;
     } catch {
-      return INITIAL_COUPONS[0] || null;
+      return (Array.isArray(INITIAL_COUPONS) && INITIAL_COUPONS.length > 0) ? INITIAL_COUPONS[0] : null;
     }
   }, [isOpen]);
 
@@ -71,12 +74,18 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
 
   const formattedDiscount =
     activeCoupon.discountType === 'percentage'
-      ? `${activeCoupon.discountValue}% OFF`
-      : `R$ ${activeCoupon.discountValue.toFixed(2).replace('.', ',')} OFF`;
+      ? `${activeCoupon.discountValue ?? 0}% OFF`
+      : `R$ ${(typeof activeCoupon.discountValue === 'number' ? activeCoupon.discountValue : 0).toFixed(2).replace('.', ',')} OFF`;
 
-  const formattedEndDate = activeCoupon.endDateTime
-    ? new Date(activeCoupon.endDateTime).toLocaleDateString('pt-BR')
-    : 'tempo limitado';
+  const formattedEndDate = (() => {
+    try {
+      return activeCoupon.endDateTime
+        ? new Date(activeCoupon.endDateTime).toLocaleDateString('pt-BR')
+        : 'tempo limitado';
+    } catch {
+      return 'tempo limitado';
+    }
+  })();
 
   return (
     <aside

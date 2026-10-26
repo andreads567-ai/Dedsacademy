@@ -26,9 +26,10 @@ import { CoursesCatalogPage } from './components/CoursesCatalogPage';
 import { ContactPage } from './components/ContactPage';
 import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
 import { CertificateSection } from './components/CertificateSection';
+import { FloatingCouponPopup } from './components/FloatingCouponPopup';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
-import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS } from './data/usersData';
-import { Course, CartItem, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial } from './types';
+import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
+import { Course, CartItem, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 

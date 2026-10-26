@@ -216,18 +216,24 @@ export const Header: React.FC<HeaderProps> = ({
               id="notifications-button"
               aria-label="Notificações"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="relative p-space-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay transition-colors cursor-pointer"
+              className="relative p-space-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay transition-all cursor-pointer group"
+              title="Notificações, cupons ativos e novos lançamentos"
             >
-              <span className="material-symbols-outlined text-headline-sm">notifications</span>
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent-gold rounded-full"></span>
+              <span className="material-symbols-outlined text-headline-sm inline-block group-hover:scale-110 transition-transform animate-[bounce_2.5s_infinite]">
+                notifications
+              </span>
+              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 pointer-events-none">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-gold"></span>
+              </span>
             </button>
 
             {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-surface-raised border border-border-subtle rounded-xl shadow-2xl p-4 z-50 animate-in fade-in">
-                <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+              <div className="absolute right-0 mt-2 w-84 sm:w-96 bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-border-subtle sticky top-0 bg-surface-raised/95 backdrop-blur-md z-10">
                   <div className="flex items-center gap-2">
-                    <span className="font-label-lg text-text-primary font-bold">
-                      {isAdminArea ? 'Notificações da Gestão' : isStudentArea ? 'Notificações do Aluno' : 'Notificações'}
+                    <span className="font-label-lg text-text-primary font-bold text-sm">
+                      {isAdminArea ? 'Notificações da Gestão' : isStudentArea ? 'Notificações do Aluno' : 'Novidades & Cupons Deds'}
                     </span>
                     {isAdminArea && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25">
@@ -240,17 +246,19 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     )}
                   </div>
-                  <span
+                  <button
+                    type="button"
                     onClick={() => setNotificationsOpen(false)}
-                    className="text-label-sm text-primary font-medium cursor-pointer hover:underline"
+                    className="text-label-sm text-primary font-bold hover:underline cursor-pointer"
                   >
                     Fechar
-                  </span>
+                  </button>
                 </div>
+
                 <div className="flex flex-col gap-3 pt-3">
                   {isAdminArea ? (
                     <>
-                      <div className="flex items-start gap-3 p-2.5 rounded-lg bg-surface-overlay">
+                      <div className="flex items-start gap-3 p-2.5 rounded-xl bg-surface-overlay">
                         <span className="material-symbols-outlined text-primary text-body-lg mt-0.5">
                           verified_user
                         </span>
@@ -259,19 +267,19 @@ export const Header: React.FC<HeaderProps> = ({
                           <span className="text-label-sm text-text-tertiary">Painel de controle com permissão de Super Admin</span>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-overlay transition-colors">
+                      <div className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-surface-overlay transition-colors">
                         <span className="material-symbols-outlined text-accent-emerald-bright text-body-lg mt-0.5">
                           group_add
                         </span>
                         <div>
                           <p className="text-body-sm text-text-primary font-medium">Novos Alunos Cadastrados</p>
-                          <span className="text-label-sm text-text-tertiary">Matrículas e inscrições sincronizadas</span>
+                          <span className="text-label-sm text-text-tertiary">Matrículas e inscrições sincronizadas em tempo real</span>
                         </div>
                       </div>
                     </>
-                  ) : (
+                  ) : isStudentArea ? (
                     <>
-                      <div className="flex items-start gap-3 p-2.5 rounded-lg bg-surface-overlay">
+                      <div className="flex items-start gap-3 p-2.5 rounded-xl bg-surface-overlay">
                         <span className="material-symbols-outlined text-accent-emerald-bright text-body-lg mt-0.5">
                           workspace_premium
                         </span>
@@ -280,22 +288,135 @@ export const Header: React.FC<HeaderProps> = ({
                           <span className="text-label-sm text-text-tertiary">Seu certificado de horas complementares foi emitido</span>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-overlay transition-colors">
+                      <div className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-surface-overlay transition-colors">
                         <span className="material-symbols-outlined text-primary text-body-lg mt-0.5">
                           play_lesson
                         </span>
                         <div>
                           <p className="text-body-sm text-text-primary font-medium">Novas Aulas Disponíveis</p>
-                          <span className="text-label-sm text-text-tertiary">Novos módulos liberados em seus cursos</span>
+                          <span className="text-label-sm text-text-tertiary">Módulos liberados em seus cursos matriculados</span>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-surface-overlay transition-colors">
-                        <span className="material-symbols-outlined text-accent-gold text-body-lg mt-0.5">
-                          local_offer
-                        </span>
-                        <div>
-                          <p className="text-body-sm text-text-primary font-medium">Cupom de Aluno: ALUNO20</p>
-                          <span className="text-label-sm text-text-tertiary">20% de desconto para novos cursos</span>
+                    </>
+                  ) : (
+                    <>
+                      {/* CUPONS ATIVOS */}
+                      <div>
+                        <div className="flex items-center gap-1.5 pb-2 text-xs font-bold text-accent-gold uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-sm">local_offer</span>
+                          <span>Cupons de Desconto Ativos</span>
+                        </div>
+                        <div className="space-y-2">
+                          {(() => {
+                            let coupons: Coupon[] = [];
+                            try {
+                              const saved = localStorage.getItem('deds_coupons_list');
+                              const list = saved ? JSON.parse(saved) : INITIAL_COUPONS;
+                              if (Array.isArray(list)) {
+                                coupons = list.filter((c) => c && c.status === 'ativo').slice(0, 3);
+                              }
+                            } catch {
+                              coupons = (INITIAL_COUPONS || []).filter((c) => c.status === 'ativo').slice(0, 3);
+                            }
+
+                            if (!coupons.length) {
+                              return (
+                                <p className="text-xs text-text-tertiary py-1">Nenhum cupom ativo no momento.</p>
+                              );
+                            }
+
+                            return coupons.map((cp) => {
+                              const discountLabel =
+                                cp.discountType === 'percentage'
+                                  ? `${cp.discountValue}% OFF`
+                                  : `R$ ${(typeof cp.discountValue === 'number' ? cp.discountValue : 0).toFixed(2).replace('.', ',')} OFF`;
+                              const expiry = cp.endDateTime
+                                ? new Date(cp.endDateTime).toLocaleDateString('pt-BR')
+                                : 'Tempo limitado';
+
+                              return (
+                                <div
+                                  key={cp.id}
+                                  className="p-2.5 rounded-xl bg-surface-overlay border border-accent-gold/30 flex items-center justify-between gap-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-mono font-extrabold text-xs text-text-primary tracking-wide">
+                                        {cp.code}
+                                      </span>
+                                      <span className="px-1.5 py-0.2 rounded bg-accent-gold/20 text-accent-gold text-[10px] font-bold">
+                                        {discountLabel}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-text-tertiary block mt-0.5">
+                                      Válido até: {expiry}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(cp.code);
+                                      alert(`Cupom ${cp.code} copiado com sucesso!`);
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-primary hover:bg-accent-emerald-bright text-on-primary text-[11px] font-bold cursor-pointer transition-all shrink-0"
+                                  >
+                                    Copiar
+                                  </button>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* NOVOS CURSOS LANÇADOS */}
+                      <div className="pt-2 border-t border-border-subtle">
+                        <div className="flex items-center gap-1.5 pb-2 text-xs font-bold text-primary uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                          <span>Novos Cursos Lançados</span>
+                        </div>
+                        <div className="space-y-2">
+                          {(() => {
+                            let coursesList: Course[] = [];
+                            try {
+                              const saved = localStorage.getItem('deds_courses_list');
+                              const list = saved ? JSON.parse(saved) : COURSES;
+                              if (Array.isArray(list)) {
+                                coursesList = list
+                                  .filter((c) => c && (c.status === 'publicado' || c.badge?.text === 'Lançamento'))
+                                  .slice(0, 3);
+                              }
+                            } catch {
+                              coursesList = (COURSES || []).slice(0, 3);
+                            }
+
+                            if (!coursesList.length) {
+                              return <p className="text-xs text-text-tertiary py-1">Novas formações em breve.</p>;
+                            }
+
+                            return coursesList.map((crs) => (
+                              <div
+                                key={crs.id}
+                                onClick={() => {
+                                  setActiveTab('cursos');
+                                  setNotificationsOpen(false);
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="p-2 rounded-xl bg-surface-overlay hover:bg-surface-container flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-text-primary truncate">{crs.title}</p>
+                                  <span className="text-[10px] text-text-tertiary block">
+                                    {crs.category} • {crs.hours}h de carga horária
+                                  </span>
+                                </div>
+                                <span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary text-[10px] font-bold shrink-0">
+                                  Novo
+                                </span>
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </div>
                     </>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, CourseReview, Category } from '../types';
-import { INITIAL_ORDERS } from '../data/usersData';
+import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, CourseReview, Category, SupportTicket } from '../types';
+import { INITIAL_ORDERS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { CancellationModal } from './CancellationModal';
 import { SignatureModal } from './SignatureModal';
 import { StudentCourseStudyPage } from './StudentCourseStudyPage';
