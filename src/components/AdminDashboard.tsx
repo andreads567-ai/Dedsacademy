@@ -26,8 +26,11 @@ interface AdminDashboardProps {
   users: UserAccount[];
   categories?: Category[];
   coupons?: Coupon[];
+<<<<<<< HEAD
   campaigns?: PromotionalCampaign[];
   onUpdateCampaigns?: (campaigns: PromotionalCampaign[]) => void;
+=======
+>>>>>>> origin/main
   onUpdateCoupons?: (coupons: Coupon[]) => void;
   instructors?: Instructor[];
   onUpdateInstructors?: (instructors: Instructor[]) => void;
@@ -63,8 +66,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   categories: initialCategories = CATEGORIES,
   coupons: initialCoupons = INITIAL_COUPONS,
   onUpdateCoupons,
+<<<<<<< HEAD
   campaigns: initialCampaigns = INITIAL_CAMPAIGNS,
   onUpdateCampaigns,
+=======
+>>>>>>> origin/main
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
   onAddPost,
@@ -157,6 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [initialCoupons]);
 
+<<<<<<< HEAD
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(() => {
     try {
       const saved = localStorage.getItem('deds_campaigns_list');
@@ -173,6 +180,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setCampaignsList(initialCampaigns);
     }
   }, [initialCampaigns]);
+=======
+  const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
+>>>>>>> origin/main
 
   const handleAddCoupon = (newCoupon: Coupon) => {
     setCouponsList((prev) => {

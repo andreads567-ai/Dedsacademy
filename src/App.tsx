@@ -28,9 +28,15 @@ import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
 import { CertificateSection } from './components/CertificateSection';
 import { FloatingCouponPopup } from './components/FloatingCouponPopup';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
+<<<<<<< HEAD
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from './data/promotionsData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
 import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
+=======
+import { INITIAL_COUPONS } from './data/promotionsData';
+import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
+import { Course, CartItem, Coupon, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
+>>>>>>> origin/main
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 
@@ -199,6 +205,7 @@ export default function App() {
     };
   }, []);
 
+<<<<<<< HEAD
   // Synchronized Campaigns State across App, Header, Home and Admin Module 14
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(() => {
     try {
@@ -238,6 +245,8 @@ export default function App() {
     };
   }, []);
 
+=======
+>>>>>>> origin/main
   // Middle Promotional Banner configuration state synchronized across Home and Admin Module 9
   const [middleBannerConfig, setMiddleBannerConfig] = useState<MiddlePromoBannerConfig>(() => {
     try {
@@ -1277,7 +1286,10 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
           }}
           onLogout={handleLogout}
           coupons={couponsList}
+<<<<<<< HEAD
           campaigns={campaignsList}
+=======
+>>>>>>> origin/main
         />
       )}
 
@@ -1418,8 +1430,11 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             progressMap={studentProgressMap}
             coupons={couponsList}
             onUpdateCoupons={handleUpdateCoupons}
+<<<<<<< HEAD
             campaigns={campaignsList}
             onUpdateCampaigns={handleUpdateCampaigns}
+=======
+>>>>>>> origin/main
           />
           ) : (
             /* SECURITY: Non-admin access — show blocked screen and redirect immediately */
