@@ -10,7 +10,7 @@ interface OverviewTabProps {
   categoriesCount: number;
   onNavigateTab: (tabId: string) => void;
   onOpenNewCourse: () => void;
-  onOpenNewUser: () => void;
+  onOpenNewUser?: () => void;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({

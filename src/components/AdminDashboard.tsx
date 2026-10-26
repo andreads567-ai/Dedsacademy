@@ -476,7 +476,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               categoriesCount={categoriesList.length}
               onNavigateTab={(tabId) => setActiveTab(tabId as AdminTab)}
               onOpenNewCourse={() => setActiveTab('postagem-cursos')}
-              onOpenNewUser={handleOpenNewUser}
+              onOpenNewUser={() => setActiveTab('usuarios')}
             />
           )}
 
