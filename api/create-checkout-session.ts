@@ -142,9 +142,7 @@ export default async function handler(req: any, res: any) {
       allow_promotion_codes: true,
       submit_type: 'auto',
       integration_identifier: 'hosted_web_0003',
-      saved_payment_method_options: {
-        payment_method_save: 'enabled',
-      },
+      customer_creation: 'always',
       origin_context: 'web',
       metadata: {
         student_email: body.studentEmail || '',
