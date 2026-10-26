@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER } from '../../types';
+import { optimizeImageFile } from '../../lib/imageOptimizer';
 
 interface MiddleBannerManagerTabProps {
   currentConfig?: MiddlePromoBannerConfig;
@@ -11,7 +12,7 @@ const PRESET_HORIZONTAL_BANNERS = [
     label: 'Tecnologia & Programação (Promo Geral)',
     url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1600&auto=format&fit=crop&q=80',
     alt: 'Promoção de Cursos de Tecnologia com Certificado Válido',
-    link: '#courses-section',
+    link: '#cursos-section',
   },
   {
     label: 'Produtividade & Excel Avançado',
@@ -29,7 +30,7 @@ const PRESET_HORIZONTAL_BANNERS = [
     label: 'Gestão Ágil & Liderança',
     url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1600&auto=format&fit=crop&q=80',
     alt: 'Acelere sua Carreira em Gestão e Liderança',
-    link: '#courses-section',
+    link: '#cursos-section',
   },
 ];
 
@@ -42,38 +43,37 @@ export const MiddleBannerManagerTab: React.FC<MiddleBannerManagerTabProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [fileDetails, setFileDetails] = useState<{ name: string; size: string } | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size limit: 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError('O arquivo excede o limite máximo permitido de 2MB. Por favor, otimize a imagem.');
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Formato inválido! Envie uma imagem válida nos formatos PNG, JPG ou WEBP.');
       return;
     }
 
-    if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
-      setUploadError('Formato inválido! Envie uma imagem nos formatos PNG, JPG ou WEBP.');
-      return;
+    try {
+      setIsProcessingImage(true);
+      setUploadError(null);
+      const optimized = await optimizeImageFile(file, {
+        maxWidth: 1600,
+        maxHeight: 600,
+        quality: 0.85,
+      });
+
+      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      setUrlInput('');
+      setFileDetails({
+        name: optimized.name,
+        size: `${optimized.sizeKb} KB (Otimizado)`,
+      });
+    } catch (err: any) {
+      setUploadError(err?.message || 'Erro ao processar imagem.');
+    } finally {
+      setIsProcessingImage(false);
     }
-
-    setUploadError(null);
-    const sizeInKb = (file.size / 1024).toFixed(1);
-    setFileDetails({
-      name: file.name,
-      size: `${sizeInKb} KB`,
-    });
-
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const dataUrl = loadEvent.target?.result as string;
-      if (dataUrl) {
-        setConfig((prev) => ({ ...prev, imageUrl: dataUrl }));
-        setUrlInput('');
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleApplyUrl = () => {
@@ -397,6 +397,7 @@ export const MiddleBannerManagerTab: React.FC<MiddleBannerManagerTabProps> = ({
             <button
               type="button"
               onClick={handleSave}
+              disabled={isProcessingImage}
               className="w-full sm:w-auto px-6 py-3 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-sm font-bold rounded-xl shadow-lg transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">save</span>

@@ -39,6 +39,8 @@ interface AdminDashboardProps {
   reviews?: CourseReview[];
   onDeleteReview?: (reviewId: string) => void;
   progressMap?: Record<string, Record<string, StudentProgress>>;
+  announcements?: { id: string; title: string; author: string; date: string; priority: string }[];
+  onAddAnnouncement?: (title: string) => void;
   heroBannerConfig?: HeroBannerConfig;
   onUpdateHeroBannerConfig?: (config: HeroBannerConfig) => void;
   middleBannerConfig?: MiddlePromoBannerConfig;
@@ -74,6 +76,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   reviews,
   onDeleteReview,
   progressMap,
+  announcements: announcementsProp,
+  onAddAnnouncement: onAddAnnouncementProp,
   heroBannerConfig,
   onUpdateHeroBannerConfig,
   middleBannerConfig,
@@ -340,6 +344,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onDeletePost?.(postId);
   };
   const handleAddAnnouncement = (title: string) => {
+    onAddAnnouncementProp?.(title);
     setAnnouncements((prev) => [
       {
         id: `ann-${Date.now()}`,
@@ -706,7 +711,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onAddPost={handleAddBlogPost}
               onUpdatePost={handleUpdateBlogPost}
               onDeletePost={handleDeleteBlogPost}
-              announcements={announcements}
+              announcements={announcementsProp || announcements}
               onAddAnnouncement={handleAddAnnouncement}
               heroBannerConfig={heroBannerConfig}
               onUpdateHeroBannerConfig={onUpdateHeroBannerConfig}

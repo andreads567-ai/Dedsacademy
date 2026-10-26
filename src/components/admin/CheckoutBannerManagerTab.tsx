@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER } from '../../types';
+import { optimizeImageFile } from '../../lib/imageOptimizer';
 
 interface CheckoutBannerManagerTabProps {
   currentConfig?: CheckoutPaymentBannerConfig;
@@ -33,37 +34,37 @@ export const CheckoutBannerManagerTab: React.FC<CheckoutBannerManagerTabProps> =
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [fileDetails, setFileDetails] = useState<{ name: string; size: string } | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError('O arquivo excede o limite máximo permitido de 2MB. Por favor, otimize a imagem.');
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Formato inválido! Envie uma imagem válida (PNG, JPG ou WEBP).');
       return;
     }
 
-    if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
-      setUploadError('Formato inválido! Envie uma imagem nos formatos PNG, JPG ou WEBP.');
-      return;
+    try {
+      setIsProcessingImage(true);
+      setUploadError(null);
+      const optimized = await optimizeImageFile(file, {
+        maxWidth: 1400,
+        maxHeight: 700,
+        quality: 0.85,
+      });
+
+      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      setUrlInput('');
+      setFileDetails({
+        name: optimized.name,
+        size: `${optimized.sizeKb} KB (Otimizado)`,
+      });
+    } catch (err: any) {
+      setUploadError(err?.message || 'Erro ao processar imagem.');
+    } finally {
+      setIsProcessingImage(false);
     }
-
-    setUploadError(null);
-    const sizeInKb = (file.size / 1024).toFixed(1);
-    setFileDetails({
-      name: file.name,
-      size: `${sizeInKb} KB`,
-    });
-
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const dataUrl = loadEvent.target?.result as string;
-      if (dataUrl) {
-        setConfig((prev) => ({ ...prev, imageUrl: dataUrl }));
-        setUrlInput('');
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleApplyUrl = () => {
@@ -107,17 +108,6 @@ export const CheckoutBannerManagerTab: React.FC<CheckoutBannerManagerTabProps> =
               Configure a imagem exibida no bloco de pagamento do carrinho. O upload feito aqui é sincronizado diretamente com a tela de checkout do aluno.
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-5 py-2.5 rounded-xl bg-primary hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-base">save</span>
-            <span>Salvar Banner</span>
-          </button>
         </div>
       </div>
 
@@ -271,6 +261,28 @@ export const CheckoutBannerManagerTab: React.FC<CheckoutBannerManagerTabProps> =
               ))}
             </div>
           </div>
+
+          {/* Action Bar (Único botão oficial de salvar do banner) */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleResetToDefault}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-border-subtle hover:bg-surface-raised text-text-tertiary hover:text-text-primary text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-base">restart_alt</span>
+              Restaurar Padrão
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isProcessingImage}
+              className="w-full sm:w-auto px-6 py-3 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-sm font-bold rounded-xl shadow-lg transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">save</span>
+              Salvar Banner de Pagamento
+            </button>
+          </div>
         </div>
 
         {/* Right Column: Live Checkout Preview (5 Cols) */}
@@ -322,22 +334,10 @@ export const CheckoutBannerManagerTab: React.FC<CheckoutBannerManagerTabProps> =
               </div>
             </div>
 
-            <div className="pt-2 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleResetToDefault}
-                className="text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer"
-              >
-                Restaurar Padrão
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSave}
-                className="px-4 py-2 rounded-xl bg-primary hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all shadow-sm cursor-pointer"
-              >
-                Salvar Alterações
-              </button>
+            <div className="pt-2 text-center">
+              <span className="text-[11px] text-text-tertiary">
+                As alterações salvas no formulário ao lado são aplicadas imediatamente ao checkout.
+              </span>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { BlogPost, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBan
 import { CheckoutBannerManagerTab } from './CheckoutBannerManagerTab';
 import { HeroBannerManagerTab } from './HeroBannerManagerTab';
 import { MiddleBannerManagerTab } from './MiddleBannerManagerTab';
+import { optimizeImageFile } from '../../lib/imageOptimizer';
 
 interface BlogTabProps {
   posts: BlogPost[];
@@ -78,20 +79,28 @@ export const BlogTab: React.FC<BlogTabProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleImageFileUpload = (file: File) => {
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+
+  const handleImageFileUpload = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione um arquivo de imagem válido (PNG, JPG, WebP).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setForm((prev) => ({ ...prev, image: reader.result as string }));
-        setImageFileName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsProcessingImage(true);
+      const optimized = await optimizeImageFile(file, {
+        maxWidth: 1200,
+        maxHeight: 800,
+        quality: 0.85,
+      });
+      setForm((prev) => ({ ...prev, image: optimized.dataUrl }));
+      setImageFileName(`${optimized.name} (${optimized.sizeKb} KB)`);
+    } catch (err: any) {
+      alert(err?.message || 'Falha ao processar arquivo de imagem.');
+    } finally {
+      setIsProcessingImage(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

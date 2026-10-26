@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HeroBannerConfig, DEFAULT_HERO_BANNER } from '../../types';
+import { optimizeImageFile } from '../../lib/imageOptimizer';
 
 interface HeroBannerManagerTabProps {
   currentConfig?: HeroBannerConfig;
@@ -34,38 +35,37 @@ export const HeroBannerManagerTab: React.FC<HeroBannerManagerTabProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [fileDetails, setFileDetails] = useState<{ name: string; size: string } | null>(null);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size limit: 2MB = 2 * 1024 * 1024 bytes
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError('O arquivo excede o limite máximo permitido de 2MB. Por favor, otimize a imagem.');
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Formato inválido! Envie uma imagem válida nos formatos PNG, JPG ou WEBP.');
       return;
     }
 
-    if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
-      setUploadError('Formato inválido! Envie uma imagem nos formatos PNG, JPG ou WEBP.');
-      return;
+    try {
+      setIsProcessingImage(true);
+      setUploadError(null);
+      const optimized = await optimizeImageFile(file, {
+        maxWidth: 1200,
+        maxHeight: 1500,
+        quality: 0.85,
+      });
+
+      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      setUrlInput('');
+      setFileDetails({
+        name: optimized.name,
+        size: `${optimized.sizeKb} KB (Otimizado)`,
+      });
+    } catch (err: any) {
+      setUploadError(err?.message || 'Erro ao processar imagem.');
+    } finally {
+      setIsProcessingImage(false);
     }
-
-    setUploadError(null);
-    const sizeInKb = (file.size / 1024).toFixed(1);
-    setFileDetails({
-      name: file.name,
-      size: `${sizeInKb} KB`,
-    });
-
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      const dataUrl = loadEvent.target?.result as string;
-      if (dataUrl) {
-        setConfig((prev) => ({ ...prev, imageUrl: dataUrl }));
-        setUrlInput('');
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleApplyUrl = () => {
@@ -398,6 +398,7 @@ export const HeroBannerManagerTab: React.FC<HeroBannerManagerTabProps> = ({
             <button
               type="button"
               onClick={handleSave}
+              disabled={isProcessingImage}
               className="w-full sm:w-auto px-6 py-3 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-sm font-bold rounded-xl shadow-lg transition-all transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">publish</span>

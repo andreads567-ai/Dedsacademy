@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'cursos', label: 'Cursos', sectionId: 'cursos-section' },
     { id: 'categorias', label: 'Categorias', sectionId: 'categorias-section' },
     { id: 'certificados', label: 'Certificados', sectionId: 'certificados-section' },
-    { id: 'blog', label: 'Blog', sectionId: 'depoimentos-section' },
+    { id: 'blog', label: 'Blog', sectionId: 'blog-section' },
     { id: 'contato', label: 'Contato', sectionId: 'footer-section' },
   ];
 
@@ -130,6 +130,11 @@ export const Header: React.FC<HeaderProps> = ({
       onOpenCertificates();
     } else if (item.id === 'cursos') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (item.id === 'blog') {
+      setActiveTab('inicio');
+      setTimeout(() => {
+        onNavigateSection('blog-section');
+      }, 60);
     } else if (item.id === 'contato') {
       setActiveTab('contato');
       window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -578,7 +578,7 @@ export interface MiddlePromoBannerConfig {
 export const DEFAULT_MIDDLE_PROMO_BANNER: MiddlePromoBannerConfig = {
   enabled: true,
   imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1600&auto=format&fit=crop&q=80',
-  targetUrl: '#courses-section',
+  targetUrl: '#cursos-section',
   altText: 'Formações Profissionais e Tecnológicas com Certificado Válido - Deds Academy',
 };
 

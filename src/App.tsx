@@ -22,6 +22,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { RegisterPage } from './components/RegisterPage';
 import type { RegistrationData } from './components/RegisterPage';
 import { BlogPage } from './components/BlogPage';
+import { BlogHomeSection } from './components/BlogHomeSection';
+import { safeSaveLocalStorage } from './lib/imageOptimizer';
 import { CoursesCatalogPage } from './components/CoursesCatalogPage';
 import { ContactPage } from './components/ContactPage';
 import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
@@ -138,7 +140,8 @@ export default function App() {
   const handleUpdateCheckoutBannerConfig = (newConfig: CheckoutPaymentBannerConfig) => {
     setCheckoutBannerConfig(newConfig);
     try {
-      localStorage.setItem('deds_checkout_banner_config', JSON.stringify(newConfig));
+      safeSaveLocalStorage('deds_checkout_banner_config', newConfig);
+      window.dispatchEvent(new CustomEvent('deds_checkout_banner_updated', { detail: newConfig }));
     } catch {}
     showToast('Banner de Pagamento atualizado com sucesso!');
   };
@@ -155,7 +158,8 @@ export default function App() {
   const handleUpdateHeroBannerConfig = (newConfig: HeroBannerConfig) => {
     setHeroBannerConfig(newConfig);
     try {
-      localStorage.setItem('deds_hero_banner_config', JSON.stringify(newConfig));
+      safeSaveLocalStorage('deds_hero_banner_config', newConfig);
+      window.dispatchEvent(new CustomEvent('deds_hero_banner_updated', { detail: newConfig }));
     } catch {}
     showToast('Banner da Home e selos atualizados com sucesso!');
   };
@@ -250,7 +254,8 @@ export default function App() {
   const handleUpdateMiddleBannerConfig = (newConfig: MiddlePromoBannerConfig) => {
     setMiddleBannerConfig(newConfig);
     try {
-      localStorage.setItem('deds_middle_banner_config', JSON.stringify(newConfig));
+      safeSaveLocalStorage('deds_middle_banner_config', newConfig);
+      window.dispatchEvent(new CustomEvent('deds_middle_banner_updated', { detail: newConfig }));
     } catch {}
     showToast(
       newConfig.enabled
@@ -277,7 +282,8 @@ export default function App() {
       return;
     }
 
-    const sectionId = targetUrl.startsWith('#') ? targetUrl.substring(1) : targetUrl;
+    const rawSectionId = targetUrl.startsWith('#') ? targetUrl.substring(1) : targetUrl;
+    const sectionId = rawSectionId === 'courses-section' ? 'cursos-section' : rawSectionId;
     scrollToSection(sectionId);
   };
 
@@ -294,7 +300,8 @@ export default function App() {
     setBlogPostsList((prev) => {
       const updated = [post, ...prev];
       try {
-        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+        safeSaveLocalStorage('deds_blog_posts', updated);
+        window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
       return updated;
     });
@@ -305,7 +312,8 @@ export default function App() {
     setBlogPostsList((prev) => {
       const updated = prev.map((p) => (p.id === post.id ? post : p));
       try {
-        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+        safeSaveLocalStorage('deds_blog_posts', updated);
+        window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
       return updated;
     });
@@ -316,11 +324,53 @@ export default function App() {
     setBlogPostsList((prev) => {
       const updated = prev.filter((p) => p.id !== postId);
       try {
-        localStorage.setItem('deds_blog_posts', JSON.stringify(updated));
+        safeSaveLocalStorage('deds_blog_posts', updated);
+        window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
       return updated;
     });
     showToast('Artigo removido com sucesso!');
+  };
+
+  // Synchronized Announcements state between Admin Module 9, Home Blog Section, and Student Portal
+  const [announcementsList, setAnnouncementsList] = useState<
+    { id: string; title: string; author: string; date: string; priority: string }[]
+  >(() => {
+    try {
+      const saved = localStorage.getItem('deds_announcements_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      {
+        id: 'ann-1',
+        title: 'Módulo de Inteligência Artificial Generativa liberado em Python com certificados da Lei 9.394/96',
+        author: 'Coordenação Pedagógica',
+        date: new Date().toLocaleDateString('pt-BR'),
+        priority: 'alta',
+      },
+    ];
+  });
+
+  const handleAddAnnouncement = (title: string) => {
+    setAnnouncementsList((prev) => {
+      const updated = [
+        {
+          id: `ann-${Date.now()}`,
+          title,
+          author: 'Coordenação Pedagógica',
+          date: new Date().toLocaleDateString('pt-BR'),
+          priority: 'alta',
+        },
+        ...prev,
+      ];
+      safeSaveLocalStorage('deds_announcements_list', updated);
+      window.dispatchEvent(new CustomEvent('deds_announcements_updated', { detail: updated }));
+      return updated;
+    });
+    showToast('Comunicado emitido e sincronizado no portal!');
   };
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -1406,6 +1456,10 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             onUpdateHeroBannerConfig={handleUpdateHeroBannerConfig}
             middleBannerConfig={middleBannerConfig}
             onUpdateMiddleBannerConfig={handleUpdateMiddleBannerConfig}
+            checkoutBannerConfig={checkoutBannerConfig}
+            onUpdateCheckoutBannerConfig={handleUpdateCheckoutBannerConfig}
+            announcements={announcementsList}
+            onAddAnnouncement={handleAddAnnouncement}
             onAddCourse={handleAddCourse}
             onUpdateCourse={handleUpdateCourse}
             onDeleteCourse={handleDeleteCourse}
@@ -1532,6 +1586,16 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
 
             {/* Student Testimonials */}
             <TestimonialsSection testimonials={dynamicTestimonials} />
+
+            {/* Blog & Announcements Section (Sincronizado com Módulo 9 do ADM) */}
+            <BlogHomeSection
+              blogPosts={blogPostsList}
+              announcements={announcementsList}
+              onOpenBlogPage={() => {
+                setActiveNavTab('blog');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
 
             {/* Final CTA Banner */}
             <CtaSection
