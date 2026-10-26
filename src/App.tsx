@@ -28,8 +28,9 @@ import { StudentCourseStudyPage } from './components/StudentCourseStudyPage';
 import { CertificateSection } from './components/CertificateSection';
 import { FloatingCouponPopup } from './components/FloatingCouponPopup';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
+import { INITIAL_COUPONS } from './data/promotionsData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
-import { Course, CartItem, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
+import { Course, CartItem, Coupon, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 
@@ -137,6 +138,45 @@ export default function App() {
     } catch {}
     showToast('Banner da Home e selos atualizados com sucesso!');
   };
+
+  // Synchronized Coupons State across App, Header, Home, Checkout, and Admin Module 14
+  const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_coupons_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_COUPONS;
+  });
+
+  const handleUpdateCoupons = (newList: Coupon[]) => {
+    setCouponsList(newList);
+    try {
+      localStorage.setItem('deds_coupons_list', JSON.stringify(newList));
+    } catch {}
+    window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: newList }));
+  };
+
+  useEffect(() => {
+    const handleCouponsSync = () => {
+      try {
+        const saved = localStorage.getItem('deds_coupons_list');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setCouponsList(parsed);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleCouponsSync);
+    window.addEventListener('deds_coupons_updated', handleCouponsSync);
+    return () => {
+      window.removeEventListener('storage', handleCouponsSync);
+      window.removeEventListener('deds_coupons_updated', handleCouponsSync);
+    };
+  }, []);
 
   // Middle Promotional Banner configuration state synchronized across Home and Admin Module 9
   const [middleBannerConfig, setMiddleBannerConfig] = useState<MiddlePromoBannerConfig>(() => {
@@ -1176,6 +1216,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             setActiveNavTab('admin');
           }}
           onLogout={handleLogout}
+          coupons={couponsList}
         />
       )}
 
@@ -1211,6 +1252,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
         ) : activeNavTab === 'carrinho' ? (
           <CartCheckoutPage
             checkoutBannerConfig={checkoutBannerConfig}
+            coupons={couponsList}
             items={cartItems}
             onRemoveItem={handleRemoveFromCart}
             onClearCart={handleClearCart}
@@ -1311,6 +1353,8 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             reviews={reviewsList}
             onDeleteReview={handleDeleteReview}
             progressMap={studentProgressMap}
+            coupons={couponsList}
+            onUpdateCoupons={handleUpdateCoupons}
           />
           ) : (
             /* SECURITY: Non-admin access — show blocked screen and redirect immediately */
@@ -1457,6 +1501,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
       {/* Floating Coupon Pop-up visible on specific sections */}
       <FloatingCouponPopup
         activeTab={activeNavTab}
+        coupons={couponsList}
         onNavigateSection={(sec) => scrollToSection(sec)}
       />
 

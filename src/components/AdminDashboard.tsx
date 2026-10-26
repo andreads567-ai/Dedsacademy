@@ -25,6 +25,8 @@ interface AdminDashboardProps {
   courses: Course[];
   users: UserAccount[];
   categories?: Category[];
+  coupons?: Coupon[];
+  onUpdateCoupons?: (coupons: Coupon[]) => void;
   instructors?: Instructor[];
   onUpdateInstructors?: (instructors: Instructor[]) => void;
   blogPosts?: BlogPost[];
@@ -57,6 +59,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   courses,
   users,
   categories: initialCategories = CATEGORIES,
+  coupons: initialCoupons = INITIAL_COUPONS,
+  onUpdateCoupons,
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
   onAddPost,
@@ -135,16 +139,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('deds_coupons_list');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
-    return INITIAL_COUPONS;
+    return initialCoupons;
   });
+
+  useEffect(() => {
+    if (initialCoupons && Array.isArray(initialCoupons)) {
+      setCouponsList(initialCoupons);
+    }
+  }, [initialCoupons]);
+
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
 
   const handleAddCoupon = (newCoupon: Coupon) => {
     setCouponsList((prev) => {
       const next = [newCoupon, ...prev];
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
     sendCouponBroadcastEmail({ coupon: newCoupon, students: users }).catch(console.error);
@@ -154,6 +170,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setCouponsList((prev) => {
       const next = prev.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c));
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
   };
@@ -162,6 +180,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setCouponsList((prev) => {
       const next = prev.filter((c) => c.id !== couponId);
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
   };

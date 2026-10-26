@@ -5,31 +5,61 @@ import { INITIAL_COUPONS } from '../data/promotionsData';
 interface FloatingCouponPopupProps {
   activeTab: string;
   onNavigateSection?: (sectionId: string) => void;
+  coupons?: Coupon[];
 }
 
 export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
   activeTab,
   onNavigateSection,
+  coupons,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [tick, setTick] = useState(0);
 
-  // Load active coupon from localStorage or promotions data
+  // Listen to real-time update events
+  useEffect(() => {
+    const handleUpdate = () => setTick((t) => t + 1);
+    window.addEventListener('deds_coupons_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('deds_coupons_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  // Load active coupon strictly from passed coupons or storage
   const activeCoupon: Coupon | null = useMemo(() => {
-    try {
-      const saved = localStorage.getItem('deds_coupons_list');
-      const list: Coupon[] = saved ? JSON.parse(saved) : INITIAL_COUPONS;
-      if (Array.isArray(list) && list.length > 0) {
-        const active = list.find((c) => c && c.status === 'ativo');
-        return active || list[0] || null;
+    let list: Coupon[] = [];
+    if (coupons && Array.isArray(coupons)) {
+      list = coupons;
+    } else {
+      try {
+        const saved = localStorage.getItem('deds_coupons_list');
+        list = saved ? JSON.parse(saved) : INITIAL_COUPONS;
+      } catch {
+        list = INITIAL_COUPONS;
       }
-      return (Array.isArray(INITIAL_COUPONS) && INITIAL_COUPONS.length > 0) ? INITIAL_COUPONS[0] : null;
-    } catch {
-      return (Array.isArray(INITIAL_COUPONS) && INITIAL_COUPONS.length > 0) ? INITIAL_COUPONS[0] : null;
     }
-  }, [isOpen]);
+
+    if (!Array.isArray(list) || list.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    // STRICT FILTER: status === 'ativo' AND not expired AND started
+    const active = list.find((c) => {
+      if (!c || c.status !== 'ativo') return false;
+      if (c.endDateTime && new Date(c.endDateTime) < now) return false;
+      if (c.startDateTime && new Date(c.startDateTime) > now) return false;
+      return true;
+    });
+
+    // CRITICAL FIX: If no coupon is active, return null! NEVER fallback to list[0]!
+    return active || null;
+  }, [coupons, isOpen, activeTab, tick]);
 
   // Track scroll position on Home to display only when entering Cursos, Categorias, Certificado, Blog, Contato
   useEffect(() => {
