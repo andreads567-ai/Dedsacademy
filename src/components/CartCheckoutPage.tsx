@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER } from '../types';
+import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, Coupon } from '../types';
+import { INITIAL_COUPONS } from '../data/promotionsData';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
 
 export interface CheckoutData {
@@ -146,6 +147,48 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
       setCouponDiscount(0);
       return;
     }
+    // 1. Check registered coupons in storage/data
+    const savedCoupons: Coupon[] = (() => {
+      try {
+        const saved = localStorage.getItem('deds_coupons_list');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+      return INITIAL_COUPONS;
+    })();
+
+    const matched = savedCoupons.find(
+      (c) => c.code.trim().toUpperCase() === code && c.status === 'ativo'
+    );
+
+    if (matched) {
+      const now = new Date();
+      if (matched.startDateTime && new Date(matched.startDateTime) > now) {
+        setCouponApplied(false);
+        setCouponDiscount(0);
+        alert('Este cupom de desconto ainda não está ativo.');
+        return;
+      }
+      if (matched.endDateTime && new Date(matched.endDateTime) < now) {
+        setCouponApplied(false);
+        setCouponDiscount(0);
+        alert('Este cupom de desconto expirou.');
+        return;
+      }
+
+      let discount = 0;
+      if (matched.discountType === 'percentage') {
+        discount = Math.round(currentSubtotal * (matched.discountValue / 100) * 100) / 100;
+      } else {
+        discount = Math.min(currentSubtotal, matched.discountValue);
+      }
+
+      setCouponApplied(true);
+      setCouponDiscount(discount);
+      alert(`Cupom "${matched.code}" aplicado com sucesso! Desconto concedido.`);
+      return;
+    }
+
+    // 2. Fallbacks for standard legacy promo codes
     if (code === 'DEDS10' || code === 'BEMVINDO10') {
       setCouponApplied(true);
       setCouponDiscount(Math.round(currentSubtotal * 0.1 * 100) / 100);

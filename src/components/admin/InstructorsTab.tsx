@@ -115,6 +115,12 @@ export const InstructorsTab: React.FC<InstructorsTabProps> = ({
         status: 'ativo',
       };
       onAddInstructor(newInst);
+      try {
+        const saved = localStorage.getItem('deds_instructors_list');
+        const list = saved ? JSON.parse(saved) : instructors;
+        localStorage.setItem('deds_instructors_list', JSON.stringify([newInst, ...list]));
+      } catch {}
+      alert('Instrutor cadastrado com sucesso!');
     }
     setIsModalOpen(false);
   };

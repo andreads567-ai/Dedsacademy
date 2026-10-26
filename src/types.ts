@@ -87,6 +87,7 @@ export interface Course {
   title: string;
   instructor: string;
   instructorRole?: string;
+  instructorAvatar?: string;
   rating: number;
   reviewsCount: number;
   hours: number;

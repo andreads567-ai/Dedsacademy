@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Course, CourseModule, Lesson, UserAccount } from '../types';
+import { Course, CourseModule, Lesson, UserAccount, Instructor } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
 
 interface CourseDetailPageProps {
@@ -16,6 +16,7 @@ interface CourseDetailPageProps {
   progressPercent?: number;
   currentUser?: UserAccount | null;
   onOpenAuthModal?: () => void;
+  instructors?: Instructor[];
 }
 
 export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
@@ -32,7 +33,32 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   progressPercent,
   currentUser,
   onOpenAuthModal,
+  instructors,
 }) => {
+  // Resolve instructor avatar dynamically from course, prop or localStorage
+  const effectiveInstructorAvatar = useMemo(() => {
+    if (course.instructorAvatar && course.instructorAvatar.trim()) {
+      return course.instructorAvatar;
+    }
+    if (instructors && instructors.length > 0) {
+      const match = instructors.find(
+        (i) => i.name.trim().toLowerCase() === course.instructor.trim().toLowerCase()
+      );
+      if (match?.avatar) return match.avatar;
+    }
+    try {
+      const saved = localStorage.getItem('deds_instructors_list');
+      if (saved) {
+        const list: Instructor[] = JSON.parse(saved);
+        const match = list.find(
+          (i) => i.name.trim().toLowerCase() === course.instructor.trim().toLowerCase()
+        );
+        if (match?.avatar) return match.avatar;
+      }
+    } catch {}
+    return null;
+  }, [course.instructor, course.instructorAvatar, instructors]);
+
   // Synthesize complete module structure if missing
   const effectiveModules: CourseModule[] = useMemo(() => {
     if (course.modules && course.modules.length > 0) {
@@ -706,9 +732,22 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               </h3>
 
               <div className="flex flex-col sm:flex-row items-start gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-accent-emerald-bright/30 text-primary border border-primary/30 flex items-center justify-center text-xl font-bold shrink-0">
-                  {course.instructor.charAt(0)}
-                </div>
+                {effectiveInstructorAvatar ? (
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-primary/40 shadow-md shrink-0 bg-surface-overlay">
+                    <img
+                      src={effectiveInstructorAvatar}
+                      alt={course.instructor}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-accent-emerald-bright/30 text-primary border border-primary/30 flex items-center justify-center text-xl font-bold shrink-0 shadow-sm">
+                    {course.instructor.charAt(0)}
+                  </div>
+                )}
 
                 <div className="space-y-1.5 flex-1">
                   <h4 className="text-base font-bold text-text-primary">{course.instructor}</h4>

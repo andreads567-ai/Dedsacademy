@@ -84,6 +84,42 @@ export default function App() {
     return INITIAL_USERS;
   });
 
+  // Instructors state synchronized across Home and Admin Module 6
+  const [instructorsList, setInstructorsList] = useState<Instructor[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_instructors_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_INSTRUCTORS;
+  });
+
+  const handleUpdateInstructors = (newList: Instructor[]) => {
+    setInstructorsList(newList);
+    try {
+      localStorage.setItem('deds_instructors_list', JSON.stringify(newList));
+    } catch {}
+  };
+
+  // Checkout Payment Banner configuration state synchronized across Checkout and Admin Module 9
+  const [checkoutBannerConfig, setCheckoutBannerConfig] = useState<CheckoutPaymentBannerConfig>(() => {
+    try {
+      const saved = localStorage.getItem('deds_checkout_banner_config');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_CHECKOUT_PAYMENT_BANNER;
+  });
+
+  const handleUpdateCheckoutBannerConfig = (newConfig: CheckoutPaymentBannerConfig) => {
+    setCheckoutBannerConfig(newConfig);
+    try {
+      localStorage.setItem('deds_checkout_banner_config', JSON.stringify(newConfig));
+    } catch {}
+    showToast('Banner de Pagamento atualizado com sucesso!');
+  };
+
   // Hero Banner configuration state synchronized across Home and Admin Module 9
   const [heroBannerConfig, setHeroBannerConfig] = useState<HeroBannerConfig>(() => {
     try {
@@ -1147,6 +1183,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
         {selectedCourse ? (
           /* VIEW 0: DETALHES DO CURSO EM PÁGINA INTEIRA (SUBSTITUI A HOME AO SELECIONAR UM CURSO) */
           <CourseDetailPage
+            instructors={instructorsList}
             course={enrichedCoursesList.find((c) => c.id === selectedCourse.id) || selectedCourse}
             onBackToHome={() => {
               setSelectedCourse(null);
@@ -1172,6 +1209,7 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
           />
         ) : activeNavTab === 'carrinho' ? (
           <CartCheckoutPage
+            checkoutBannerConfig={checkoutBannerConfig}
             items={cartItems}
             onRemoveItem={handleRemoveFromCart}
             onClearCart={handleClearCart}
@@ -1414,6 +1452,12 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
           }}
         />
       )}
+
+      {/* Floating Coupon Pop-up visible on specific sections */}
+      <FloatingCouponPopup
+        activeTab={activeNavTab}
+        onNavigateSection={(sec) => scrollToSection(sec)}
+      />
 
       {/* Quick Cart Drawer (Alternative slide-over) */}
       <CartDrawer

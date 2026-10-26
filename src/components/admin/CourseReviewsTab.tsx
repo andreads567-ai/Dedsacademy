@@ -82,6 +82,18 @@ export const CourseReviewsTab: React.FC<CourseReviewsTabProps> = ({
       }
 
       return true;
+    }).sort((a, b) => {
+      // Sort newest at the top
+      const parseDate = (r: CourseReview) => {
+        const matchId = r.id?.match(/(\d{10,})/);
+        if (matchId) return parseInt(matchId[1], 10);
+        if (r.date && r.date.includes('/')) {
+          const [d, m, y] = r.date.split('/').map(Number);
+          return new Date(y, m - 1, d).getTime();
+        }
+        return Date.parse(r.date) || 0;
+      };
+      return parseDate(b) - parseDate(a);
     });
   }, [reviews, searchStudent, selectedCourse, selectedCategory, selectedRating]);
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserAccount } from '../types';
+import { UserAccount, SupportTicket } from '../types';
 import { FloatingKnowledgeBook } from './FloatingKnowledgeBook';
 
 interface ContactPageProps {
@@ -32,9 +32,37 @@ export const ContactPage: React.FC<ContactPageProps> = ({
 
     setIsSubmitting(true);
 
-    // Simulate direct platform ticket dispatch
     setTimeout(() => {
       const generatedProtocol = `#CH-${Math.floor(100000 + Math.random() * 900000)}`;
+      const newTicket: SupportTicket = {
+        id: `tkt-${Date.now()}`,
+        protocol: generatedProtocol,
+        studentName: name.trim(),
+        studentEmail: email.trim(),
+        studentCode: matricula.trim() || undefined,
+        subject: subjectsMap[subject] || subject,
+        priority: subject === 'financeiro' || subject === 'cancelamento_estorno' ? 'alta' : 'media',
+        status: 'aberto',
+        createdAt: new Date().toLocaleDateString('pt-BR'),
+        messages: [
+          {
+            id: `msg-${Date.now()}`,
+            sender: 'aluno',
+            senderName: name.trim(),
+            text: message.trim(),
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          },
+        ],
+      };
+
+      try {
+        const saved = localStorage.getItem('deds_support_tickets');
+        const list = saved ? JSON.parse(saved) : [];
+        localStorage.setItem('deds_support_tickets', JSON.stringify([newTicket, ...list]));
+      } catch (err) {
+        console.error('Error saving ticket', err);
+      }
+
       setTicketSuccess({
         protocol: generatedProtocol,
         date: new Date().toLocaleString('pt-BR'),

@@ -39,6 +39,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
   const [title, setTitle] = useState('');
   const [instructorName, setInstructorName] = useState(instructors[0]?.name || 'Prof. Carlos Mendes');
   const [instructorRole, setInstructorRole] = useState(instructors[0]?.role || 'Especialista Sênior');
+  const [instructorAvatar, setInstructorAvatar] = useState(instructors[0]?.avatar || '');
   const [category, setCategory] = useState(categories[0]?.name || 'Tecnologia & IA');
   const [hours, setHours] = useState(40);
   const [lessonsCount, setLessonsCount] = useState(36);
@@ -167,6 +168,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
     const found = instructors.find((i) => i.name === selectedName);
     if (found) {
       setInstructorRole(found.role);
+      setInstructorAvatar(found.avatar || '');
     }
   };
 
@@ -237,6 +239,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
       title: title.trim(),
       instructor: instructorName,
       instructorRole: instructorRole,
+      instructorAvatar: instructorAvatar || instructors.find(i => i.name === instructorName)?.avatar,
       category,
       level: level,
       hours: Number(hours),

@@ -26,6 +26,7 @@ interface AdminDashboardProps {
   users: UserAccount[];
   categories?: Category[];
   instructors?: Instructor[];
+  onUpdateInstructors?: (instructors: Instructor[]) => void;
   blogPosts?: BlogPost[];
   onAddPost?: (post: BlogPost) => void;
   onUpdatePost?: (post: BlogPost) => void;
@@ -70,6 +71,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   middleBannerConfig,
   onUpdateMiddleBannerConfig,
   checkoutBannerConfig,
+  onUpdateInstructors,
   onUpdateCheckoutBannerConfig,
   onAddCourse,
   onUpdateCourse,
@@ -87,7 +89,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Local state for categories, instructors, blog posts, and certificates
   const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories);
-  const [instructorsList, setInstructorsList] = useState<Instructor[]>(initialInstructors);
+  const [instructorsList, setInstructorsList] = useState<Instructor[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_instructors_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return initialInstructors;
+  });
   const [blogPostsList, setBlogPostsList] = useState<BlogPost[]>(initialBlogPosts);
   useEffect(() => {
     if (initialBlogPosts) {
@@ -114,22 +125,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setReviewsList(reviews);
     }
   }, [reviews]);
-  const [ticketsList, setTicketsList] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
-  const [couponsList, setCouponsList] = useState<Coupon[]>(INITIAL_COUPONS);
+  const [ticketsList, setTicketsList] = useState<SupportTicket[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_support_tickets');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_SUPPORT_TICKETS;
+  });
+  const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_coupons_list');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_COUPONS;
+  });
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
 
   const handleAddCoupon = (newCoupon: Coupon) => {
-    setCouponsList((prev) => [newCoupon, ...prev]);
-    // 4. Notificação de divulgação de cupons de desconto
+    setCouponsList((prev) => {
+      const next = [newCoupon, ...prev];
+      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
     sendCouponBroadcastEmail({ coupon: newCoupon, students: users }).catch(console.error);
   };
 
   const handleUpdateCoupon = (updatedCoupon: Coupon) => {
-    setCouponsList((prev) => prev.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c)));
+    setCouponsList((prev) => {
+      const next = prev.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c));
+      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const handleDeleteCoupon = (couponId: string) => {
-    setCouponsList((prev) => prev.filter((c) => c.id !== couponId));
+    setCouponsList((prev) => {
+      const next = prev.filter((c) => c.id !== couponId);
+      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const handleAddCampaign = (newCampaign: PromotionalCampaign) => {
@@ -202,15 +236,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  // Instructor Handlers
+  // Instructor Handlers with full localStorage persistence
   const handleAddInstructor = (inst: Instructor) => {
-    setInstructorsList((prev) => [inst, ...prev]);
+    setInstructorsList((prev) => {
+      const next = [inst, ...prev];
+      try {
+        localStorage.setItem('deds_instructors_list', JSON.stringify(next));
+      } catch {}
+      onUpdateInstructors?.(next);
+      return next;
+    });
   };
   const handleUpdateInstructor = (inst: Instructor) => {
-    setInstructorsList((prev) => prev.map((i) => (i.id === inst.id ? inst : i)));
+    setInstructorsList((prev) => {
+      const next = prev.map((i) => (i.id === inst.id ? inst : i));
+      try {
+        localStorage.setItem('deds_instructors_list', JSON.stringify(next));
+      } catch {}
+      onUpdateInstructors?.(next);
+      return next;
+    });
   };
   const handleDeleteInstructor = (instId: string) => {
-    setInstructorsList((prev) => prev.filter((i) => i.id !== instId));
+    setInstructorsList((prev) => {
+      const next = prev.filter((i) => i.id !== instId);
+      try {
+        localStorage.setItem('deds_instructors_list', JSON.stringify(next));
+      } catch {}
+      onUpdateInstructors?.(next);
+      return next;
+    });
   };
 
   // Blog Handlers
@@ -268,15 +323,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Ticket Handlers (Botão 12: Tickets)
   const handleUpdateTicket = (updatedTicket: SupportTicket) => {
-    setTicketsList((prev) => prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t)));
+    setTicketsList((prev) => {
+      const next = prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t));
+      try { localStorage.setItem('deds_support_tickets', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const handleOpenNewTicket = (newTicket: SupportTicket) => {
-    setTicketsList((prev) => [newTicket, ...prev]);
+    setTicketsList((prev) => {
+      const next = [newTicket, ...prev];
+      try { localStorage.setItem('deds_support_tickets', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   const handleDeleteTicket = (ticketId: string) => {
-    setTicketsList((prev) => prev.filter((t) => t.id !== ticketId));
+    setTicketsList((prev) => {
+      const next = prev.filter((t) => t.id !== ticketId);
+      try { localStorage.setItem('deds_support_tickets', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
 
   // Open Edit Course Modal

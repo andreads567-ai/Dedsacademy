@@ -44,7 +44,19 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   onStartCourse,
 }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'cursos' | 'certificados' | 'horas' | 'financeiro' | 'perfil'>('cursos');
+  const [activeTab, setActiveTab] = useState<'cursos' | 'certificados' | 'horas' | 'financeiro' | 'suporte' | 'perfil'>('cursos');
+  const [studentTickets, setStudentTickets] = useState<SupportTicket[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_support_tickets');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_SUPPORT_TICKETS;
+  });
+  const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
+  const [newTicketSubject, setNewTicketSubject] = useState('Dúvida sobre Aulas e Metodologia');
+  const [newTicketPriority, setNewTicketPriority] = useState<'alta' | 'media' | 'baixa'>('media');
+  const [newTicketMessage, setNewTicketMessage] = useState('');
+  const [newTicketCourse, setNewTicketCourse] = useState('');
   const [orders, setOrders] = useState<StudentOrder[]>(INITIAL_ORDERS);
   const [selectedOrderForCancellation, setSelectedOrderForCancellation] = useState<StudentOrder | null>(null);
   const [cancellationAlertToast, setCancellationAlertToast] = useState<string | null>(null);

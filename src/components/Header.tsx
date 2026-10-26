@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount } from '../types';
+import { UserAccount, Coupon, Course } from '../types';
+import { INITIAL_COUPONS } from '../data/promotionsData';
+import { COURSES } from '../data/coursesData';
 
 interface HeaderProps {
   activeTab: string;

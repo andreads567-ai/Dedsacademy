@@ -68,6 +68,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
   const [title, setTitle] = useState(course.title || '');
   const [instructorName, setInstructorName] = useState(course.instructor || '');
   const [instructorRole, setInstructorRole] = useState(course.instructorRole || '');
+  const [instructorAvatar, setInstructorAvatar] = useState(course.instructorAvatar || '');
   const [isManualInstructor, setIsManualInstructor] = useState(false);
 
   const [category, setCategory] = useState(course.category || categories[0]?.name || 'Tecnologia & IA');

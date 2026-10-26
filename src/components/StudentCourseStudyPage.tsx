@@ -24,6 +24,7 @@ export interface StudentCourseStudyPageProps {
   currentUser?: UserAccount | null;
   onSubmitReview?: (review: CourseReview) => void;
   onOpenCertificateModal?: () => void;
+  onSaveCertificate?: (cert: CertificateItem) => void;
 }
 
 export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
@@ -35,6 +36,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
   currentUser,
   onSubmitReview,
   onOpenCertificateModal,
+  onSaveCertificate,
 }) => {
   if (!isOpen || !course) return null;
 
@@ -613,6 +615,18 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
     };
 
     setIssuedCertData(generatedCert);
+    try {
+      const saved = localStorage.getItem('deds_certificates_list');
+      const currentList = saved ? JSON.parse(saved) : [];
+      const filtered = currentList.filter((c: any) => !(c.courseId === course.id && c.studentId === currentUser?.id));
+      const nextList = [generatedCert, ...filtered];
+      localStorage.setItem('deds_certificates_list', JSON.stringify(nextList));
+    } catch (e) {
+      console.error('Error saving certificate', e);
+    }
+    if (onSaveCertificate) {
+      onSaveCertificate(generatedCert);
+    }
     setIsSubmittingReview(false);
     setActiveView('certificate_ready');
     window.scrollTo({ top: 0, behavior: 'smooth' });
