@@ -25,9 +25,56 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
 
   const filteredCourses = activeFilter === 'Todos'
     ? courses
-    : courses.filter((c) => c.filterTags.includes(activeFilter));
+    : courses.filter((c) => {
+        if (activeFilter === 'Lançamentos') {
+          const effectiveBadge = getEffectiveCourseBadge(c);
+          const hasLaunchCategory =
+            c.category?.toLowerCase().includes('lançamento') ||
+            c.category?.toLowerCase().includes('lancamento');
+          const hasLaunchBadge =
+            c.badge?.text?.toLowerCase().includes('lançamento') ||
+            c.badge?.text?.toLowerCase().includes('lancamento') ||
+            effectiveBadge?.text?.toLowerCase().includes('lançamento') ||
+            effectiveBadge?.text?.toLowerCase().includes('lancamento') ||
+            c.isAutoLaunchBadge === true;
+          const hasLaunchTag =
+            c.filterTags &&
+            c.filterTags.some(
+              (tag) =>
+                tag.toLowerCase().includes('lançamento') ||
+                tag.toLowerCase().includes('lancamento') ||
+                tag.toLowerCase().includes('novos')
+            );
+          return hasLaunchCategory || hasLaunchBadge || hasLaunchTag;
+        }
 
-  const displayCourses = filteredCourses.length > 0 ? filteredCourses : courses;
+        if (activeFilter === 'Em alta') {
+          return (
+            c.filterTags?.includes('Em alta') ||
+            c.filterTags?.includes('Destaque') ||
+            c.rating >= 4.8
+          );
+        }
+
+        if (activeFilter === 'Mais vendidos') {
+          return (
+            c.filterTags?.includes('Mais vendidos') ||
+            c.reviewsCount >= 40 ||
+            (c.studentsCount || 0) >= 100
+          );
+        }
+
+        if (activeFilter === 'Com Certificação') {
+          return (
+            c.filterTags?.includes('Com Certificação') ||
+            (c.hours && c.hours > 0)
+          );
+        }
+
+        return c.filterTags?.includes(activeFilter);
+      });
+
+  const displayCourses = filteredCourses;
 
   return (
     <section id="cursos-section" className="w-full py-16 lg:py-24 bg-surface-base">
@@ -78,105 +125,120 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
         </div>
 
         {/* Courses Grid (5 items) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {displayCourses.map((course) => {
-            const isAdded = addedCourseIds.includes(course.id);
+        {displayCourses.length === 0 ? (
+          <div className="text-center py-16 px-4 bg-surface-raised rounded-2xl border border-border-subtle max-w-md mx-auto space-y-3">
+            <span className="material-symbols-outlined text-4xl text-primary">search_off</span>
+            <p className="text-sm font-bold text-text-primary">Nenhum curso encontrado com o filtro "{activeFilter}"</p>
+            <p className="text-xs text-text-tertiary">Explore todas as opções disponíveis em nosso catálogo.</p>
+            <button
+              type="button"
+              onClick={() => setActiveFilter('Todos')}
+              className="px-4 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl shadow-md cursor-pointer"
+            >
+              Exibir Todos os Cursos
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {displayCourses.map((course) => {
+              const isAdded = addedCourseIds.includes(course.id);
 
-            const effectiveBadge = getEffectiveCourseBadge(course);
-            let badgeClass = 'bg-surface-container-lowest/90 backdrop-blur-md text-accent-emerald-bright';
-            if (effectiveBadge?.variant === 'secondary') {
-              badgeClass = 'bg-secondary-container/90 backdrop-blur-md text-secondary';
-            } else if (effectiveBadge?.variant === 'dark') {
-              badgeClass = 'bg-surface-container-highest/90 backdrop-blur-md text-tertiary';
-            }
+              const effectiveBadge = getEffectiveCourseBadge(course);
+              let badgeClass = 'bg-surface-container-lowest/90 backdrop-blur-md text-accent-emerald-bright';
+              if (effectiveBadge?.variant === 'secondary') {
+                badgeClass = 'bg-secondary-container/90 backdrop-blur-md text-secondary';
+              } else if (effectiveBadge?.variant === 'dark') {
+                badgeClass = 'bg-surface-container-highest/90 backdrop-blur-md text-tertiary';
+              }
 
-            return (
-              <div
-                key={course.id}
-                className="group flex flex-col rounded-2xl bg-surface-raised hover:bg-surface-overlay transition-all duration-300 hover:-translate-y-1 shadow-lg overflow-hidden border border-border-subtle hover:border-border-strong"
-              >
-                {/* Image Container */}
+              return (
                 <div
-                  className="relative w-full aspect-video overflow-hidden cursor-pointer"
-                  onClick={() => onSelectCourse(course)}
+                  key={course.id}
+                  className="group flex flex-col rounded-2xl bg-surface-raised hover:bg-surface-overlay transition-all duration-300 hover:-translate-y-1 shadow-lg overflow-hidden border border-border-subtle hover:border-border-strong"
                 >
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    alt={course.title}
-                    src={course.image}
-                  />
-                  {effectiveBadge && (
-                    <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-md font-label-sm text-label-sm font-bold shadow-md ${badgeClass}`}>
-                      {effectiveBadge.text}
-                    </span>
-                  )}
-                  {course.videoUrl && (
-                    <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] text-white flex items-center gap-1 font-medium shadow-xs">
-                      <span className="material-symbols-outlined text-xs text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        play_circle
+                  {/* Image Container */}
+                  <div
+                    className="relative w-full aspect-video overflow-hidden cursor-pointer"
+                    onClick={() => onSelectCourse(course)}
+                  >
+                    <img
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      alt={course.title}
+                      src={course.image}
+                    />
+                    {effectiveBadge && (
+                      <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-md font-label-sm text-label-sm font-bold shadow-md ${badgeClass}`}>
+                        {effectiveBadge.text}
                       </span>
-                      <span>Vídeo</span>
-                    </span>
-                  )}
+                    )}
+                    {course.videoUrl && (
+                      <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm text-[10px] text-white flex items-center gap-1 font-medium shadow-xs">
+                        <span className="material-symbols-outlined text-xs text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
+                          play_circle
+                        </span>
+                        <span>Vídeo</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-4 flex flex-col flex-1 justify-between gap-4">
+                    <div className="cursor-pointer" onClick={() => onSelectCourse(course)}>
+                      <h3 className="font-headline-sm text-headline-sm font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-1">
+                        {course.title}
+                      </h3>
+                      <p className="font-body-sm text-body-sm text-text-tertiary mt-1 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-body-sm">person</span>
+                        {course.instructor}
+                      </p>
+                    </div>
+
+                    {/* Rating & Hours */}
+                    <div className="flex items-center justify-between text-body-sm font-body-sm text-text-secondary">
+                      <div className="flex items-center gap-1 text-accent-gold font-bold">
+                        <span className="material-symbols-outlined text-body-md" style={{ fontVariationSettings: "'FILL' 1" }}>
+                          star
+                        </span>
+                        <span>{course.rating.toFixed(1)}</span>
+                        <span className="text-text-tertiary font-normal">({course.reviewsCount})</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-text-tertiary">
+                        <span className="material-symbols-outlined text-body-md">schedule</span>
+                        <span>{course.hours}h</span>
+                      </div>
+                    </div>
+
+                    {/* Price & Action */}
+                    <div className="flex items-center justify-between pt-3 bg-surface-container-lowest/40 -mx-4 -mb-4 px-4 py-3 border-t border-border-subtle/40">
+                      <div>
+                        <span className="font-label-sm text-label-sm text-text-tertiary line-through block leading-none">
+                          R$ {course.originalPrice.toFixed(2).replace('.', ',')}
+                        </span>
+                        <span className="font-headline-sm text-headline-sm font-bold text-text-primary">
+                          R$ {course.currentPrice.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onAddToCart(course)}
+                        className={`p-2.5 rounded-lg transition-colors cursor-pointer ${
+                          isAdded
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-surface-container hover:bg-primary hover:text-on-primary text-text-primary'
+                        }`}
+                        title={isAdded ? 'No carrinho' : 'Adicionar ao carrinho'}
+                      >
+                        <span className="material-symbols-outlined text-headline-sm">
+                          {isAdded ? 'check' : 'add_shopping_cart'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Card Body */}
-                <div className="p-4 flex flex-col flex-1 justify-between gap-4">
-                  <div className="cursor-pointer" onClick={() => onSelectCourse(course)}>
-                    <h3 className="font-headline-sm text-headline-sm font-bold text-text-primary group-hover:text-primary transition-colors line-clamp-1">
-                      {course.title}
-                    </h3>
-                    <p className="font-body-sm text-body-sm text-text-tertiary mt-1 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-body-sm">person</span>
-                      {course.instructor}
-                    </p>
-                  </div>
-
-                  {/* Rating & Hours */}
-                  <div className="flex items-center justify-between text-body-sm font-body-sm text-text-secondary">
-                    <div className="flex items-center gap-1 text-accent-gold font-bold">
-                      <span className="material-symbols-outlined text-body-md" style={{ fontVariationSettings: "'FILL' 1" }}>
-                        star
-                      </span>
-                      <span>{course.rating.toFixed(1)}</span>
-                      <span className="text-text-tertiary font-normal">({course.reviewsCount})</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-text-tertiary">
-                      <span className="material-symbols-outlined text-body-md">schedule</span>
-                      <span>{course.hours}h</span>
-                    </div>
-                  </div>
-
-                  {/* Price & Action */}
-                  <div className="flex items-center justify-between pt-3 bg-surface-container-lowest/40 -mx-4 -mb-4 px-4 py-3 border-t border-border-subtle/40">
-                    <div>
-                      <span className="font-label-sm text-label-sm text-text-tertiary line-through block leading-none">
-                        R$ {course.originalPrice.toFixed(2).replace('.', ',')}
-                      </span>
-                      <span className="font-headline-sm text-headline-sm font-bold text-text-primary">
-                        R$ {course.currentPrice.toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onAddToCart(course)}
-                      className={`p-2.5 rounded-lg transition-colors cursor-pointer ${
-                        isAdded
-                          ? 'bg-primary text-on-primary'
-                          : 'bg-surface-container hover:bg-primary hover:text-on-primary text-text-primary'
-                      }`}
-                      title={isAdded ? 'No carrinho' : 'Adicionar ao carrinho'}
-                    >
-                      <span className="material-symbols-outlined text-headline-sm">
-                        {isAdded ? 'check' : 'add_shopping_cart'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Mobile Ver Todos Link */}
         <div className="mt-8 flex lg:hidden justify-center">

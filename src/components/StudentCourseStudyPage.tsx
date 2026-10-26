@@ -9,6 +9,9 @@ import {
   StudentProgress,
   UserAccount,
   CertificateItem,
+  CourseFinalExam,
+  CourseExamQuestion,
+  CourseExamOption,
 } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 
@@ -163,9 +166,9 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
   const firstUnfinishedLesson = allLessons.find((l) => !completedLessonIds.includes(l.id));
   const defaultLessonId = firstUnfinishedLesson ? firstUnfinishedLesson.id : allLessons[0]?.id || '';
 
-  // Active view: 'overview' (Ementa & Lista de Lições - Prime Cursos) | 'reading' (Sala de Aula / Leitura) | 'evaluation' (Avaliação Obrigatória) | 'certificate_ready'
+  // Active view: 'overview' (Ementa & Lista de Lições - Prime Cursos) | 'reading' (Sala de Aula / Leitura) | 'final_exam' (Prova Final Obrigatória) | 'evaluation' (Avaliação Obrigatória) | 'certificate_ready'
   const isAlreadyCompleted = totalLessonsCount > 0 && completedLessonIds.length >= totalLessonsCount;
-  const [activeView, setActiveView] = useState<'overview' | 'reading' | 'evaluation' | 'certificate_ready'>(() => {
+  const [activeView, setActiveView] = useState<'overview' | 'reading' | 'final_exam' | 'evaluation' | 'certificate_ready'>(() => {
     return isAlreadyCompleted ? 'overview' : 'overview';
   });
 
@@ -203,6 +206,178 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [issuedCertData, setIssuedCertData] = useState<CertificateItem | null>(null);
   const [isGeneratingCertificatePdf, setIsGeneratingCertificatePdf] = useState(false);
+
+  // 5. Final Exam Resolution & Evaluation State
+  const effectiveFinalExam: CourseFinalExam = useMemo(() => {
+    if (course.finalExam && course.finalExam.questions && course.finalExam.questions.length > 0) {
+      return course.finalExam;
+    }
+    return {
+      id: `exam-${course.id}`,
+      title: `Prova Final de Certificação: ${course.title}`,
+      description: 'Avaliação final obrigatória para verificação de proficiência e emissão do certificado oficial.',
+      minPassingPercent: 80,
+      maxAttempts: 3,
+      immediateResult: true,
+      allowRetake: true,
+      status: 'publicado',
+      questions: [
+        {
+          id: 'q-f1',
+          title: `Qual é o objetivo central e os conceitos metodológicos aplicados na formação "${course.title}"?`,
+          type: 'assertiva',
+          selectionType: 'unica',
+          points: 20,
+          options: [
+            { id: 'opt-f1-a', letter: 'A', text: 'Capacitar o aluno com fundamentos sólidos e aplicação prática de alto padrão no mercado de trabalho.', isCorrect: true },
+            { id: 'opt-f1-b', letter: 'B', text: 'Transmitir teorias desatualizadas sem comprovação técnica ou prática.', isCorrect: false },
+            { id: 'opt-f1-c', letter: 'C', text: 'Apenas fornecer uma lista de termos técnicos sem contextualização profissional.', isCorrect: false },
+            { id: 'opt-f1-d', letter: 'D', text: 'Restringir a aprendizagem a leituras superficiais sem fixação.', isCorrect: false },
+          ],
+          explanation: 'O objetivo essencial é consolidar a metodologia prática com rigor conceitual para o mercado de trabalho.',
+        },
+        {
+          id: 'q-f2',
+          title: 'Sobre a aplicação de boas práticas e resolução de problemas técnicos, quais condutas são indispensáveis?',
+          type: 'assertiva',
+          selectionType: 'unica',
+          points: 20,
+          options: [
+            { id: 'opt-f2-a', letter: 'A', text: 'Planejamento analítico, estruturação em etapas, validação contínua e documentação.', isCorrect: true },
+            { id: 'opt-f2-b', letter: 'B', text: 'Executar tarefas sem conferir requisitos mínimos de conformidade.', isCorrect: false },
+            { id: 'opt-f2-c', letter: 'C', text: 'Ignorar padrões de qualidade estabelecidos na formação.', isCorrect: false },
+            { id: 'opt-f2-d', letter: 'D', text: 'Substituir processos consolidados por abordagens improvisadas.', isCorrect: false },
+          ],
+          explanation: 'Planejamento e validação contínua garantem a conformidade técnica e a excelência profissional.',
+        },
+        {
+          id: 'q-f3',
+          title: 'Quais pilares sustentam a segurança, integridade e consistência das soluções desenvolvidas?',
+          type: 'assertiva',
+          selectionType: 'unica',
+          points: 20,
+          options: [
+            { id: 'opt-f3-a', letter: 'A', text: 'Controle de acesso rigoroso, auditoria periódica e conformidade com diretrizes técnicas.', isCorrect: true },
+            { id: 'opt-f3-b', letter: 'B', text: 'Desativação de checagens de validação para economizar tempo.', isCorrect: false },
+            { id: 'opt-f3-c', letter: 'C', text: 'Compartilhamento irrestrito de credenciais e permissões.', isCorrect: false },
+            { id: 'opt-f3-d', letter: 'D', text: 'Armazenamento de dados sem critérios de proteção e rastreabilidade.', isCorrect: false },
+          ],
+          explanation: 'Segurança da informação e auditoria são requisitos inegociáveis para soluções profissionais.',
+        },
+        {
+          id: 'q-f4',
+          title: 'Na mensuração de resultados e otimização contínua, qual métrica reflete a maturidade operacional?',
+          type: 'assertiva',
+          selectionType: 'unica',
+          points: 20,
+          options: [
+            { id: 'opt-f4-a', letter: 'A', text: 'Taxa de assertividade elevada, menor índice de retrabalho e entrega dentro dos parâmetros estabelecidos.', isCorrect: true },
+            { id: 'opt-f4-b', letter: 'B', text: 'Aumento do tempo de resposta sem agregação de valor.', isCorrect: false },
+            { id: 'opt-f4-c', letter: 'C', text: 'Ausência total de monitoramento ou métricas quantitativas.', isCorrect: false },
+            { id: 'opt-f4-d', letter: 'D', text: 'Dependência de intervenções emergenciais repetitivas.', isCorrect: false },
+          ],
+          explanation: 'A maturidade operacional é expressa por eficiência de processos e sustentabilidade dos resultados.',
+        },
+        {
+          id: 'q-f5',
+          title: 'Em relação ao código de ética e responsabilidade do formando perante a certificação:',
+          type: 'assertiva',
+          selectionType: 'unica',
+          points: 20,
+          options: [
+            { id: 'opt-f5-a', letter: 'A', text: 'Compromisso com o aprendizado contínuo, transparência e aplicação ética do conhecimento.', isCorrect: true },
+            { id: 'opt-f5-b', letter: 'B', text: 'Uso indevido do certificado em áreas sem qualificação comprovada.', isCorrect: false },
+            { id: 'opt-f5-c', letter: 'C', text: 'Omissão de falhas técnicas conhecidas aos clientes ou contratantes.', isCorrect: false },
+            { id: 'opt-f5-d', letter: 'D', text: 'Abandono da reciclagem de conceitos perante inovações do setor.', isCorrect: false },
+          ],
+          explanation: 'O rigor ético e a capacitação contínua são diretrizes fundamentais da Deds Academy.',
+        },
+      ],
+    };
+  }, [course]);
+
+  const examStorageKey = `deds_exam_result_${course.id}_${currentUser?.id || 'aluno'}`;
+  const [finalExamAnswers, setFinalExamAnswers] = useState<Record<string, string[]>>({});
+  const [finalExamSubmitted, setFinalExamSubmitted] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(examStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Boolean(parsed.passed);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  });
+  const [finalExamResult, setFinalExamResult] = useState<{
+    scorePercent: number;
+    passed: boolean;
+    correctPoints: number;
+    totalPoints: number;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem(examStorageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  });
+
+  const handleGradeFinalExam = () => {
+    let earned = 0;
+    let total = 0;
+
+    effectiveFinalExam.questions.forEach((q) => {
+      const qPoints = q.points || 1;
+      total += qPoints;
+
+      const userAns = finalExamAnswers[q.id] || [];
+      const correctOptIds = q.options.filter((o) => o.isCorrect).map((o) => o.id);
+
+      if (q.selectionType === 'multipla') {
+        const isMatch =
+          userAns.length === correctOptIds.length &&
+          userAns.every((id) => correctOptIds.includes(id));
+        if (isMatch) earned += qPoints;
+      } else {
+        if (userAns.length > 0 && correctOptIds.includes(userAns[0])) {
+          earned += qPoints;
+        }
+      }
+    });
+
+    const score = total > 0 ? Math.round((earned / total) * 100) : 0;
+    const minPass = effectiveFinalExam.minPassingPercent || 80;
+    const isPassed = score >= minPass;
+
+    const res = {
+      scorePercent: score,
+      passed: isPassed,
+      correctPoints: earned,
+      totalPoints: total,
+    };
+
+    setFinalExamResult(res);
+    setFinalExamSubmitted(true);
+    try {
+      localStorage.setItem(examStorageKey, JSON.stringify(res));
+    } catch (e) {
+      // ignore
+    }
+
+    if (isPassed) {
+      showStudyToast(`Excelente! Você atingiu ${score}% e foi aprovado na Prova Final! Certificado desbloqueado!`, 'success');
+    } else {
+      showStudyToast(`Aproveitamento: ${score}%. Mínimo exigido: ${minPass}%. Revise o conteúdo e realize uma nova tentativa.`, 'warning');
+    }
+  };
+
+  const handleRetakeFinalExam = () => {
+    setFinalExamAnswers({});
+    setFinalExamSubmitted(false);
+  };
 
   // Check if current lesson has real video
   const hasVideo = Boolean(currentLessonItem?.videoUrl && currentLessonItem.videoUrl.trim() !== '');
@@ -363,8 +538,14 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
     const isLastLesson = currentLessonIndex === totalLessonsCount - 1;
 
     if (isLastLesson) {
-      // Direct immediately to mandatory course evaluation screen
-      setActiveView('evaluation');
+      if (finalExamResult && finalExamResult.passed) {
+        // Direct immediately to mandatory course evaluation screen
+        setActiveView('evaluation');
+      } else {
+        // Direct to mandatory final exam before certificate release
+        setActiveView('final_exam');
+        showStudyToast('Todas as lições foram concluídas! Para desbloquear o seu certificado, conclua a Prova Final Obrigatória (nota mínima: 80%).', 'info');
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       // Unlock next lesson and advance
@@ -379,6 +560,12 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 
   // Submit mandatory course review & generate certificate
   const handleSubmitReviewAndGenerateCertificate = () => {
+    if (!finalExamResult || !finalExamResult.passed) {
+      showStudyToast('A Prova Final é obrigatória para a emissão do certificado. Conclua a prova com nota mínima de 80%.', 'warning');
+      setActiveView('final_exam');
+      return;
+    }
+
     if (selectedRating === 0) {
       showStudyToast('Por favor, selecione uma nota de 1 a 5 estrelas para avaliar o curso.', 'warning');
       return;
@@ -764,6 +951,108 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                   );
                 })}
               </div>
+
+              {/* BLOCO DA PROVA FINAL OBRIGATÓRIA (CRITÉRIO PARA EMISSÃO DO CERTIFICADO) */}
+              <div className="mt-8 p-6 rounded-2xl border-2 transition-all shadow-md bg-white dark:bg-[#0F172A] border-amber-500/40 dark:border-amber-500/30">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                      finalExamResult?.passed
+                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-300'
+                        : isAlreadyCompleted
+                        ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300 animate-pulse'
+                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 border border-slate-200 dark:border-white/10'
+                    }`}>
+                      <span className="material-symbols-outlined text-2xl">
+                        {finalExamResult?.passed ? 'verified' : isAlreadyCompleted ? 'quiz' : 'lock'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                          finalExamResult?.passed
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : isAlreadyCompleted
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {finalExamResult?.passed
+                            ? 'Aprovado na Prova Final'
+                            : isAlreadyCompleted
+                            ? 'Liberada para Realização'
+                            : 'Bloqueada'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          Nota de corte: {effectiveFinalExam.minPassingPercent || 80}%
+                        </span>
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                        Prova Final Obrigatória de Certificação
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
+                        {finalExamResult?.passed
+                          ? `Parabéns! Você alcançou ${finalExamResult.scorePercent}% de aproveitamento. Todos os requisitos acadêmicos foram cumpridos.`
+                          : isAlreadyCompleted
+                          ? 'Todas as aulas foram concluídas! Responda à prova final para comprovar proficiência e desbloquear o certificado oficial.'
+                          : `Para realizar a prova final, você precisa concluir 100% das lições do curso (${completedLessonIds.length} de ${totalLessonsCount} concluídas).`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+                    {finalExamResult?.passed ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveView('final_exam');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          Ver Respostas
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveView('evaluation');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-primary hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                          <span>Emitir Certificado</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!isAlreadyCompleted}
+                        onClick={() => {
+                          if (!isAlreadyCompleted) {
+                            showStudyToast('Conclua todas as lições primeiro para liberar o acesso à prova final.', 'warning');
+                            return;
+                          }
+                          setActiveView('final_exam');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-md ${
+                          isAlreadyCompleted
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-amber-500/20 active:scale-95'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          {isAlreadyCompleted ? 'edit_document' : 'lock'}
+                        </span>
+                        <span>
+                          {isAlreadyCompleted ? 'Fazer Prova Final Agora' : 'Prova Bloqueada'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </section>
           </main>
         </div>
@@ -1118,6 +1407,243 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
       )}
 
       {/* =========================================================================
+          VIEW: PROVA FINAL OBRIGATÓRIA DE CERTIFICAÇÃO
+         ========================================================================= */}
+      {activeView === 'final_exam' && (
+        <div className="flex-1 flex flex-col min-h-screen bg-slate-50 dark:bg-[#0B0F19]">
+          {/* Header Superior da Prova */}
+          <header className="w-full bg-white dark:bg-[#0F172A] border-b border-slate-200 dark:border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveView('overview');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              >
+                <span className="material-symbols-outlined text-base">arrow_back</span>
+                <span className="hidden sm:inline">Voltar à Ementa</span>
+              </button>
+              <div>
+                <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider block">
+                  Avaliação Oficial de Certificação
+                </span>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white truncate max-w-md sm:max-w-xl">
+                  {effectiveFinalExam.title}
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                Aprovação: {effectiveFinalExam.minPassingPercent || 80}%
+              </span>
+            </div>
+          </header>
+
+          <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+            {/* Banner Orientativo */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white border border-slate-700 shadow-xl space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-400 text-xl">fact_check</span>
+                <h2 className="text-base sm:text-lg font-bold">Instruções da Prova Final</h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                {effectiveFinalExam.description || 'Esta avaliação final afere o domínio dos conteúdos ministrados ao longo de todos os módulos. Responda com atenção a todas as questões. Para ser aprovado e liberar a emissão do Certificado Oficial, você precisa atingir pontuação mínima de 80%.'}
+              </p>
+              <div className="flex flex-wrap gap-4 pt-2 text-xs text-slate-400">
+                <span>• Total de Questões: <strong>{effectiveFinalExam.questions.length}</strong></span>
+                <span>• Nota de Corte: <strong>{effectiveFinalExam.minPassingPercent || 80}%</strong></span>
+                <span>• Tentativas: <strong>Ilimitadas</strong> (pode refazer caso não atinja a nota)</span>
+              </div>
+            </div>
+
+            {/* Resultado Caso Já Tenha Sido Submetida */}
+            {finalExamSubmitted && finalExamResult && (
+              <div className={`p-6 rounded-2xl border-2 shadow-lg space-y-4 ${
+                finalExamResult.passed
+                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-emerald-100'
+                  : 'bg-amber-500/10 border-amber-500 text-amber-950 dark:text-amber-100'
+              }`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                    finalExamResult.passed ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+                  }`}>
+                    <span className="material-symbols-outlined text-2xl">
+                      {finalExamResult.passed ? 'emoji_events' : 'priority_high'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-extrabold">
+                      {finalExamResult.passed
+                        ? '🎉 Parabéns! Você foi Aprovado na Prova Final!'
+                        : '⚠️ Aproveitamento Insuficiente na Prova'}
+                    </h3>
+                    <p className="text-xs sm:text-sm mt-1 opacity-90 leading-relaxed">
+                      {finalExamResult.passed
+                        ? `Você obteve ${finalExamResult.scorePercent}% de aproveitamento (${finalExamResult.correctPoints} de ${finalExamResult.totalPoints} pontos). Seu certificado foi desbloqueado com sucesso!`
+                        : `Você obteve ${finalExamResult.scorePercent}% de aproveitamento (${finalExamResult.correctPoints} de ${finalExamResult.totalPoints} pontos). A nota mínima exigida para emissão do certificado é de ${effectiveFinalExam.minPassingPercent || 80}%. Revise o gabarito comentado abaixo e realize uma nova tentativa.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleRetakeFinalExam}
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-sm">refresh</span>
+                    <span>Tentar Novamente</span>
+                  </button>
+                  {finalExamResult.passed && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveView('evaluation');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-primary hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                      <span>Avançar para Avaliação e Emitir Certificado</span>
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Lista de Questões */}
+            <div className="space-y-6">
+              {effectiveFinalExam.questions.map((q, qIndex) => {
+                const userSelected = finalExamAnswers[q.id] || [];
+                return (
+                  <div
+                    key={q.id}
+                    className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 shadow-sm space-y-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-extrabold flex items-center justify-center shrink-0">
+                          {qIndex + 1}
+                        </span>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {q.selectionType === 'multipla' ? 'Múltipla Escolha' : 'Resposta Única'} • {q.points || 1} Ponto(s)
+                          </span>
+                          <h4 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-0.5 leading-snug">
+                            {q.title}
+                          </h4>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Alternativas */}
+                    <div className="space-y-2 pt-1">
+                      {q.options.map((opt, optIdx) => {
+                        const isSelected = userSelected.includes(opt.id);
+                        const isProgrammedCorrect = opt.isCorrect;
+
+                        let optClass = 'border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:border-primary/40';
+                        if (finalExamSubmitted) {
+                          if (isProgrammedCorrect) {
+                            optClass = 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold';
+                          } else if (isSelected && !isProgrammedCorrect) {
+                            optClass = 'border-red-500 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300';
+                          }
+                        } else if (isSelected) {
+                          optClass = 'border-primary bg-primary/10 text-primary font-bold';
+                        }
+
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs sm:text-sm cursor-pointer transition-colors ${optClass} ${
+                              finalExamSubmitted ? 'cursor-default' : ''
+                            }`}
+                          >
+                            <input
+                              type={q.selectionType === 'multipla' ? 'checkbox' : 'radio'}
+                              name={`final-exam-q-${q.id}`}
+                              disabled={finalExamSubmitted}
+                              checked={isSelected}
+                              onChange={() => {
+                                if (finalExamSubmitted) return;
+                                if (q.selectionType === 'multipla') {
+                                  setFinalExamAnswers((prev) => {
+                                    const current = prev[q.id] || [];
+                                    const next = current.includes(opt.id)
+                                      ? current.filter((id) => id !== opt.id)
+                                      : [...current, opt.id];
+                                    return { ...prev, [q.id]: next };
+                                  });
+                                } else {
+                                  setFinalExamAnswers((prev) => ({
+                                    ...prev,
+                                    [q.id]: [opt.id],
+                                  }));
+                                }
+                              }}
+                              className="w-4 h-4 text-primary cursor-pointer accent-primary"
+                            />
+                            <span className="font-mono text-slate-400 font-bold text-xs">
+                              {opt.letter || String.fromCharCode(65 + optIdx)})
+                            </span>
+                            <span className="flex-1 leading-relaxed">{opt.text}</span>
+                            {finalExamSubmitted && isProgrammedCorrect && (
+                              <span className="material-symbols-outlined text-emerald-600 text-sm">
+                                check_circle
+                              </span>
+                            )}
+                            {finalExamSubmitted && isSelected && !isProgrammedCorrect && (
+                              <span className="material-symbols-outlined text-red-500 text-sm">
+                                cancel
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    {/* Comentário explicativo após envio */}
+                    {finalExamSubmitted && q.explanation && (
+                      <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                        <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm text-primary">lightbulb</span>
+                          Comentário Pedagógico:
+                        </span>
+                        <p>{q.explanation}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Barra de Ação Inferior */}
+            {!finalExamSubmitted && (
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-white/10 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Respostas preenchidas: <strong>{Object.keys(finalExamAnswers).filter((k) => finalExamAnswers[k]?.length > 0).length}</strong> de <strong>{effectiveFinalExam.questions.length}</strong> questões
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGradeFinalExam}
+                  disabled={Object.keys(finalExamAnswers).filter((k) => finalExamAnswers[k]?.length > 0).length < effectiveFinalExam.questions.length}
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-xs sm:text-sm font-bold shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">fact_check</span>
+                  <span>Finalizar & Corrigir Prova Final</span>
+                </button>
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* =========================================================================
           VIEW 3: AVALIAÇÃO FINAL OBRIGATÓRIA (FEEDBACK POR ESTRELAS)
          ========================================================================= */}
       {activeView === 'evaluation' && (
@@ -1140,6 +1666,30 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
             </div>
 
             {/* Formulário com Trava de Segurança */}
+            {(!finalExamResult || !finalExamResult.passed) ? (
+              <div className="p-8 text-center space-y-4">
+                <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+                  <span className="material-symbols-outlined text-3xl">lock</span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Prova Final Obrigatória Pendente</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  A emissão do certificado e a avaliação de conclusão exigem aprovação prévia na Prova Final com aproveitamento mínimo de {effectiveFinalExam.minPassingPercent || 80}%.
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveView('final_exam');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-base">fact_check</span>
+                    <span>Realizar Prova Final Obrigatória</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="p-6 sm:p-8 space-y-6">
               {/* Classificação por Estrelas (1 a 5) — OBRIGATÓRIO */}
               <div className="text-center space-y-2">
@@ -1226,6 +1776,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

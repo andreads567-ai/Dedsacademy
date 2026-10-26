@@ -593,4 +593,22 @@ export const DEFAULT_CHECKOUT_PAYMENT_BANNER: CheckoutPaymentBannerConfig = {
   altText: 'Banner Oficial de Pagamentos e Checkout - Deds Academy',
 };
 
+export interface SaleTransaction {
+  id: string;
+  orderNumber: string;
+  studentName: string;
+  studentEmail: string;
+  studentCpf?: string;
+  courseId: string;
+  courseTitle: string;
+  courseCategory: string;
+  amount: number;
+  paymentMethod: 'PIX' | 'Cartão de Crédito' | 'Boleto Bancário';
+  date: string; // YYYY-MM-DD
+  time: string;
+  status: 'aprovada' | 'pendente' | 'cancelada';
+  cancellationReason?: string;
+  cancelledAt?: string;
+}
+
 

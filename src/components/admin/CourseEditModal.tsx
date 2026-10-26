@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Course, Category, Instructor, CourseStatus, CourseModule } from '../../types';
 import { ModuleLessonsManager } from './ModuleLessonsManager';
+import { INITIAL_INSTRUCTORS } from '../../data/usersData';
 
 interface CourseEditModalProps {
   course: Course | null;
@@ -41,10 +42,34 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
   // Step 2: Módulos & Gestão Completa de Aulas
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
+  // Instructors list with robust fallback and auto-inclusion of current instructor
+  const instructorsList = useMemo(() => {
+    const baseList = instructors && instructors.length > 0 ? [...instructors] : [...INITIAL_INSTRUCTORS];
+    if (
+      course.instructor &&
+      !baseList.some((i) => i.name.trim().toLowerCase() === course.instructor.trim().toLowerCase())
+    ) {
+      baseList.unshift({
+        id: `inst-current-${Date.now()}`,
+        name: course.instructor,
+        role: course.instructorRole || 'Instrutor Titular',
+        specialty: course.instructorRole || 'Especialista',
+        email: 'instrutor@dedsacademy.com.br',
+        bio: 'Instrutor registrado no catálogo',
+        rating: 5.0,
+        coursesCount: 1,
+        active: true,
+      });
+    }
+    return baseList;
+  }, [instructors, course.instructor, course.instructorRole]);
+
   // Core fields
   const [title, setTitle] = useState(course.title || '');
   const [instructorName, setInstructorName] = useState(course.instructor || '');
   const [instructorRole, setInstructorRole] = useState(course.instructorRole || '');
+  const [isManualInstructor, setIsManualInstructor] = useState(false);
+
   const [category, setCategory] = useState(course.category || categories[0]?.name || 'Tecnologia & IA');
   const [hours, setHours] = useState(course.hours || 40);
   const [lessonsCount, setLessonsCount] = useState(course.lessonsCount || 30);
@@ -96,8 +121,10 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
     if (!course) return;
 
     setTitle(course.title || '');
-    setInstructorName(course.instructor || '');
-    setInstructorRole(course.instructorRole || '');
+    setInstructorName(course.instructor || (instructorsList[0]?.name || ''));
+    setInstructorRole(course.instructorRole || (instructorsList[0]?.role || ''));
+    setIsManualInstructor(false);
+
     setCategory(course.category || categories[0]?.name || 'Tecnologia & IA');
     setHours(course.hours || 40);
     setOriginalPrice(course.originalPrice || 299.0);
@@ -139,7 +166,6 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
       const totalLessons = course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
       setLessonsCount(totalLessons);
     } else {
-      // Se for curso legado sem modules, estruturar automaticamente a partir do syllabus
       const synthesized: CourseModule[] = rawSyllabus.map((modTitle, idx) => ({
         id: `mod-${course.id}-${idx}`,
         title: modTitle,
@@ -255,6 +281,13 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
 
     const totalCalculatedLessons = courseModules.reduce((acc, m) => acc + m.lessons.length, 0);
 
+    const isLaunch =
+      isAutoLaunch ||
+      category.toLowerCase().includes('lançamento') ||
+      category.toLowerCase().includes('lancamento') ||
+      finalBadgeText.toLowerCase().includes('lançamento') ||
+      finalBadgeText.toLowerCase().includes('lancamento');
+
     const updatedCourse: Course = {
       ...course,
       title: title.trim(),
@@ -277,8 +310,8 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
         variant: 'emerald',
         expiresAt: expiryIso,
       },
-      filterTags: isAutoLaunch
-        ? ['Novos', 'Com Certificação', 'Lançamento']
+      filterTags: isLaunch
+        ? ['Novos', 'Com Certificação', 'Lançamento', 'Lançamentos', 'Em alta']
         : ['Com Certificação', ...(finalBadgeText ? [finalBadgeText] : [])],
       syllabus: courseModules.length > 0 ? courseModules.map((m) => m.title) : syllabusModules,
       modules: courseModules,
@@ -372,7 +405,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
               }}
               onBackToBasicInfo={() => setCurrentStep(1)}
               onSaveDraft={() => handleSave('rascunho')}
-              onFinalizePublish={() => handleSave('publicado')}
+              onProceedToQuizzes={() => handleSave('publicado')}
             />
           ) : (
             /* STEP 1: DADOS GERAIS, CAPA, BANNER, DESCRIÇÃO */
@@ -402,6 +435,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Categoria */}
                       <div>
                         <label className="block text-xs font-bold text-text-secondary mb-1">
                           Categoria do Catálogo
@@ -419,17 +453,68 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
                         </select>
                       </div>
 
+                      {/* Instrutor Responsável (Dropdown com todos os cadastrados) */}
                       <div>
-                        <label className="block text-xs font-bold text-text-secondary mb-1">
-                          Instrutor Responsável
-                        </label>
-                        <input
-                          type="text"
-                          value={instructorName}
-                          onChange={(e) => setInstructorName(e.target.value)}
-                          placeholder="Nome do instrutor"
-                          className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
-                        />
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-xs font-bold text-text-secondary">
+                            Instrutor Responsável <span className="text-status-danger">*</span>
+                          </label>
+                          <span className="text-[10px] text-text-tertiary">
+                            {instructorsList.length} cadastrados
+                          </span>
+                        </div>
+
+                        {!isManualInstructor ? (
+                          <div className="space-y-1.5">
+                            <select
+                              value={instructorName}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '__custom__') {
+                                  setIsManualInstructor(true);
+                                  setInstructorName('');
+                                  setInstructorRole('');
+                                } else {
+                                  setInstructorName(val);
+                                  const selectedInst = instructorsList.find((i) => i.name === val);
+                                  if (selectedInst) {
+                                    setInstructorRole(selectedInst.role || selectedInst.specialty || '');
+                                  }
+                                }
+                              }}
+                              className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary cursor-pointer font-medium"
+                            >
+                              <option value="" disabled>Selecione um instrutor credenciado...</option>
+                              {instructorsList.map((inst) => (
+                                <option key={inst.id} value={inst.name}>
+                                  {inst.name} {inst.specialty ? `(${inst.specialty})` : inst.role ? `(${inst.role})` : ''}
+                                </option>
+                              ))}
+                              <option value="__custom__">+ Outro Instrutor (Digitar Manualmente)</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                required
+                                value={instructorName}
+                                onChange={(e) => setInstructorName(e.target.value)}
+                                placeholder="Nome completo do instrutor..."
+                                className="flex-1 px-3.5 py-2.5 bg-surface-raised border border-primary/50 rounded-xl text-sm text-text-primary outline-none focus:border-primary"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setIsManualInstructor(false)}
+                                className="px-2.5 py-1 text-xs text-text-tertiary hover:text-text-primary border border-border-subtle rounded-xl bg-surface-overlay"
+                                title="Voltar para a lista suspensa"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -575,7 +660,6 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
                     </div>
 
                     <div className="space-y-3">
-                      {/* Preview do Banner em formato horizontal 16:9 / 21:9 */}
                       <div className="relative aspect-[21/9] sm:aspect-[24/9] rounded-xl overflow-hidden border-2 border-amber-500/40 shadow-md bg-black">
                         <img
                           src={bannerImageUrl || imageUrl}
@@ -597,7 +681,6 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Ações para Banner */}
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                         <input
                           ref={bannerFileInputRef}
@@ -759,10 +842,10 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
                       onChange={(e) => setStatus(e.target.value as CourseStatus)}
                       className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs font-bold text-text-primary outline-none focus:border-primary cursor-pointer"
                     >
-                      <option value="publicado">● Publicado (verde escuro)</option>
-                      <option value="rascunho">● Rascunho (azul claro)</option>
-                      <option value="inativo">● Inativo (laranja)</option>
-                      <option value="previsto">● Previsto (amarelo)</option>
+                      <option value="publicado">● Publicado</option>
+                      <option value="rascunho">● Rascunho</option>
+                      <option value="inativo">● Inativo</option>
+                      <option value="previsto">● Previsto</option>
                     </select>
 
                     {/* Badge Promocional */}

@@ -254,8 +254,8 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
         variant: 'emerald',
         expiresAt: expiryIso,
       },
-      filterTags: isAutoLaunch
-        ? ['Novos', 'Com Certificação', 'Lançamento']
+      filterTags: (isAutoLaunch || category.toLowerCase().includes('lançamento') || finalBadgeText.toLowerCase().includes('lançamento'))
+        ? ['Novos', 'Com Certificação', 'Lançamento', 'Lançamentos', 'Em alta']
         : ['Com Certificação', ...(finalBadgeText ? [finalBadgeText] : [])],
       description: description.trim(),
       syllabus: activeModules && activeModules.length > 0

@@ -637,9 +637,6 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
                                       <div>
                                         <div className="flex items-center gap-1.5">
                                           <span className="font-bold text-xs text-sky-300">Rascunho</span>
-                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-medium">
-                                            (azul claro)
-                                          </span>
                                         </div>
                                         <span className="text-[10px] text-text-tertiary block mt-0.5">
                                           Em edição, visível apenas para admins
@@ -666,9 +663,6 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
                                       <div>
                                         <div className="flex items-center gap-1.5">
                                           <span className="font-bold text-xs text-emerald-300">Publicado</span>
-                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 font-medium border border-emerald-800/60">
-                                            (verde escuro)
-                                          </span>
                                         </div>
                                         <span className="text-[10px] text-text-tertiary block mt-0.5">
                                           Ativo no catálogo e disponível na loja
@@ -695,9 +689,6 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
                                       <div>
                                         <div className="flex items-center gap-1.5">
                                           <span className="font-bold text-xs text-orange-300">Inativo</span>
-                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-400 font-medium">
-                                            (laranja)
-                                          </span>
                                         </div>
                                         <span className="text-[10px] text-text-tertiary block mt-0.5">
                                           Pausado temporariamente
@@ -724,9 +715,6 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
                                       <div>
                                         <div className="flex items-center gap-1.5">
                                           <span className="font-bold text-xs text-yellow-300">Previsto</span>
-                                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-yellow-500/20 text-yellow-400 font-medium">
-                                            (amarelo)
-                                          </span>
                                         </div>
                                         <span className="text-[10px] text-text-tertiary block mt-0.5">
                                           Em pré-lançamento / breve no catálogo
