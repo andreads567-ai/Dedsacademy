@@ -170,6 +170,10 @@ export interface UserAccount {
   lastAccess?: string;
   enrolledCourseIds: string[];
   completedCourseIds: string[];
+  // Campos de Colaboradores e Funcionários Internos ADM (Módulo 8)
+  jobTitle?: string;
+  department?: string;
+  accessLevel?: string;
 }
 
 export interface StudentProgress {

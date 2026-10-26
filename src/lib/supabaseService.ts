@@ -22,6 +22,9 @@ function userToRow(user: UserAccount) {
     last_access: user.lastAccess ?? null,
     enrolled_course_ids: user.enrolledCourseIds ?? [],
     completed_course_ids: user.completedCourseIds ?? [],
+    job_title: user.jobTitle ?? null,
+    department: user.department ?? null,
+    access_level: user.accessLevel ?? null,
   };
 }
 
@@ -44,6 +47,9 @@ function rowToUser(row: Record<string, unknown>): UserAccount {
     lastAccess: row.last_access as string | undefined,
     enrolledCourseIds: (row.enrolled_course_ids as string[]) ?? [],
     completedCourseIds: (row.completed_course_ids as string[]) ?? [],
+    jobTitle: (row.job_title as string) ?? (row.jobTitle as string) ?? undefined,
+    department: (row.department as string) ?? undefined,
+    accessLevel: (row.access_level as string) ?? (row.accessLevel as string) ?? undefined,
   };
 }
 

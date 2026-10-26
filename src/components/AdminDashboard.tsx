@@ -168,18 +168,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     badgeText: 'Lançamento',
   });
 
-  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [userForm, setUserForm] = useState({
-    name: '',
-    email: '',
-    role: 'aluno' as 'aluno' | 'admin',
-    cpf: '',
-    phone: '',
-    status: 'ativo' as 'ativo' | 'inativo' | 'pendente',
-    enrolledCourseIds: [] as string[],
-  });
-
   // Category Handlers
   const handleAddCategory = (cat: Category) => {
     setCategoriesList((prev) => {
@@ -283,67 +271,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsCourseModalOpen(true);
   };
 
-  // Open Edit / Create User Modal
-  const handleOpenNewUser = () => {
-    setEditingUser(null);
-    setUserForm({
-      name: '',
-      email: '',
-      role: 'aluno',
-      cpf: '',
-      phone: '',
-      status: 'ativo',
-      enrolledCourseIds: [],
-    });
-    setIsUserModalOpen(true);
-  };
-
-  const handleOpenEditUser = (u: UserAccount) => {
-    setEditingUser(u);
-    setUserForm({
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      cpf: u.cpf || '',
-      phone: u.phone || '',
-      status: u.status,
-      enrolledCourseIds: u.enrolledCourseIds || [],
-    });
-    setIsUserModalOpen(true);
-  };
-
-  const handleSaveUserModal = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingUser) {
-      const updated: UserAccount = {
-        ...editingUser,
-        name: userForm.name,
-        email: userForm.email,
-        role: userForm.role,
-        cpf: userForm.cpf,
-        phone: userForm.phone,
-        status: userForm.status,
-        enrolledCourseIds: userForm.enrolledCourseIds,
-      };
-      onUpdateUser(updated);
-    } else {
-      const newUser: UserAccount = {
-        id: `user-${Date.now()}`,
-        name: userForm.name,
-        email: userForm.email,
-        role: userForm.role,
-        cpf: userForm.cpf,
-        phone: userForm.phone,
-        status: userForm.status,
-        registeredAt: new Date().toLocaleDateString('pt-BR'),
-        enrolledCourseIds: userForm.enrolledCourseIds,
-        completedCourseIds: [],
-      };
-      onAddUser(newUser);
-    }
-    setIsUserModalOpen(false);
-  };
-
   // The 12 items as requested in precise order
   const navigationItems: { id: AdminTab; label: string; icon: string; count?: number }[] = [
     { id: 'visao-geral', label: '1. Visão geral', icon: 'dashboard' },
@@ -353,7 +280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'categoria', label: '5. Categoria', icon: 'category', count: categoriesList.length },
     { id: 'instrutores', label: '6. Instrutores', icon: 'co_present', count: instructorsList.length },
     { id: 'gestao-aluno', label: '7. Gestão de aluno', icon: 'person_search', count: users.filter(u => u.role === 'aluno').length },
-    { id: 'usuarios', label: '8. Usuários', icon: 'manage_accounts', count: users.length },
+    { id: 'usuarios', label: '8. Usuários', icon: 'manage_accounts', count: users.filter(u => u.role !== 'aluno').length },
     { id: 'blog', label: '9. Blog & Banner Home', icon: 'article', count: blogPostsList.length },
     { id: 'certificado', label: '10. Certificado', icon: 'verified', count: certificatesList.length },
     { id: 'avaliacao-curso', label: '11. Avaliação de curso', icon: 'reviews', count: reviewsList.length },
@@ -614,8 +541,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <StudentsTab
               users={users}
               courses={courses}
-              onEditStudent={handleOpenEditUser}
-              onOpenNewStudent={handleOpenNewUser}
+              onUpdateUser={onUpdateUser}
+              onAddUser={onAddUser}
               onQuickIssueCertificate={(student) => {
                 setActiveTab('certificado');
               }}
@@ -628,8 +555,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'usuarios' && (
             <UsersTab
               users={users}
-              onEditUser={handleOpenEditUser}
-              onOpenNewUser={handleOpenNewUser}
+              onUpdateUser={onUpdateUser}
+              onAddUser={onAddUser}
             />
           )}
 
@@ -723,140 +650,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           setEditingCourse(null);
         }}
       />
-
-      {/* GLOBAL MODAL: EDITAR / CADASTRAR USUÁRIO OU ALUNO */}
-      {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsUserModalOpen(false)} />
-          <div className="relative w-full max-w-xl bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-            <div className="p-5 border-b border-border-subtle flex items-center justify-between bg-surface-overlay">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">manage_accounts</span>
-                <h3 className="text-base font-bold text-text-primary">
-                  {editingUser ? 'Atualizar Dados do Aluno / Usuário' : 'Cadastrar Novo Aluno ou Usuário'}
-                </h3>
-              </div>
-              <button onClick={() => setIsUserModalOpen(false)} className="text-text-tertiary hover:text-text-primary">
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveUserModal} className="p-6 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">Nome Completo</label>
-                <input
-                  type="text"
-                  required
-                  value={userForm.name}
-                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                  placeholder="Ex: André Silva"
-                  className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">E-mail</label>
-                  <input
-                    type="email"
-                    required
-                    value={userForm.email}
-                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                    placeholder="aluno@email.com"
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">CPF (Identificação Oficial)</label>
-                  <input
-                    type="text"
-                    value={userForm.cpf}
-                    onChange={(e) => setUserForm({ ...userForm, cpf: e.target.value })}
-                    placeholder="000.000.000-00"
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Papel / Nível de Acesso</label>
-                  <select
-                    value={userForm.role}
-                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="aluno">Aluno (Acesso aos Cursos)</option>
-                    <option value="admin">Administrador (Acesso à Gestão)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Status da Conta</label>
-                  <select
-                    value={userForm.status}
-                    onChange={(e) => setUserForm({ ...userForm, status: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="ativo">Ativo (Acesso Liberado)</option>
-                    <option value="pendente">Pendente</option>
-                    <option value="inativo">Inativo / Bloqueado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">
-                  Cursos Liberados para Matrícula
-                </label>
-                <div className="p-3 bg-surface-overlay border border-border-subtle rounded-xl max-h-36 overflow-y-auto space-y-2">
-                  {courses.map((c) => {
-                    const isChecked = userForm.enrolledCourseIds.includes(c.id);
-                    return (
-                      <label key={c.id} className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer hover:text-text-primary">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setUserForm({
-                                ...userForm,
-                                enrolledCourseIds: [...userForm.enrolledCourseIds, c.id],
-                              });
-                            } else {
-                              setUserForm({
-                                ...userForm,
-                                enrolledCourseIds: userForm.enrolledCourseIds.filter((id) => id !== c.id),
-                              });
-                            }
-                          }}
-                          className="rounded border-border-subtle text-primary focus:ring-primary"
-                        />
-                        <span>{c.title}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-border-subtle">
-                <button
-                  type="button"
-                  onClick={() => setIsUserModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-surface-overlay text-text-secondary hover:text-text-primary text-xs font-bold cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md cursor-pointer"
-                >
-                  {editingUser ? 'Salvar Atualizações' : 'Cadastrar Aluno'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
