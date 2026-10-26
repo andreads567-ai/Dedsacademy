@@ -21,6 +21,7 @@ interface CartCheckoutPageProps {
   onOpenAuth: () => void;
   usersList?: UserAccount[];
   checkoutBannerConfig?: CheckoutPaymentBannerConfig;
+  coupons?: Coupon[];
 }
 
 export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
@@ -33,6 +34,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   onOpenAuth,
   usersList = [],
   checkoutBannerConfig = DEFAULT_CHECKOUT_PAYMENT_BANNER,
+  coupons,
 }) => {
   // Payment methods: all processed via official Stripe checkout session
   const [paymentMode, setPaymentMode] = useState<'credit' | 'pix' | 'debit' | 'boleto'>('credit');
@@ -147,62 +149,63 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
       setCouponDiscount(0);
       return;
     }
-    // 1. Check registered coupons in storage/data
-    const savedCoupons: Coupon[] = (() => {
-      try {
-        const saved = localStorage.getItem('deds_coupons_list');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-      return INITIAL_COUPONS;
-    })();
 
-    const matched = savedCoupons.find(
-      (c) => c.code.trim().toUpperCase() === code && c.status === 'ativo'
+    const availableCoupons: Coupon[] = (coupons && Array.isArray(coupons) && coupons.length > 0)
+      ? coupons
+      : (() => {
+          try {
+            const saved = localStorage.getItem('deds_coupons_list');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed)) return parsed;
+            }
+          } catch {}
+          return INITIAL_COUPONS;
+        })();
+
+    const matched = availableCoupons.find(
+      (c) => c && c.code.trim().toUpperCase() === code
     );
 
-    if (matched) {
-      const now = new Date();
-      if (matched.startDateTime && new Date(matched.startDateTime) > now) {
-        setCouponApplied(false);
-        setCouponDiscount(0);
-        alert('Este cupom de desconto ainda não está ativo.');
-        return;
-      }
-      if (matched.endDateTime && new Date(matched.endDateTime) < now) {
-        setCouponApplied(false);
-        setCouponDiscount(0);
-        alert('Este cupom de desconto expirou.');
-        return;
-      }
-
-      let discount = 0;
-      if (matched.discountType === 'percentage') {
-        discount = Math.round(currentSubtotal * (matched.discountValue / 100) * 100) / 100;
-      } else {
-        discount = Math.min(currentSubtotal, matched.discountValue);
-      }
-
-      setCouponApplied(true);
-      setCouponDiscount(discount);
-      alert(`Cupom "${matched.code}" aplicado com sucesso! Desconto concedido.`);
+    if (!matched) {
+      setCouponApplied(false);
+      setCouponDiscount(0);
+      alert('Cupom de desconto inválido ou inexistente.');
       return;
     }
 
-    // 2. Fallbacks for standard legacy promo codes
-    if (code === 'DEDS10' || code === 'BEMVINDO10') {
-      setCouponApplied(true);
-      setCouponDiscount(Math.round(currentSubtotal * 0.1 * 100) / 100);
-    } else if (code === 'DEDS20') {
-      setCouponApplied(true);
-      setCouponDiscount(Math.round(currentSubtotal * 0.2 * 100) / 100);
-    } else if (code === 'TURBO50') {
-      setCouponApplied(true);
-      setCouponDiscount(50.0);
-    } else {
+    // STRICT CHECK ON STATUS CONFIGURED IN ADM
+    if (matched.status !== 'ativo') {
       setCouponApplied(false);
       setCouponDiscount(0);
-      alert('Cupom de desconto inválido ou expirado.');
+      alert(`O cupom "${matched.code}" está inativo ou desativado pelo administrador.`);
+      return;
     }
+
+    const now = new Date();
+    if (matched.startDateTime && new Date(matched.startDateTime) > now) {
+      setCouponApplied(false);
+      setCouponDiscount(0);
+      alert(`O cupom "${matched.code}" ainda não iniciou sua vigência.`);
+      return;
+    }
+    if (matched.endDateTime && new Date(matched.endDateTime) < now) {
+      setCouponApplied(false);
+      setCouponDiscount(0);
+      alert(`O cupom "${matched.code}" expirou e não pode mais ser utilizado.`);
+      return;
+    }
+
+    let discount = 0;
+    if (matched.discountType === 'percentage') {
+      discount = Math.round(currentSubtotal * (matched.discountValue / 100) * 100) / 100;
+    } else {
+      discount = Math.min(currentSubtotal, matched.discountValue);
+    }
+
+    setCouponApplied(true);
+    setCouponDiscount(discount);
+    alert(`Cupom "${matched.code}" aplicado com sucesso! Desconto concedido.`);
   };
 
     const validateForm = (): boolean => {

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { UserAccount, Coupon, Course } from '../types';
-import { INITIAL_COUPONS } from '../data/promotionsData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { UserAccount, Coupon, Course, PromotionalCampaign } from '../types';
+import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
 import { COURSES } from '../data/coursesData';
 
 interface HeaderProps {
@@ -18,6 +18,8 @@ interface HeaderProps {
   onOpenStudentPortal?: () => void;
   onOpenAdminDashboard?: () => void;
   onLogout?: () => void;
+  coupons?: Coupon[];
+  campaigns?: PromotionalCampaign[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,9 +37,69 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStudentPortal,
   onOpenAdminDashboard,
   onLogout,
+  coupons,
+  campaigns,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [couponsTick, setCouponsTick] = useState(0);
+
+  useEffect(() => {
+    const handleUpdate = () => setCouponsTick((t) => t + 1);
+    window.addEventListener('deds_coupons_updated', handleUpdate);
+    window.addEventListener('deds_campaigns_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('deds_coupons_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  const activeCoupons: Coupon[] = useMemo(() => {
+    let list: Coupon[] = [];
+    if (coupons && Array.isArray(coupons)) {
+      list = coupons;
+    } else {
+      try {
+        const saved = localStorage.getItem('deds_coupons_list');
+        list = saved ? JSON.parse(saved) : INITIAL_COUPONS;
+      } catch {
+        list = INITIAL_COUPONS;
+      }
+    }
+
+    if (!Array.isArray(list)) return [];
+    const nowMs = Date.now();
+    return list.filter((c) => {
+      if (!c || c.status !== 'ativo') return false;
+      if (c.endDateTime && new Date(c.endDateTime).getTime() < nowMs) return false;
+      if (c.startDateTime && new Date(c.startDateTime).getTime() > nowMs + 12 * 60 * 60 * 1000) return false;
+      return true;
+    });
+  }, [coupons, activeTab, couponsTick]);
+
+  const activeCampaigns: PromotionalCampaign[] = useMemo(() => {
+    let list: PromotionalCampaign[] = [];
+    if (campaigns && Array.isArray(campaigns)) {
+      list = campaigns;
+    } else {
+      try {
+        const saved = localStorage.getItem('deds_campaigns_list');
+        list = saved ? JSON.parse(saved) : INITIAL_CAMPAIGNS;
+      } catch {
+        list = INITIAL_CAMPAIGNS;
+      }
+    }
+
+    if (!Array.isArray(list)) return [];
+    const nowMs = Date.now();
+    return list.filter((camp) => {
+      if (!camp || camp.status !== 'ativa') return false;
+      if (camp.endDateTime && new Date(camp.endDateTime).getTime() < nowMs) return false;
+      if (camp.startDateTime && new Date(camp.startDateTime).getTime() > nowMs + 12 * 60 * 60 * 1000) return false;
+      return true;
+    });
+  }, [campaigns, activeTab, couponsTick]);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [headerAvatarError, setHeaderAvatarError] = useState(false);
 
@@ -212,21 +274,47 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications Icon & Popover */}
           <div className="relative">
-            <button
-              id="notifications-button"
-              aria-label="Notificações"
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="relative p-space-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay transition-all cursor-pointer group"
-              title="Notificações, cupons ativos e novos lançamentos"
-            >
-              <span className="material-symbols-outlined text-headline-sm inline-block group-hover:scale-110 transition-transform animate-[bounce_2.5s_infinite]">
-                notifications
-              </span>
-              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 pointer-events-none">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-gold"></span>
-              </span>
-            </button>
+            {(() => {
+              const totalActivePromos = activeCoupons.length + activeCampaigns.length;
+              const hasActivePromos = !isAdminArea && !isStudentArea && totalActivePromos > 0;
+              const hasBadge = isAdminArea || isStudentArea || hasActivePromos;
+
+              return (
+                <button
+                  id="notifications-button"
+                  aria-label="Notificações"
+                  onClick={() => setNotificationsOpen(!notificationsOpen)}
+                  className="relative p-space-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay transition-all cursor-pointer group"
+                  title={
+                    !isAdminArea && !isStudentArea
+                      ? hasActivePromos
+                        ? `${totalActivePromos} promoção(ões) e cupom(ns) ativo(s)!`
+                        : 'Notificações (nenhuma promoção ativa no momento)'
+                      : 'Notificações do sistema'
+                  }
+                >
+                  <span
+                    className={`material-symbols-outlined text-headline-sm inline-block group-hover:scale-110 transition-transform ${
+                      hasActivePromos ? 'animate-[bounce_2.5s_infinite] text-accent-gold' : ''
+                    }`}
+                  >
+                    notifications
+                  </span>
+                  {hasBadge && (
+                    <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 pointer-events-none">
+                      {hasActivePromos ? (
+                        <>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-gold"></span>
+                        </>
+                      ) : (
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                      )}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
 
             {notificationsOpen && (
               <div className="absolute right-0 mt-2 w-84 sm:w-96 bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in max-h-[85vh] overflow-y-auto">
@@ -300,32 +388,69 @@ export const Header: React.FC<HeaderProps> = ({
                     </>
                   ) : (
                     <>
+                      {/* CAMPANHAS PROMOCIONAIS ATIVAS */}
+                      {activeCampaigns.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-1.5 pb-2 text-xs font-bold text-accent-emerald-bright uppercase tracking-wider">
+                            <span className="material-symbols-outlined text-sm">campaign</span>
+                            <span>Campanhas Promocionais Ativas ({activeCampaigns.length})</span>
+                          </div>
+                          <div className="space-y-2 mb-3">
+                            {activeCampaigns.map((camp) => (
+                              <div
+                                key={camp.id}
+                                className="p-2.5 rounded-xl bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 flex items-center justify-between gap-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-xs text-text-primary truncate">
+                                      {camp.title}
+                                    </span>
+                                    <span className="px-1.5 py-0.2 rounded bg-accent-emerald-bright/20 text-accent-emerald-bright text-[10px] font-bold shrink-0">
+                                      {camp.discountType === 'percentage' ? `${camp.discountValue}% OFF` : `R$ ${camp.discountValue} Fixo`}
+                                    </span>
+                                  </div>
+                                  {camp.description && (
+                                    <p className="text-[10px] text-text-secondary truncate mt-0.5">
+                                      {camp.description}
+                                    </p>
+                                  )}
+                                  <span className="text-[10px] text-accent-emerald-bright/90 block mt-0.5">
+                                    ⚡ Válido até {new Date(camp.endDateTime).toLocaleDateString('pt-BR')}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveTab('cursos');
+                                    setNotificationsOpen(false);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-accent-emerald-bright text-slate-950 font-bold text-[10px] hover:brightness-110 transition-all cursor-pointer shrink-0"
+                                >
+                                  Ver Ofertas
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* CUPONS ATIVOS */}
                       <div>
                         <div className="flex items-center gap-1.5 pb-2 text-xs font-bold text-accent-gold uppercase tracking-wider">
                           <span className="material-symbols-outlined text-sm">local_offer</span>
-                          <span>Cupons de Desconto Ativos</span>
+                          <span>Cupons de Desconto Ativos ({activeCoupons.length})</span>
                         </div>
                         <div className="space-y-2">
-                          {(() => {
-                            let coupons: Coupon[] = [];
-                            try {
-                              const saved = localStorage.getItem('deds_coupons_list');
-                              const list = saved ? JSON.parse(saved) : INITIAL_COUPONS;
-                              if (Array.isArray(list)) {
-                                coupons = list.filter((c) => c && c.status === 'ativo').slice(0, 3);
-                              }
-                            } catch {
-                              coupons = (INITIAL_COUPONS || []).filter((c) => c.status === 'ativo').slice(0, 3);
-                            }
-
-                            if (!coupons.length) {
-                              return (
-                                <p className="text-xs text-text-tertiary py-1">Nenhum cupom ativo no momento.</p>
-                              );
-                            }
-
-                            return coupons.map((cp) => {
+                          {activeCoupons.length === 0 ? (
+                            <div className="p-3 rounded-xl bg-surface-overlay border border-border-subtle/60 text-center text-xs text-text-tertiary">
+                              <span className="material-symbols-outlined text-base block mx-auto mb-1 text-text-tertiary">
+                                do_not_disturb_on
+                              </span>
+                              Nenhum cupom ativo no momento.
+                            </div>
+                          ) : (
+                            activeCoupons.slice(0, 3).map((cp) => {
                               const discountLabel =
                                 cp.discountType === 'percentage'
                                   ? `${cp.discountValue}% OFF`
@@ -365,8 +490,8 @@ export const Header: React.FC<HeaderProps> = ({
                                   </button>
                                 </div>
                               );
-                            });
-                          })()}
+                            })
+                          )}
                         </div>
                       </div>
 

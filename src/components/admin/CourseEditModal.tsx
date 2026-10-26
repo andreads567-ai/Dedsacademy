@@ -289,11 +289,18 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
       finalBadgeText.toLowerCase().includes('lançamento') ||
       finalBadgeText.toLowerCase().includes('lancamento');
 
+    const clean = (s?: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    const matchedInst = instructorsList.find(
+      (i) => clean(i.name) === clean(instructorName) || clean(instructorName).includes(clean(i.name))
+    );
+    const resolvedInstructorAvatar = matchedInst?.avatar || course.instructorAvatar;
+
     const updatedCourse: Course = {
       ...course,
       title: title.trim(),
       instructor: instructorName,
       instructorRole: instructorRole,
+      instructorAvatar: resolvedInstructorAvatar,
       category,
       hours: Number(hours),
       lessonsCount: totalCalculatedLessons > 0 ? totalCalculatedLessons : Number(lessonsCount),

@@ -25,6 +25,10 @@ interface AdminDashboardProps {
   courses: Course[];
   users: UserAccount[];
   categories?: Category[];
+  coupons?: Coupon[];
+  campaigns?: PromotionalCampaign[];
+  onUpdateCampaigns?: (campaigns: PromotionalCampaign[]) => void;
+  onUpdateCoupons?: (coupons: Coupon[]) => void;
   instructors?: Instructor[];
   onUpdateInstructors?: (instructors: Instructor[]) => void;
   blogPosts?: BlogPost[];
@@ -57,6 +61,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   courses,
   users,
   categories: initialCategories = CATEGORIES,
+  coupons: initialCoupons = INITIAL_COUPONS,
+  onUpdateCoupons,
+  campaigns: initialCampaigns = INITIAL_CAMPAIGNS,
+  onUpdateCampaigns,
   instructors: initialInstructors = INITIAL_INSTRUCTORS,
   blogPosts: initialBlogPosts = INITIAL_BLOG_POSTS,
   onAddPost,
@@ -135,16 +143,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('deds_coupons_list');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
-    return INITIAL_COUPONS;
+    return initialCoupons;
   });
-  const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(INITIAL_CAMPAIGNS);
+
+  useEffect(() => {
+    if (initialCoupons && Array.isArray(initialCoupons)) {
+      setCouponsList(initialCoupons);
+    }
+  }, [initialCoupons]);
+
+  const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_campaigns_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return initialCampaigns;
+  });
+
+  useEffect(() => {
+    if (initialCampaigns && Array.isArray(initialCampaigns)) {
+      setCampaignsList(initialCampaigns);
+    }
+  }, [initialCampaigns]);
 
   const handleAddCoupon = (newCoupon: Coupon) => {
     setCouponsList((prev) => {
       const next = [newCoupon, ...prev];
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
     sendCouponBroadcastEmail({ coupon: newCoupon, students: users }).catch(console.error);
@@ -154,6 +189,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setCouponsList((prev) => {
       const next = prev.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c));
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
   };
@@ -162,20 +199,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setCouponsList((prev) => {
       const next = prev.filter((c) => c.id !== couponId);
       try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCoupons) onUpdateCoupons(next);
+      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
       return next;
     });
   };
 
   const handleAddCampaign = (newCampaign: PromotionalCampaign) => {
-    setCampaignsList((prev) => [newCampaign, ...prev]);
+    setCampaignsList((prev) => {
+      const next = [newCampaign, ...prev];
+      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCampaigns) onUpdateCampaigns(next);
+      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
+      return next;
+    });
   };
 
   const handleUpdateCampaign = (updatedCampaign: PromotionalCampaign) => {
-    setCampaignsList((prev) => prev.map((c) => (c.id === updatedCampaign.id ? updatedCampaign : c)));
+    setCampaignsList((prev) => {
+      const next = prev.map((c) => (c.id === updatedCampaign.id ? updatedCampaign : c));
+      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCampaigns) onUpdateCampaigns(next);
+      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
+      return next;
+    });
   };
 
   const handleDeleteCampaign = (campaignId: string) => {
-    setCampaignsList((prev) => prev.filter((c) => c.id !== campaignId));
+    setCampaignsList((prev) => {
+      const next = prev.filter((c) => c.id !== campaignId);
+      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+      if (onUpdateCampaigns) onUpdateCampaigns(next);
+      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
+      return next;
+    });
   };
 
   // Announcements list
@@ -244,6 +301,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         localStorage.setItem('deds_instructors_list', JSON.stringify(next));
       } catch {}
       onUpdateInstructors?.(next);
+      window.dispatchEvent(new CustomEvent('deds_instructors_updated', { detail: next }));
       return next;
     });
   };

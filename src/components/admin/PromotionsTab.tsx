@@ -14,6 +14,18 @@ interface PromotionsTabProps {
   onUpdateCourse: (course: Course) => void;
 }
 
+const getNowLocalInputString = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const getFutureLocalInputString = (days: number) => {
+  const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export const PromotionsTab: React.FC<PromotionsTabProps> = ({
   courses,
   coupons,
@@ -43,8 +55,8 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
     code: '',
     discountType: 'percentage' as 'percentage' | 'fixed',
     discountValue: 10,
-    startDateTime: new Date().toISOString().slice(0, 16),
-    endDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    startDateTime: getNowLocalInputString(),
+    endDateTime: getFutureLocalInputString(30),
     usageLimitPerCpf: 1,
     usageLimitTotal: 100,
     description: '',
@@ -56,8 +68,8 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
       code: '',
       discountType: 'percentage',
       discountValue: 15,
-      startDateTime: new Date().toISOString().slice(0, 16),
-      endDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+      startDateTime: getNowLocalInputString(),
+      endDateTime: getFutureLocalInputString(30),
       usageLimitPerCpf: 1,
       usageLimitTotal: 200,
       description: '',
@@ -142,10 +154,8 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(['all']);
   const [campaignDiscountType, setCampaignDiscountType] = useState<'percentage' | 'fixed_price'>('percentage');
   const [campaignDiscountValue, setCampaignDiscountValue] = useState<number>(20);
-  const [campaignStart, setCampaignStart] = useState<string>(new Date().toISOString().slice(0, 16));
-  const [campaignEnd, setCampaignEnd] = useState<string>(
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
-  );
+  const [campaignStart, setCampaignStart] = useState<string>(getNowLocalInputString());
+  const [campaignEnd, setCampaignEnd] = useState<string>(getFutureLocalInputString(7));
   const [courseFilterQuery, setCourseFilterQuery] = useState('');
   const [campaignSuccessToast, setCampaignSuccessToast] = useState<string | null>(null);
 

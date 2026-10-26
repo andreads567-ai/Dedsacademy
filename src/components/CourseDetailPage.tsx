@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Course, CourseModule, Lesson, UserAccount, Instructor } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
 
@@ -35,29 +35,92 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   onOpenAuthModal,
   instructors,
 }) => {
-  // Resolve instructor avatar dynamically from course, prop or localStorage
+  const [avatarTick, setAvatarTick] = useState(0);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+
+  useEffect(() => {
+    const handler = () => {
+      setAvatarTick((t) => t + 1);
+      setAvatarLoadFailed(false);
+    };
+    window.addEventListener('deds_instructors_updated', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('deds_instructors_updated', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
+
+  // Resolve instructor avatar dynamically with normalized accent matching
   const effectiveInstructorAvatar = useMemo(() => {
+    if (avatarLoadFailed) return null;
+
     if (course.instructorAvatar && course.instructorAvatar.trim()) {
       return course.instructorAvatar;
     }
+
+    const clean = (str?: string) =>
+      (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+
+    const targetName = clean(course.instructor);
+    const targetRole = clean(course.instructorRole);
+
+    // 1. Check instructors prop
     if (instructors && instructors.length > 0) {
-      const match = instructors.find(
-        (i) => i.name.trim().toLowerCase() === course.instructor.trim().toLowerCase()
+      const exact = instructors.find((i) => clean(i.name) === targetName);
+      if (exact?.avatar) return exact.avatar;
+
+      const partial = instructors.find(
+        (i) => targetName.includes(clean(i.name)) || clean(i.name).includes(targetName)
       );
-      if (match?.avatar) return match.avatar;
+      if (partial?.avatar) return partial.avatar;
+
+      if (targetRole) {
+        const byRole = instructors.find((i) => clean(i.role) === targetRole);
+        if (byRole?.avatar) return byRole.avatar;
+      }
     }
+
+    // 2. Check localStorage deds_instructors_list
     try {
       const saved = localStorage.getItem('deds_instructors_list');
       if (saved) {
         const list: Instructor[] = JSON.parse(saved);
-        const match = list.find(
-          (i) => i.name.trim().toLowerCase() === course.instructor.trim().toLowerCase()
-        );
-        if (match?.avatar) return match.avatar;
+        if (Array.isArray(list)) {
+          const exact = list.find((i) => clean(i.name) === targetName);
+          if (exact?.avatar) return exact.avatar;
+
+          const partial = list.find(
+            (i) => targetName.includes(clean(i.name)) || clean(i.name).includes(targetName)
+          );
+          if (partial?.avatar) return partial.avatar;
+
+          if (targetRole) {
+            const byRole = list.find((i) => clean(i.role) === targetRole);
+            if (byRole?.avatar) return byRole.avatar;
+          }
+        }
       }
     } catch {}
+
+    // 3. Fallback to users list
+    try {
+      const savedUsers = localStorage.getItem('deds_users_list');
+      if (savedUsers) {
+        const uList = JSON.parse(savedUsers);
+        if (Array.isArray(uList)) {
+          const matchedUser = uList.find((u) => clean(u.name) === targetName && u.avatar);
+          if (matchedUser?.avatar) return matchedUser.avatar;
+        }
+      }
+    } catch {}
+
     return null;
-  }, [course.instructor, course.instructorAvatar, instructors]);
+  }, [course.instructor, course.instructorRole, course.instructorAvatar, instructors, avatarTick, avatarLoadFailed]);
 
   // Synthesize complete module structure if missing
   const effectiveModules: CourseModule[] = useMemo(() => {
@@ -738,9 +801,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                       src={effectiveInstructorAvatar}
                       alt={course.instructor}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
+                      onError={() => setAvatarLoadFailed(true)}
                     />
                   </div>
                 ) : (
