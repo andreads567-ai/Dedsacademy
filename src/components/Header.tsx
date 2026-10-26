@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-<<<<<<< HEAD
 import { UserAccount, Coupon, Course, PromotionalCampaign } from '../types';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
-=======
-import { UserAccount, Coupon, Course } from '../types';
-import { INITIAL_COUPONS } from '../data/promotionsData';
->>>>>>> origin/main
 import { COURSES } from '../data/coursesData';
 
 interface HeaderProps {
@@ -24,10 +19,7 @@ interface HeaderProps {
   onOpenAdminDashboard?: () => void;
   onLogout?: () => void;
   coupons?: Coupon[];
-<<<<<<< HEAD
   campaigns?: PromotionalCampaign[];
-=======
->>>>>>> origin/main
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,10 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdminDashboard,
   onLogout,
   coupons,
-<<<<<<< HEAD
   campaigns,
-=======
->>>>>>> origin/main
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -57,12 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     const handleUpdate = () => setCouponsTick((t) => t + 1);
-<<<<<<< HEAD
     window.addEventListener('deds_coupons_updated', handleUpdate);
     window.addEventListener('deds_campaigns_updated', handleUpdate);
-=======
-    window.addEventListener('deds_coupons_updated', handleUpdate);
->>>>>>> origin/main
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('deds_coupons_updated', handleUpdate);
@@ -84,7 +69,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     if (!Array.isArray(list)) return [];
-<<<<<<< HEAD
     const nowMs = Date.now();
     return list.filter((c) => {
       if (!c || c.status !== 'ativo') return false;
@@ -116,16 +100,6 @@ export const Header: React.FC<HeaderProps> = ({
       return true;
     });
   }, [campaigns, activeTab, couponsTick]);
-=======
-    const now = new Date();
-    return list.filter((c) => {
-      if (!c || c.status !== 'ativo') return false;
-      if (c.endDateTime && new Date(c.endDateTime) < now) return false;
-      if (c.startDateTime && new Date(c.startDateTime) > now) return false;
-      return true;
-    });
-  }, [coupons, activeTab, couponsTick]);
->>>>>>> origin/main
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [headerAvatarError, setHeaderAvatarError] = useState(false);
 
@@ -301,14 +275,9 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Notifications Icon & Popover */}
           <div className="relative">
             {(() => {
-<<<<<<< HEAD
               const totalActivePromos = activeCoupons.length + activeCampaigns.length;
               const hasActivePromos = !isAdminArea && !isStudentArea && totalActivePromos > 0;
               const hasBadge = isAdminArea || isStudentArea || hasActivePromos;
-=======
-              const hasActiveCoupons = !isAdminArea && !isStudentArea && activeCoupons.length > 0;
-              const hasBadge = isAdminArea || isStudentArea || hasActiveCoupons;
->>>>>>> origin/main
 
               return (
                 <button
@@ -318,36 +287,22 @@ export const Header: React.FC<HeaderProps> = ({
                   className="relative p-space-xs rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay transition-all cursor-pointer group"
                   title={
                     !isAdminArea && !isStudentArea
-<<<<<<< HEAD
                       ? hasActivePromos
                         ? `${totalActivePromos} promoção(ões) e cupom(ns) ativo(s)!`
                         : 'Notificações (nenhuma promoção ativa no momento)'
-=======
-                      ? hasActiveCoupons
-                        ? `${activeCoupons.length} cupom(ns) ativo(s) disponível(is)!`
-                        : 'Notificações (nenhum cupom ativo no momento)'
->>>>>>> origin/main
                       : 'Notificações do sistema'
                   }
                 >
                   <span
                     className={`material-symbols-outlined text-headline-sm inline-block group-hover:scale-110 transition-transform ${
-<<<<<<< HEAD
                       hasActivePromos ? 'animate-[bounce_2.5s_infinite] text-accent-gold' : ''
-=======
-                      hasActiveCoupons ? 'animate-[bounce_2.5s_infinite] text-accent-gold' : ''
->>>>>>> origin/main
                     }`}
                   >
                     notifications
                   </span>
                   {hasBadge && (
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 pointer-events-none">
-<<<<<<< HEAD
                       {hasActivePromos ? (
-=======
-                      {hasActiveCoupons ? (
->>>>>>> origin/main
                         <>
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-gold opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-gold"></span>

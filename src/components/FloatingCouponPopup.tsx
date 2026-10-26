@@ -48,7 +48,6 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
       return null;
     }
 
-<<<<<<< HEAD
     const nowMs = Date.now();
     // STRICT FILTER: status === 'ativo' AND not expired
     const active = list.find((c) => {
@@ -56,14 +55,6 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
       if (c.endDateTime && new Date(c.endDateTime).getTime() < nowMs) return false;
       // Allow 12h timezone grace period on startDateTime so coupons created today are active immediately
       if (c.startDateTime && new Date(c.startDateTime).getTime() > nowMs + 12 * 60 * 60 * 1000) return false;
-=======
-    const now = new Date();
-    // STRICT FILTER: status === 'ativo' AND not expired AND started
-    const active = list.find((c) => {
-      if (!c || c.status !== 'ativo') return false;
-      if (c.endDateTime && new Date(c.endDateTime) < now) return false;
-      if (c.startDateTime && new Date(c.startDateTime) > now) return false;
->>>>>>> origin/main
       return true;
     });
 
