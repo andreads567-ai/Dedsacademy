@@ -35,6 +35,39 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 }) => {
   if (!isOpen || !course) return null;
 
+  // Security Guard: Course study content is strictly restricted to authenticated & enrolled users
+  const isAuthorized = Boolean(
+    currentUser &&
+    (currentUser.role === 'admin' || currentUser.enrolledCourseIds?.includes(course.id))
+  );
+
+  if (!currentUser || !isAuthorized) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="bg-surface-raised border border-border-subtle rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-status-danger/10 text-status-danger mx-auto flex items-center justify-center border border-status-danger/20">
+            <span className="material-symbols-outlined text-3xl">lock</span>
+          </div>
+          <h3 className="text-xl font-bold text-text-primary">Acesso Restrito ao Conteúdo</h3>
+          <p className="text-xs sm:text-sm text-text-tertiary leading-relaxed">
+            {!currentUser
+              ? 'O acesso às aulas, vídeos e materiais é restrito a alunos autenticados. Faça login no painel do aluno para continuar seus estudos.'
+              : 'Você não possui matrícula ativa neste curso. Conclua a matrícula para ter acesso liberado à sala de aula.'}
+          </p>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 rounded-xl bg-primary hover:bg-accent-emerald-bright text-on-primary font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
+            >
+              Voltar à Apresentação do Curso
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // 1. Synthesize structured modules & lessons if course only has legacy syllabus
   const modules: CourseModule[] = useMemo(() => {
     if (course.modules && course.modules.length > 0) {

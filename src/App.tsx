@@ -235,6 +235,15 @@ export default function App() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playerCourse, setPlayerCourse] = useState<Course | null>(null);
 
+  // Security guard: If current user logs out or is not enrolled, clear active course player
+  useEffect(() => {
+    if (playerCourse) {
+      if (!currentUser || (currentUser.role !== 'admin' && !currentUser.enrolledCourseIds?.includes(playerCourse.id))) {
+        setPlayerCourse(null);
+      }
+    }
+  }, [currentUser, playerCourse]);
+
   // Persistent reviews list synchronized across Home, Admin and Student flow
   const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
     try {
@@ -360,7 +369,7 @@ export default function App() {
       const normalizedEmail = (checkoutData.studentEmail || '').trim().toLowerCase();
       const existingUser = usersList.find(
         (u) => u.email.trim().toLowerCase() === normalizedEmail
-      ) || usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno');
+      );
 
       if (existingUser) {
         targetUser = {
@@ -858,36 +867,18 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
     });
     showToast('Certificado cancelado e revogado.');
   };
-  // Direct student enrollment in a course
+  // Direct student enrollment in a course - strictly restricted to authenticated users
   const handleEnrollCourse = (course: Course) => {
-    let targetUser: UserAccount;
     if (!currentUser) {
-      const defaultStudent = usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno');
-      if (defaultStudent) {
-        targetUser = {
-          ...defaultStudent,
-          enrolledCourseIds: Array.from(new Set([...(defaultStudent.enrolledCourseIds || []), course.id])),
-        };
-      } else {
-        targetUser = {
-          id: 'user-aluno-1',
-          name: 'Aluno Deds Academy',
-          email: 'aluno@dedsacademy.com.br',
-          role: 'aluno',
-          cpf: '384.920.118-04',
-          studentCode: 'ALU-9842',
-          status: 'ativo',
-          registeredAt: new Date().toISOString().split('T')[0],
-          enrolledCourseIds: [course.id],
-          completedCourseIds: [],
-        };
-      }
-    } else {
-      targetUser = {
-        ...currentUser,
-        enrolledCourseIds: Array.from(new Set([...(currentUser.enrolledCourseIds || []), course.id])),
-      };
+      showToast('Acesso restrito. Faça login ou crie sua conta para se matricular no curso.');
+      setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' });
+      return;
     }
+
+    const targetUser: UserAccount = {
+      ...currentUser,
+      enrolledCourseIds: Array.from(new Set([...(currentUser.enrolledCourseIds || []), course.id])),
+    };
 
     // Initialize progress if not set
     setStudentProgressMap((prev) => {
@@ -923,43 +914,30 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
     showToast(`Matrícula confirmada! "${course.title}" foi adicionado à sua lista de cursos.`);
   };
 
-  // Launch classroom directly from presentation screen
+  // Launch classroom directly from presentation screen - RESTRICTED TO AUTHENTICATED & ENROLLED USERS
   const handleStartCourseFromPresentation = (course: Course) => {
-    let targetUser = currentUser;
-    if (!targetUser) {
-      targetUser = usersList.find((u) => u.id === 'user-aluno-1') || usersList.find((u) => u.role === 'aluno') || {
-        id: 'user-aluno-1',
-        name: 'Aluno Deds Academy',
-        email: 'aluno@dedsacademy.com.br',
-        role: 'aluno',
-        cpf: '384.920.118-04',
-        studentCode: 'ALU-9842',
-        status: 'ativo',
-        registeredAt: new Date().toISOString().split('T')[0],
-        enrolledCourseIds: [course.id],
-        completedCourseIds: [],
-      };
+    // 1. Must be authenticated
+    if (!currentUser) {
+      showToast('Acesso restrito. Faça login para acessar o conteúdo deste curso.');
+      setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' });
+      return;
     }
-    if (!targetUser.enrolledCourseIds?.includes(course.id)) {
-      targetUser = {
-        ...targetUser,
-        enrolledCourseIds: [...(targetUser.enrolledCourseIds || []), course.id],
-      };
-      handleUpdateUser(targetUser);
-    }
-    setCurrentUser(targetUser);
-    try {
-      localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
-    } catch {}
 
-    // Initialize progress if not set
+    // 2. Must be enrolled (or admin)
+    const isEnrolled = currentUser.role === 'admin' || currentUser.enrolledCourseIds?.includes(course.id);
+    if (!isEnrolled) {
+      showToast('Você ainda não está matriculado neste curso. Adquira o curso para liberar o acesso.');
+      return;
+    }
+
+    // 3. User is valid and enrolled: initialize progress if needed and launch player
     setStudentProgressMap((prev) => {
-      const userProg = prev[targetUser.id] || {};
+      const userProg = prev[currentUser.id] || {};
       if (!userProg[course.id]) {
         const totalLes = course.modules?.reduce((acc, m) => acc + m.lessons.length, 0) || course.lessonsCount || 1;
         const nextMap = {
           ...prev,
-          [targetUser.id]: {
+          [currentUser.id]: {
             ...userProg,
             [course.id]: {
               courseId: course.id,
@@ -1104,8 +1082,10 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
             isAdded={addedCourseIds.includes(selectedCourse.id)}
             onOpenCertificateModal={() => setIsCertModalOpen(true)}
             onStartCourse={handleStartCourseFromPresentation}
-            isEnrolled={Boolean(currentUser?.enrolledCourseIds?.includes(selectedCourse.id))}
+            isEnrolled={Boolean(currentUser && (currentUser.role === 'admin' || currentUser.enrolledCourseIds?.includes(selectedCourse.id)))}
             progressPercent={currentUser ? studentProgressMap[currentUser.id]?.[selectedCourse.id]?.percent : 0}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' })}
           />
         ) : activeNavTab === 'carrinho' ? (
           <CartCheckoutPage
@@ -1376,14 +1356,14 @@ const handleAdminIssueCertificate = (newCert: CertificateItem) => {
         usersList={usersList}
       />
 
-      {/* Student Course Classroom Study Page for courses launched from Presentation screen */}
-      {playerCourse && (
+      {/* Student Course Classroom Study Page for courses launched from Presentation screen - PROTECTED ACCESS */}
+      {playerCourse && currentUser && (currentUser.role === 'admin' || currentUser.enrolledCourseIds?.includes(playerCourse.id)) && (
         <StudentCourseStudyPage
           isOpen={!!playerCourse}
           course={playerCourse}
           onClose={() => setPlayerCourse(null)}
           onCompleteLesson={handleCompleteLesson}
-          progress={currentUser ? studentProgressMap[currentUser.id]?.[playerCourse.id] : undefined}
+          progress={studentProgressMap[currentUser.id]?.[playerCourse.id]}
           currentUser={currentUser}
           onSubmitReview={handleStudentSubmitReview}
           onOpenCertificateModal={() => setIsCertModalOpen(true)}

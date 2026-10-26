@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Course, CourseModule, Lesson } from '../types';
+import { Course, CourseModule, Lesson, UserAccount } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
 
 interface CourseDetailPageProps {
@@ -12,6 +12,8 @@ interface CourseDetailPageProps {
   onStartCourse?: (course: Course) => void;
   isEnrolled?: boolean;
   progressPercent?: number;
+  currentUser?: UserAccount | null;
+  onOpenAuthModal?: () => void;
 }
 
 export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
@@ -24,6 +26,8 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   onStartCourse,
   isEnrolled = false,
   progressPercent,
+  currentUser,
+  onOpenAuthModal,
 }) => {
   // Synthesize complete module structure if missing
   const effectiveModules: CourseModule[] = useMemo(() => {
@@ -230,38 +234,89 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 </div>
               </div>
 
-              {/* Prominent Hero CTA Button: Iniciar Curso / Continuar Curso */}
-              <div className="pt-2 flex flex-wrap items-center gap-4">
-                {onStartCourse && (
-                  <button
-                    type="button"
-                    onClick={() => onStartCourse(course)}
-                    className="px-8 py-4 rounded-xl font-bold text-sm bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_25px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2.5 active:scale-95 group"
-                    id="btn-hero-start-course"
-                  >
-                    <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">
-                      {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
-                    </span>
-                    <span className="text-sm font-extrabold uppercase tracking-wide">
-                      {progressPercent && progressPercent > 0
-                        ? 'Continuar Curso'
-                        : isEnrolled
-                        ? 'Iniciar Curso'
-                        : 'Iniciar Curso'}
-                    </span>
-                    <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
-                      arrow_forward
-                    </span>
-                  </button>
-                )}
+              {/* Prominent Hero CTA Button: Iniciar Curso se matriculado, ou Matricular / Adicionar ao Carrinho se não matriculado */}
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+                {isEnrolled && onStartCourse ? (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => onStartCourse(course)}
+                      className="px-8 py-4 rounded-xl font-bold text-sm bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_25px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2.5 active:scale-95 group"
+                      id="btn-hero-start-course"
+                    >
+                      <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">
+                        {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
+                      </span>
+                      <span className="text-sm font-extrabold uppercase tracking-wide">
+                        {progressPercent && progressPercent > 0
+                          ? 'Continuar Curso'
+                          : 'Iniciar Curso'}
+                      </span>
+                      <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                        arrow_forward
+                      </span>
+                    </button>
 
-                {/* Progress pill if enrolled with progress */}
-                {progressPercent !== undefined && progressPercent > 0 && (
-                  <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-overlay border border-border-subtle text-xs">
-                    <span className="text-accent-emerald-bright font-bold">{progressPercent}% concluído</span>
-                    <div className="w-24 h-2 bg-surface-raised rounded-full overflow-hidden">
-                      <div className="h-full bg-accent-emerald-bright rounded-full" style={{ width: `${progressPercent}%` }} />
+                    {/* Progress pill if enrolled with progress */}
+                    {progressPercent !== undefined && progressPercent > 0 && (
+                      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-surface-overlay border border-border-subtle text-xs">
+                        <span className="text-accent-emerald-bright font-bold">{progressPercent}% concluído</span>
+                        <div className="w-24 h-2 bg-surface-raised rounded-full overflow-hidden">
+                          <div className="h-full bg-accent-emerald-bright rounded-full" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {onBuyNow && (
+                        <button
+                          type="button"
+                          onClick={() => onBuyNow(course)}
+                          className="px-7 py-3.5 rounded-xl font-bold text-sm bg-primary hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.4)] hover:shadow-xl transition-all cursor-pointer flex items-center gap-2 active:scale-95 group"
+                          id="btn-hero-buy-now"
+                        >
+                          <span className="material-symbols-outlined text-lg">school</span>
+                          <span className="text-sm font-extrabold uppercase tracking-wide">
+                            {course.currentPrice === 0 ? 'Matricular-se Gratuitamente' : 'Quero me Matricular'}
+                          </span>
+                          <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                            arrow_forward
+                          </span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => onAddToCart(course)}
+                        className={`px-6 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+                          isAdded
+                            ? 'bg-status-success text-white shadow-md'
+                            : 'bg-surface-overlay hover:bg-surface-base text-text-primary border border-border-subtle hover:border-primary'
+                        }`}
+                        id="btn-hero-add-to-cart"
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          {isAdded ? 'check' : 'shopping_cart'}
+                        </span>
+                        <span>{isAdded ? 'No Carrinho' : 'Adicionar ao Carrinho'}</span>
+                      </button>
                     </div>
+
+                    {!currentUser && onOpenAuthModal && (
+                      <p className="text-xs text-text-tertiary flex items-center gap-1.5 pt-1">
+                        <span className="material-symbols-outlined text-sm text-accent-gold">lock</span>
+                        <span>Já é aluno matriculado?</span>
+                        <button
+                          type="button"
+                          onClick={onOpenAuthModal}
+                          className="text-primary hover:underline font-bold cursor-pointer inline"
+                        >
+                          Faça login para acessar suas aulas
+                        </button>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -495,10 +550,14 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                                   <div className="flex items-start gap-2.5 min-w-0">
                                     <span
                                       className={`material-symbols-outlined text-base shrink-0 mt-0.5 ${
-                                        lesson.isFreePreview ? 'text-accent-emerald-bright' : 'text-primary'
+                                        isEnrolled
+                                          ? 'text-primary'
+                                          : lesson.isFreePreview
+                                          ? 'text-accent-emerald-bright'
+                                          : 'text-text-tertiary'
                                       }`}
                                     >
-                                      {lesson.isFreePreview ? 'lock_open' : 'play_circle'}
+                                      {isEnrolled ? 'play_circle' : lesson.isFreePreview ? 'lock_open' : 'lock'}
                                     </span>
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
@@ -703,56 +762,87 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
 
               {/* CTA Buttons */}
               <div className="space-y-2.5">
-                {/* Prominent Action Button: Iniciar Curso ou Continuar Curso */}
-                {onStartCourse && (
-                  <button
-                    type="button"
-                    onClick={() => onStartCourse(course)}
-                    className="w-full py-4 px-5 rounded-xl font-extrabold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl"
-                    id="btn-start-course-sidebar"
-                  >
-                    <span className="material-symbols-outlined text-xl">
-                      {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
-                    </span>
-                    <span>
-                      {progressPercent && progressPercent > 0
-                        ? 'Continuar Curso'
-                        : isEnrolled
-                        ? 'Iniciar Curso'
-                        : 'Iniciar Curso'}
-                    </span>
-                    <span className="material-symbols-outlined text-base">arrow_forward</span>
-                  </button>
-                )}
+                {isEnrolled ? (
+                  <>
+                    <div className="p-3.5 rounded-xl bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 text-accent-emerald-bright text-xs font-bold flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">check_circle</span>
+                      <span>Você já está matriculado neste treinamento!</span>
+                    </div>
 
-                {/* Primary Button: Adicionar ao Carrinho */}
-                <button
-                  type="button"
-                  onClick={() => onAddToCart(course)}
-                  className={`w-full py-3.5 px-5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-95 ${
-                    isAdded
-                      ? 'bg-primary text-on-primary ring-2 ring-primary/40'
-                      : 'bg-surface-overlay hover:bg-surface-raised text-text-primary border border-border-subtle hover:border-primary'
-                  }`}
-                  id="btn-add-to-cart-page"
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    {isAdded ? 'check' : 'shopping_cart'}
-                  </span>
-                  <span>{isAdded ? 'Adicionado ao Carrinho' : 'Adicionar ao Carrinho'}</span>
-                </button>
+                    {onStartCourse && (
+                      <button
+                        type="button"
+                        onClick={() => onStartCourse(course)}
+                        className="w-full py-4 px-5 rounded-xl font-extrabold text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg active:scale-95 bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_20px_-3px_rgba(0,176,116,0.6)] hover:shadow-xl"
+                        id="btn-start-course-sidebar"
+                      >
+                        <span className="material-symbols-outlined text-xl">
+                          {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
+                        </span>
+                        <span>
+                          {progressPercent && progressPercent > 0
+                            ? 'Continuar Curso'
+                            : 'Iniciar Curso'}
+                        </span>
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Primary Button: Adicionar ao Carrinho */}
+                    <button
+                      type="button"
+                      onClick={() => onAddToCart(course)}
+                      className={`w-full py-3.5 px-5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-95 ${
+                        isAdded
+                          ? 'bg-primary text-on-primary ring-2 ring-primary/40'
+                          : 'bg-surface-overlay hover:bg-surface-raised text-text-primary border border-border-subtle hover:border-primary'
+                      }`}
+                      id="btn-add-to-cart-page"
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        {isAdded ? 'check' : 'shopping_cart'}
+                      </span>
+                      <span>{isAdded ? 'Adicionado ao Carrinho' : 'Adicionar ao Carrinho'}</span>
+                    </button>
 
-                {/* Direct Checkout Button */}
-                {onBuyNow && (
-                  <button
-                    type="button"
-                    onClick={() => onBuyNow(course)}
-                    className="w-full py-3 px-5 rounded-xl font-bold text-xs bg-surface-overlay hover:bg-surface-base border border-border-subtle hover:border-primary text-text-primary hover:text-primary transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                    id="btn-buy-now-page"
-                  >
-                    <span className="material-symbols-outlined text-base">flash_on</span>
-                    <span>Comprar Agora (Checkout Rápido)</span>
-                  </button>
+                    {/* Direct Checkout Button */}
+                    {onBuyNow && (
+                      <button
+                        type="button"
+                        onClick={() => onBuyNow(course)}
+                        className="w-full py-3.5 px-5 rounded-xl font-bold text-sm bg-primary hover:bg-accent-emerald-bright text-on-primary shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                        id="btn-buy-now-page"
+                      >
+                        <span className="material-symbols-outlined text-base">flash_on</span>
+                        <span>Comprar Agora (Checkout Rápido)</span>
+                      </button>
+                    )}
+
+                    {/* Restrict Access Notice Box */}
+                    <div className="p-3.5 rounded-xl bg-surface-overlay/80 border border-border-subtle text-[11px] text-text-secondary space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-accent-gold font-bold">
+                        <span className="material-symbols-outlined text-base">lock</span>
+                        <span>Conteúdo de Acesso Restrito</span>
+                      </div>
+                      <p className="text-text-tertiary leading-relaxed">
+                        A sala de aula, vídeos, apostilas e certificados são liberados exclusivamente para alunos autenticados após a matrícula.
+                      </p>
+                      {!currentUser && onOpenAuthModal && (
+                        <div className="pt-1 border-t border-border-subtle/50">
+                          <span className="text-text-tertiary">Já possui conta? </span>
+                          <button
+                            type="button"
+                            onClick={onOpenAuthModal}
+                            className="text-primary hover:underline font-bold cursor-pointer inline"
+                          >
+                            Faça login no painel do aluno
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -873,20 +963,33 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
             <span className="material-symbols-outlined text-lg">arrow_back</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => onAddToCart(course)}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md ${
-              isAdded
-                ? 'bg-primary text-on-primary'
-                : 'bg-primary-container text-on-primary shadow-primary/20'
-            }`}
-          >
-            <span className="material-symbols-outlined text-base">
-              {isAdded ? 'check' : 'shopping_cart'}
-            </span>
-            <span>{isAdded ? 'No Carrinho' : 'Adicionar'}</span>
-          </button>
+          {isEnrolled && onStartCourse ? (
+            <button
+              type="button"
+              onClick={() => onStartCourse(course)}
+              className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md bg-accent-emerald-bright hover:bg-primary text-on-primary"
+            >
+              <span className="material-symbols-outlined text-base">
+                {progressPercent && progressPercent > 0 ? 'play_arrow' : 'school'}
+              </span>
+              <span>{progressPercent && progressPercent > 0 ? 'Continuar' : 'Acessar Aula'}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddToCart(course)}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md ${
+                isAdded
+                  ? 'bg-primary text-on-primary'
+                  : 'bg-primary-container text-on-primary shadow-primary/20'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">
+                {isAdded ? 'check' : 'shopping_cart'}
+              </span>
+              <span>{isAdded ? 'No Carrinho' : 'Adicionar'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
