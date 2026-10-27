@@ -3,6 +3,7 @@ import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, A
 import { CATEGORIES } from '../data/coursesData';
 import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
+import { forceClearAndResyncSiteCache, DEDS_CACHE_VERSION } from '../lib/cacheManager';
 
 import { OverviewTab } from './admin/OverviewTab';
 import { AnalyticsTab } from './admin/AnalyticsTab';
@@ -597,6 +598,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (window.confirm('Deseja limpar todos os caches locais e forçar a sincronização de cursos, cupons e imagens com a versão mais recente? O sistema irá recarregar.')) {
+                  forceClearAndResyncSiteCache();
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-accent-emerald-bright/10 hover:bg-accent-emerald-bright/20 text-accent-emerald-bright text-xs font-bold transition-all flex items-center gap-1.5 border border-accent-emerald-bright/30 cursor-pointer shadow-xs"
+              title="Forçar limpeza de cache do navegador e sincronizar todos os dados"
+            >
+              <span className="material-symbols-outlined text-base">cached</span>
+              <span className="hidden sm:inline">Limpar Cache & Sincronizar</span>
+              <span className="sm:hidden">Sincronizar</span>
+            </button>
+
             <button
               onClick={onLogout}
               className="px-3.5 py-1.5 rounded-xl bg-surface-raised hover:bg-status-danger/15 text-text-tertiary hover:text-status-danger text-xs font-bold transition-all flex items-center gap-1.5 border border-border-subtle cursor-pointer"

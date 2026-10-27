@@ -36,6 +36,7 @@ import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, S
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
+import { sanitizeCourseList, getCacheBustedImageUrl, forceClearAndResyncSiteCache, DEDS_CACHE_VERSION } from './lib/cacheManager';
 
 /**
  * SECURITY: Blocks unauthorized access to admin panel.
@@ -76,8 +77,12 @@ export default function App() {
   const [coursesList, setCoursesList] = useState<Course[]>(() => {
     try {
       const savedCoursesRaw = localStorage.getItem('deds_courses_list');
-      const saved = savedCoursesRaw ? JSON.stringify(JSON.parse(savedCoursesRaw).map((c: any) => c.image && c.image.includes('lh3.googleusercontent.com') ? { ...c, image: COURSES.find((def) => def.id === c.id)?.image || '/images/courses/web-dev.jpg' } : c)) : null;
-      if (saved) return JSON.parse(saved);
+      if (savedCoursesRaw) {
+        const parsed = JSON.parse(savedCoursesRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return sanitizeCourseList(parsed);
+        }
+      }
     } catch {}
     return COURSES;
   });
@@ -451,12 +456,29 @@ export default function App() {
           try { localStorage.setItem('deds_users_list', JSON.stringify(sbUsers)); } catch {}
         }
         if (sbCourses && sbCourses.length > 0) {
-          setCoursesList(sbCourses);
-          try { localStorage.setItem('deds_courses_list', JSON.stringify(sbCourses)); } catch {}
+          const sanitizedSb = sanitizeCourseList(sbCourses);
+          setCoursesList((prev) => {
+            const merged = [...sanitizedSb];
+            COURSES.forEach((official) => {
+              if (!merged.some((m) => m.id === official.id)) {
+                merged.push(official);
+              }
+            });
+            try { localStorage.setItem('deds_courses_list', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
         }
         if (sbCategories && sbCategories.length > 0) {
-          setCategoriesList(sbCategories);
-          try { localStorage.setItem('deds_categories_list', JSON.stringify(sbCategories)); } catch {}
+          setCategoriesList((prev) => {
+            const merged = [...sbCategories];
+            CATEGORIES.forEach((official) => {
+              if (!merged.some((m) => m.id === official.id)) {
+                merged.push(official);
+              }
+            });
+            try { localStorage.setItem('deds_categories_list', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
         }
 
         console.log('[Supabase] Data loaded successfully.');

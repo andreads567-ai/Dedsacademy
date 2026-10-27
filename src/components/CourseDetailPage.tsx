@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Course, CourseModule, Lesson, UserAccount, Instructor } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 interface CourseDetailPageProps {
   course: Course;
@@ -426,12 +427,11 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
             <div className="lg:col-span-4">
               <div className="relative rounded-2xl overflow-hidden bg-surface-raised border border-border-subtle shadow-xl group">
                 <img
-                  src={course.image}
+                  src={getCacheBustedImageUrl(course.image)}
                   alt={course.title}
                   className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                    (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
@@ -498,7 +498,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                       src={course.videoUrl}
                       controls
                       className="w-full h-full object-contain"
-                      poster={course.image}
+                      poster={getCacheBustedImageUrl(course.image)}
                     >
                       Seu navegador não suporta a reprodução de vídeo.
                     </video>

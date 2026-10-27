@@ -1,5 +1,6 @@
 import React from 'react';
 import { MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER } from '../types';
+import { getCacheBustedImageUrl, FALLBACK_MIDDLE_BANNER_IMAGE } from '../lib/cacheManager';
 
 interface MiddlePromoBannerProps {
   config?: MiddlePromoBannerConfig;
@@ -51,11 +52,11 @@ export const MiddlePromoBanner: React.FC<MiddlePromoBannerProps> = ({
         title={config.altText || 'Ver oferta especial'}
       >
         <img
-          src={config.imageUrl || '/images/estude-no-seu-ritmo.jpg'}
+          src={getCacheBustedImageUrl(config.imageUrl || FALLBACK_MIDDLE_BANNER_IMAGE)}
           alt={config.altText || 'Banner Promocional Deds Academy'}
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/images/estude-no-seu-ritmo.jpg';
+            (e.target as HTMLImageElement).src = FALLBACK_MIDDLE_BANNER_IMAGE;
           }}
         />
 

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Course, Category, UserAccount } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 interface CoursesCatalogPageProps {
   courses: Course[];
@@ -372,12 +373,11 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
                         onClick={() => onSelectCourse(course)}
                       >
                         <img
-                          src={course.image}
+                          src={getCacheBustedImageUrl(course.image)}
                           alt={course.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                            (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                           }}
                         />
                         {effectiveBadge && (

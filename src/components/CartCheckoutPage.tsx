@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, Coupon } from '../types';
 import { INITIAL_COUPONS } from '../data/promotionsData';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 export interface CheckoutData {
   studentName: string;
@@ -403,10 +404,9 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                         <div className="relative w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-base">
                           <img
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            src={item.course.image}
+                            src={getCacheBustedImageUrl(item.course.image)}
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                              (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                             }}
                             alt={item.course.title}
                           />
@@ -630,7 +630,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 {checkoutBannerConfig?.enabled !== false && checkoutBannerConfig?.imageUrl && (
                   <div className="rounded-2xl overflow-hidden border border-border-subtle shadow-md group relative">
                     <img
-                      src={checkoutBannerConfig.imageUrl}
+                      src={getCacheBustedImageUrl(checkoutBannerConfig.imageUrl)}
                       alt={checkoutBannerConfig.altText || 'Banner Oficial de Pagamentos Stripe Checkout'}
                       className="w-full max-h-56 sm:max-h-64 object-cover group-hover:scale-[1.01] transition-transform duration-500"
                     />

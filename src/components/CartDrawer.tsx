@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CartItem } from '../types';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -97,12 +98,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 className="p-3.5 rounded-xl bg-surface-overlay border border-border-subtle flex gap-3 items-center justify-between"
               >
                 <img
-                  src={item.course.image}
+                  src={getCacheBustedImageUrl(item.course.image)}
                   alt={item.course.title}
                   className="w-16 h-12 object-cover rounded-lg shrink-0"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                    (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                   }}
                 />
                 <div className="flex-1 min-w-0">

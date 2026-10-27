@@ -119,9 +119,32 @@ app.post('/api/issue-certificate', async (req, res) => {
   }
 });
 
-// Serve static assets in production
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve static assets in production with fine-grained cache control
+app.use(
+  express.static(path.join(__dirname, 'dist'), {
+    setHeaders: (res, filePath) => {
+      // 1. Never cache HTML files - always force validation
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+      // 2. Vite hashed assets (immutable)
+      else if (filePath.includes(`${path.sep}assets${path.sep}`) || /\/assets\//.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+      // 3. Static images and icons (stale-while-revalidate)
+      else if (/\.(jpg|jpeg|png|webp|svg|gif|ico)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+      }
+    },
+  })
+);
+
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

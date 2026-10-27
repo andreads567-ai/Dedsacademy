@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import type { UserAccount, Course, Category } from '../types';
+import { sanitizeCourse } from './cacheManager';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export async function fetchCourses(): Promise<Course[] | null> {
     console.error('[Supabase] fetchCourses error:', error.message);
     return null;
   }
-  return (data ?? []).map((row) => row.data as Course);
+  return (data ?? []).map((row) => sanitizeCourse(row.data as Course));
 }
 
 export async function upsertCourse(course: Course): Promise<boolean> {

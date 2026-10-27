@@ -5,6 +5,7 @@ import { CancellationModal } from './CancellationModal';
 import { SignatureModal } from './SignatureModal';
 import { StudentCourseStudyPage } from './StudentCourseStudyPage';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 interface StudentPortalProps {
   user: UserAccount;
@@ -444,12 +445,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                         title="Abrir sala de aula"
                       >
                         <img
-                          src={course.image}
+                          src={getCacheBustedImageUrl(course.image)}
                           alt={course.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                            (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                           }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
@@ -597,13 +597,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       <div>
                         <div className="relative h-40 w-full bg-surface-base overflow-hidden">
                           <img
-                            src={course.image}
+                            src={getCacheBustedImageUrl(course.image)}
                             alt={course.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
-                          }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
+                            }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
                           <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[11px] font-bold bg-surface-dim/80 backdrop-blur-md text-primary">

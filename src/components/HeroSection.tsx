@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig } from '../types';
 import { MiddlePromoBanner } from './MiddlePromoBanner';
 import { DedsOrbitAnimation } from './DedsOrbitAnimation';
+import { getCacheBustedImageUrl, FALLBACK_HERO_IMAGE } from '../lib/cacheManager';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
@@ -147,10 +148,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <img
                 className="w-full h-full object-cover"
                 alt="Banner Principal Deds Academy"
-                src={banner.imageUrl || '/images/hero-banner.jpg'}
+                src={getCacheBustedImageUrl(banner.imageUrl || FALLBACK_HERO_IMAGE)}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src =
-                    '/images/hero-banner.jpg';
+                  (e.target as HTMLImageElement).src = FALLBACK_HERO_IMAGE;
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent" />

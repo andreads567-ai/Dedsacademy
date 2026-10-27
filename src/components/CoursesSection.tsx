@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Course } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
+import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
 interface CoursesSectionProps {
   courses: Course[];
@@ -165,10 +166,9 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
                     <img
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       alt={course.title}
-                      src={course.image}
+                      src={getCacheBustedImageUrl(course.image)}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                        (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
                       }}
                     />
                     {effectiveBadge && (
