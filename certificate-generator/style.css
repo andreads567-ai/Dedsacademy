@@ -1,0 +1,652 @@
+/* ==========================================================================
+   DEDS ACADEMY - SISTEMA DE CERTIFICADO FRENTE E VERSO PROFISSIONAL
+   Formato A4 Paisagem (297mm x 210mm) | Resolução Base: 1024px x 724px
+   ========================================================================== */
+
+/* Importação de Fontes do Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Great+Vibes&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap');
+
+:root {
+  --cert-width: 1024px;
+  --cert-height: 724px;
+  --primary-color: #0b2230;
+  --accent-teal: #006756;
+  --accent-gold: #c59b27;
+  --text-dark: #1a2941;
+  --ui-bg: #f3f5f8;
+  --panel-bg: #ffffff;
+  --border-color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--ui-bg);
+  color: #334155;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   PAINEL DE CONTROLE / TOOLBAR SUPERIOR (Oculto na impressão)
+   ========================================================================== */
+.painel-controle {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 14px 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.painel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.painel-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.painel-brand .logo-badge {
+  background: linear-gradient(135deg, #006756, #0b2230);
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.painel-brand h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.painel-brand p {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.painel-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #006756 0%, #084c3f 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 103, 86, 0.3);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #025547 0%, #06392f 100%);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #0b2230;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(11, 34, 48, 0.25);
+}
+
+.btn-secondary:hover {
+  background: #143547;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.btn-outline:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Formulário de Edição em Tempo Real */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input,
+.form-group select {
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #006756;
+  box-shadow: 0 0 0 2px rgba(0, 103, 86, 0.15);
+}
+
+.form-bar-extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+
+.visualizacao-tabs {
+  display: flex;
+  gap: 6px;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 6px;
+}
+
+.tab-btn {
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: #0b2230;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ==========================================================================
+   ÁREA DE VISUALIZAÇÃO DO CERTIFICADO
+   ========================================================================== */
+.palco-certificados {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 32px 16px;
+  overflow-x: auto;
+}
+
+/* Container de cada lado (Página do Certificado) */
+.certificado-pagina {
+  position: relative;
+  width: var(--cert-width);
+  height: var(--cert-height);
+  min-width: var(--cert-width);
+  min-height: var(--cert-height);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background-color: #fbfbf9;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Identificação Visual de Frente e Verso */
+.certificado-pagina.frente {
+  background-image: url('frente.png');
+}
+
+.certificado-pagina.verso {
+  background-image: url('verso.png');
+}
+
+/* ==========================================================================
+   CAMPOS DINÂMICOS - FRENTE (Posicionamento Absoluto Pixel-Perfect)
+   Dimensões do Certificado: 1024px de largura x 724px de altura
+   ========================================================================== */
+
+/* 1. Nome do Aluno */
+.campo-aluno {
+  position: absolute;
+  top: 300px;
+  left: 175px;
+  width: 674px;
+  height: 84px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 2px;
+  font-family: 'Great Vibes', 'Alex Brush', cursive;
+  font-size: 48px;
+  font-weight: 400;
+  color: #091e2b;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+/* 1.1 CPF do Aluno (Abaixo da linha do nome) */
+.campo-cpf-aluno {
+  position: absolute;
+  top: 388px;
+  left: 175px;
+  width: 674px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #4b5563;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  z-index: 10;
+}
+
+/* 2. Quatro Colunas de Informação do Curso (Top: 522px) */
+
+/* Coluna 1: Nome do Curso */
+.campo-curso {
+  position: absolute;
+  top: 521px;
+  left: 82px;
+  width: 198px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* Coluna 2: Carga Horária */
+.campo-horas {
+  position: absolute;
+  top: 521px;
+  left: 295px;
+  width: 162px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  z-index: 10;
+}
+
+/* Coluna 3: Data de Conclusão */
+.campo-data {
+  position: absolute;
+  top: 521px;
+  left: 478px;
+  width: 192px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  z-index: 10;
+}
+
+/* Coluna 4: Código do Certificado (Frente) */
+.campo-codigo-frente {
+  position: absolute;
+  top: 521px;
+  left: 677px;
+  width: 190px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+/* 3. Assinatura do Aluno (Frente - Linha em y:635px) */
+.campo-assinatura-aluno {
+  position: absolute;
+  top: 566px;
+  left: 140px;
+  width: 215px;
+  height: 66px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+}
+
+.assinatura-texto {
+  font-family: 'Alex Brush', 'Great Vibes', cursive;
+  font-size: 34px;
+  color: #0b2230;
+  transform: rotate(-3deg);
+  user-select: none;
+}
+
+.assinatura-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* 3.1 CPF abaixo da assinatura do aluno */
+.campo-cpf-assinatura {
+  position: absolute;
+  top: 672px;
+  left: 140px;
+  width: 215px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+/* 4. CNPJ da Instituição abaixo da assinatura da Deds Academy */
+.campo-cnpj-instituicao {
+  position: absolute;
+  top: 672px;
+  left: 600px;
+  width: 280px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+/* ==========================================================================
+   CAMPOS DINÂMICOS - VERSO (Posicionamento Absoluto Pixel-Perfect)
+   ========================================================================== */
+
+/* 1. Container do QR Code Dinâmico */
+.campo-qrcode {
+  position: absolute;
+  top: 346px;
+  left: 646px;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 4px;
+  z-index: 10;
+}
+
+.campo-qrcode img,
+.campo-qrcode canvas,
+.campo-qrcode svg {
+  width: 136px !important;
+  height: 136px !important;
+  object-fit: contain;
+}
+
+/* 2. Link de Validação abaixo do QR Code */
+.campo-link-validar {
+  position: absolute;
+  top: 494px;
+  left: 624px;
+  width: 184px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--accent-teal);
+  text-align: center;
+  word-break: break-all;
+  text-decoration: none;
+  z-index: 10;
+}
+
+/* 3. Código de Validação em Destaque (Pill branca inferior) */
+.campo-codigo-verso {
+  position: absolute;
+  top: 556px;
+  left: 360px;
+  width: 405px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #082132;
+  text-align: center;
+  z-index: 10;
+}
+
+/* 4. Carimbo / Assinatura Digital do Aluno & Hash de Autenticidade */
+.campo-autenticidade-digital {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 8.5px;
+  color: #64748b;
+  letter-spacing: 0.3px;
+  z-index: 10;
+  width: 90%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* 5. CNPJ no bloco institucional do verso */
+.campo-cnpj-verso {
+  position: absolute;
+  top: 486px;
+  left: 106px;
+  width: 220px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--accent-teal);
+  text-align: left;
+  z-index: 10;
+}
+
+/* ==========================================================================
+   MODO DE DESENVOLVEDOR / AJUSTE FINO (Guia de Coordenadas)
+   ========================================================================== */
+.dev-mode-active .campo {
+  outline: 1.5px dashed rgba(220, 38, 38, 0.7) !important;
+  background-color: rgba(254, 226, 226, 0.35) !important;
+  cursor: move;
+}
+
+.dev-coords-badge {
+  position: absolute;
+  top: -16px;
+  left: 0;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 9px;
+  font-family: monospace;
+  padding: 1px 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  display: none;
+}
+
+.dev-mode-active .dev-coords-badge {
+  display: block;
+}
+
+/* ==========================================================================
+   CONFIGURAÇÃO DE IMPRESSÃO E GERAÇÃO DE PDF (@media print e Modo Exportação)
+   Garante 2 páginas A4 Paisagem exatas (Frente na pág 1, Verso na pág 2)
+   Elimina margens do navegador, cabeçalho, rodapé e URL
+   ========================================================================== */
+
+/* Regras ativadas durante a exportação com html2pdf.js */
+body.exportando-pdf .palco-certificados {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+body.exportando-pdf .certificado-pagina {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+
+body.exportando-pdf .no-print,
+body.exportando-pdf .painel-controle,
+body.exportando-pdf .dev-coords-badge {
+  display: none !important;
+}
+
+@page {
+  size: A4 landscape;
+  margin: 0mm;
+}
+
+@media print {
+  html, body {
+    width: 297mm;
+    height: 210mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Oculta tudo que não faz parte do certificado impresso */
+  .no-print,
+  .painel-controle,
+  footer,
+  .modal-overlay,
+  .dev-coords-badge {
+    display: none !important;
+  }
+
+  .palco-certificados {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    display: block !important;
+  }
+
+  .certificado-pagina {
+    width: 297mm !important;
+    height: 210mm !important;
+    min-width: 297mm !important;
+    min-height: 210mm !important;
+    max-width: 297mm !important;
+    max-height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: block !important;
+    position: relative !important;
+  }
+
+  /* Evita que a última página gere uma folha em branco extra */
+  .certificado-pagina:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+}

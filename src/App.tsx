@@ -35,6 +35,7 @@ import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_
 import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
+import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
 
 /**
  * SECURITY: Blocks unauthorized access to admin panel.
@@ -420,13 +421,27 @@ export default function App() {
         await seedIfEmpty(INITIAL_USERS, COURSES, CATEGORIES);
 
         // Fetch fresh data from Supabase
-        const [sbUsers, sbCourses, sbCategories] = await Promise.all([
+        const [sbUsers, sbCourses, sbCategories, sbCertificates] = await Promise.all([
           fetchUsers(),
           fetchCourses(),
           fetchCategories(),
+          fetchCertificatesFromDB(),
         ]);
 
         if (cancelled) return;
+
+        if (sbCertificates && sbCertificates.length > 0) {
+          setCertificatesList((prev) => {
+            const merged = [...sbCertificates];
+            prev.forEach((p) => {
+              if (!merged.some((m) => m.id === p.id || m.code === p.code)) {
+                merged.push(p);
+              }
+            });
+            try { localStorage.setItem('deds_certificates_list', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
+        }
 
         if (sbUsers && sbUsers.length > 0) {
           setUsersList(sbUsers);
@@ -1064,6 +1079,9 @@ export default function App() {
         handleUpdateUser(updatedUser);
       }
 
+      // Generate sequential unique validation code
+      const uniqueCode = generateSequentialCertificateCode(certificatesList);
+
       // Add to certificates list
       const newCert: CertificateItem = {
         id: `cert-${courseId}-${Date.now()}`,
@@ -1076,7 +1094,7 @@ export default function App() {
         studentCpf: currentUser.certificateData?.customCpf || currentUser.cpf || '384.920.118-04',
         hours: course?.hours || 40,
         issueDate: review.date,
-        code: `DA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+        code: uniqueCode,
         instructor: review.instructor || course?.instructor || 'Deds Academy',
         status: 'valido',
       };
@@ -1085,6 +1103,9 @@ export default function App() {
         try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
         return next;
       });
+
+      // Salva no backend / Supabase
+      saveCertificateToDB(newCert, currentUser).catch(console.error);
 
       // 3b. Notificação de emissão do certificado com PDF automático
       sendCertificateEmail({
@@ -1109,12 +1130,14 @@ export default function App() {
     showToast('Avaliação removida com sucesso.');
   };
 
-const handleAdminIssueCertificate = (newCert: CertificateItem) => {
+  const handleAdminIssueCertificate = (newCert: CertificateItem) => {
     setCertificatesList((prev) => {
       const next = [newCert, ...prev];
       try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
       return next;
     });
+    // Salva no backend / Supabase
+    saveCertificateToDB(newCert).catch(console.error);
     showToast(`Certificado para "${newCert.studentName}" emitido com sucesso!`);
   };
 

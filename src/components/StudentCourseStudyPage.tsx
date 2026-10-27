@@ -14,6 +14,7 @@ import {
   CourseExamOption,
 } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
+import { generateSequentialCertificateCode, saveCertificateToDB } from '../services/certificateService';
 
 export interface StudentCourseStudyPageProps {
   course: Course | null;
@@ -575,7 +576,9 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 
     setIsSubmittingReview(true);
 
-    const certCode = `DA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    const saved = localStorage.getItem('deds_certificates_list');
+    const currentList = saved ? JSON.parse(saved) : [];
+    const certCode = generateSequentialCertificateCode(currentList);
 
     const newReview: CourseReview = {
       id: `rev-${Date.now()}`,
@@ -626,6 +629,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
     }
     if (onSaveCertificate) {
       onSaveCertificate(generatedCert);
+      saveCertificateToDB(generatedCert, currentUser || undefined).catch(console.error);
     }
     setIsSubmittingReview(false);
     setActiveView('certificate_ready');

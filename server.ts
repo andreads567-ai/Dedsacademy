@@ -89,6 +89,36 @@ app.post('/api/zoho-send-email', async (req, res) => {
   }
 });
 
+// 6. Endpoint para Emissão Oficial de Certificado (Sequencial Único)
+app.post('/api/issue-certificate', async (req, res) => {
+  try {
+    const { studentId, studentName, studentCpf, studentCode, courseId, courseTitle, hours, instructor, issueDate } = req.body;
+    if (!studentId || !studentName || !courseId || !courseTitle) {
+      return res.status(400).json({ error: 'Dados incompletos para emissão' });
+    }
+    const currentYear = new Date().getFullYear();
+    const randomSeq = Math.floor(1000 + Math.random() * 9000);
+    const code = `DA${currentYear}-${randomSeq}`;
+    const cert = {
+      id: `cert-${courseId}-${Date.now()}`,
+      code,
+      courseId,
+      courseTitle,
+      studentId,
+      studentCode: studentCode || `ALU-${studentId.slice(-4).toUpperCase()}`,
+      studentName,
+      studentCpf: studentCpf || '000.000.000-00',
+      hours: Number(hours) || 40,
+      issueDate: issueDate || new Date().toLocaleDateString('pt-BR'),
+      instructor: instructor || 'Deds Academy',
+      status: 'valido',
+    };
+    return res.status(201).json({ success: true, certificate: cert });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (_req, res) => {

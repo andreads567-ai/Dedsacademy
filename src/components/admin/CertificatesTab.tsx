@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CertificateItem, UserAccount, Course } from '../../types';
-import { CertificateTemplateModal } from './CertificateTemplateModal';
+import { OfficialCertificateStudioModal } from './OfficialCertificateStudioModal';
 import { downloadCertificatePdf, downloadCertificatePng } from '../../utils/certificateGenerator';
 
 interface CertificatesTabProps {
@@ -22,7 +22,10 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'valido' | 'cancelado'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  // Official Studio Modal state (Antigravity Frente e Verso)
+  const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
+  const [studioMode, setStudioMode] = useState<'issue' | 'view'>('issue');
+  const [studioCert, setStudioCert] = useState<CertificateItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // 3-dot dropdown menu state
@@ -151,23 +154,18 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
             </span>
           </div>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Registro oficial com código verificador, QR Code, modelo dinâmico editável, autenticação e controle de cancelamento.
+            Registro oficial com código verificador, QR Code, emissão automatizada frente e verso, autenticação e controle de cancelamento.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
             type="button"
-            onClick={() => setIsTemplateModalOpen(true)}
-            className="px-3.5 py-2.5 rounded-xl bg-surface-raised hover:bg-surface-overlay border border-border-subtle text-text-primary text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <span className="material-symbols-outlined text-base text-accent-gold">design_services</span>
-            <span>Modelo de Certificado</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenIssueModal}
+            onClick={() => {
+              setStudioCert(null);
+              setStudioMode('issue');
+              setIsStudioModalOpen(true);
+            }}
             className="px-4 py-2.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <span className="material-symbols-outlined text-base">workspace_premium</span>
@@ -334,7 +332,11 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                       <td className="p-4 whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => setPreviewCert(cert)}
+                          onClick={() => {
+                          setStudioCert(cert);
+                          setStudioMode('view');
+                          setIsStudioModalOpen(true);
+                        }}
                           className="group p-1.5 bg-surface-overlay hover:bg-surface-container rounded-lg border border-border-subtle flex items-center gap-1.5 transition-all cursor-pointer"
                           title="Clique para inspecionar QR Code e Certificado"
                         >
@@ -410,7 +412,11 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                       <td className="p-4 text-center whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => setPreviewCert(cert)}
+                          onClick={() => {
+                          setStudioCert(cert);
+                          setStudioMode('view');
+                          setIsStudioModalOpen(true);
+                        }}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all ${
                             isValid
                               ? 'bg-primary-container/20 text-primary hover:bg-primary-container/30 border border-primary/30'
@@ -445,7 +451,9 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPreviewCert(cert);
+                                  setStudioCert(cert);
+                                  setStudioMode('view');
+                                  setIsStudioModalOpen(true);
                                   setOpenMenuCertId(null);
                                 }}
                                 className="w-full px-3.5 py-2 text-left text-xs font-semibold text-text-primary hover:bg-surface-overlay flex items-center gap-2 cursor-pointer"
@@ -903,13 +911,15 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                 <button
                   type="button"
                   onClick={() => {
+                    setStudioCert(previewCert);
+                    setStudioMode('view');
+                    setIsStudioModalOpen(true);
                     setPreviewCert(null);
-                    setIsTemplateModalOpen(true);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md cursor-pointer flex items-center gap-1"
                 >
-                  <span className="material-symbols-outlined text-sm">design_services</span>
-                  <span>Ver no Modelo Gráfico</span>
+                  <span className="material-symbols-outlined text-sm">visibility</span>
+                  <span>Abrir no Estúdio Oficial</span>
                 </button>
               </div>
             </div>
@@ -918,14 +928,17 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
       )}
 
       {/* Modal: Modelo de Certificado (Exportar & Editar campos móveis) */}
-      <CertificateTemplateModal
-        isOpen={isTemplateModalOpen}
-        onClose={() => setIsTemplateModalOpen(false)}
-        sampleCourseTitle={courses[0]?.title}
-        sampleHours={courses[0]?.hours}
-        sampleInstructor={courses[0]?.instructor}
-        sampleStudentName={students[0]?.name}
-        sampleCpf={students[0]?.cpf}
+      <OfficialCertificateStudioModal
+        isOpen={isStudioModalOpen}
+        onClose={() => setIsStudioModalOpen(false)}
+        mode={studioMode}
+        initialCertificate={studioCert}
+        students={students}
+        courses={courses}
+        existingCertificates={certificates}
+        onCertificateIssued={(cert) => {
+          onIssueCertificate(cert);
+        }}
       />
     </div>
   );

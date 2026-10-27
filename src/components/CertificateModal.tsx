@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CertificateItem } from '../types';
 import { downloadCertificatePdf } from '../utils/certificateGenerator';
+import { validateCertificateInDB } from '../services/certificateService';
 
 interface CertificateModalProps {
   isOpen: boolean;
@@ -37,13 +38,44 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleValidate = (e: React.FormEvent) => {
+  const handleValidate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = certCode.replace('#', '').trim().toLowerCase();
+    const clean = certCode.replace('#', '').trim();
 
-    // Search in certificatesList
+    // 1. Busca local ou consulta no banco de dados Supabase
+    const dbCheck = await validateCertificateInDB(clean, certificatesList);
+    if (dbCheck.valid && dbCheck.certificate) {
+      const c = dbCheck.certificate;
+      setValidationResult({
+        status: 'valid',
+        studentName: c.studentName,
+        studentCpf: c.studentCpf,
+        studentCode: c.studentCode,
+        courseName: c.courseTitle,
+        courseCategory: c.courseCategory,
+        workload: `${c.hours} Horas`,
+        issuedDate: c.issueDate,
+        instructor: c.instructor,
+      });
+      return;
+    }
+
+    if (dbCheck.status === 'cancelled' && dbCheck.certificate) {
+      const c = dbCheck.certificate;
+      setValidationResult({
+        status: 'cancelled',
+        studentName: c.studentName,
+        courseName: c.courseTitle,
+        workload: `${c.hours} Horas`,
+        issuedDate: c.issueDate,
+        cancellationReason: dbCheck.reason || c.cancellationReason || 'Revogado pela coordenação acadêmica',
+      });
+      return;
+    }
+
+    // Search in certificatesList (fallback case-insensitive)
     const foundCert = certificatesList.find(
-      (c) => c.code.replace('#', '').trim().toLowerCase() === clean
+      (c) => c.code.replace('#', '').trim().toLowerCase() === clean.toLowerCase()
     );
 
     if (foundCert) {
@@ -69,7 +101,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           instructor: foundCert.instructor,
         });
       }
-    } else if (clean === 'da-2025-99841' || clean === 'deds-exc-2025-9842') {
+    } else if (clean.toLowerCase() === 'da-2025-99841' || clean.toLowerCase() === 'deds-exc-2025-9842') {
       setValidationResult({
         status: 'valid',
         studentName: 'Lucas M. Silveira',

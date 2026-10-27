@@ -8,6 +8,9 @@ import {
 
 export const STORAGE_KEY = 'deds_official_certificate_template_v2';
 
+export const OFFICIAL_FRONT_BG = '/certificate-generator/frente.png';
+export const OFFICIAL_BACK_BG = '/certificate-generator/verso.png';
+
 export interface StudentCertificateData {
   studentName: string;
   studentCpf?: string;
@@ -16,74 +19,121 @@ export interface StudentCertificateData {
   courseCategory?: string;
   hours: number;
   issueDate: string; // Data de conclusão / emissão
-  code: string;      // Código verificador
+  code: string; // Código verificador único
   instructor?: string;
   institutionName?: string;
   institutionCnpj?: string;
+  signatureImage?: string | null;
+  signatureType?: 'draw' | 'upload' | 'font';
 }
 
 /**
- * Retorna o modelo salvo no localStorage ou o modelo padrão inicial.
+ * Cache de imagens carregadas para acelerar a renderização
  */
-export function getSavedCertificateTemplate(): CertificateOfficialTemplate | null {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
+const imageCache = new Map<string, HTMLImageElement>();
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  if (imageCache.has(src)) {
+    const cached = imageCache.get(src)!;
+    if (cached.complete && cached.naturalWidth > 0) {
+      return Promise.resolve(cached);
     }
-  } catch (err) {
-    console.error('Erro ao ler modelo salvo do localStorage:', err);
   }
-  return null;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = () => {
+      // Tenta fallback sem barra inicial ou relativo
+      const fallbackSrc = src.startsWith('/') ? src.slice(1) : '/' + src;
+      const imgFallback = new Image();
+      imgFallback.crossOrigin = 'anonymous';
+      imgFallback.onload = () => {
+        imageCache.set(src, imgFallback);
+        resolve(imgFallback);
+      };
+      imgFallback.onerror = () => reject(new Error(`Falha ao carregar imagem: ${src}`));
+      imgFallback.src = fallbackSrc;
+    };
+    img.src = src;
+  });
 }
 
 /**
- * Normaliza as coordenadas para percentagem relativa (0 a 100%) da imagem de fundo renderizada.
- * Compensa o zoom do editor e qualquer transform: scale() aplicado ao container ou à imagem.
+ * Retorna o modelo salvo ou gera o modelo oficial nativo da Deds Academy
+ */
+export function getSavedCertificateTemplate(): CertificateOfficialTemplate {
+  return {
+    id: 'deds-official-template-v3',
+    name: 'Modelo Oficial Deds Academy Frente e Verso (A4)',
+    institutionName: 'Deds Academy Educação e Tecnologia Ltda.',
+    institutionCnpj: '45.678.901/0001-23',
+    institutionCity: 'São Paulo - SP',
+    frontBgImage: OFFICIAL_FRONT_BG,
+    backBgImage: OFFICIAL_BACK_BG,
+    frontPreset: 'custom',
+    backPreset: 'custom',
+    showBorders: false,
+    aspectRatioMode: 'a4',
+    imageFitMode: 'cover',
+    defaultFontFamily: 'Montserrat, sans-serif',
+    fields: {},
+  };
+}
+
+/**
+ * Substitui marcadores no texto
+ */
+export function replaceCertificatePlaceholders(
+  rawText: string,
+  data: StudentCertificateData,
+  template?: CertificateOfficialTemplate
+): string {
+  if (!rawText) return '';
+  return rawText
+    .replace(/\{aluno\}/gi, data.studentName)
+    .replace(/\{nome_aluno\}/gi, data.studentName)
+    .replace(/\{curso\}/gi, data.courseTitle)
+    .replace(/\{nome_curso\}/gi, data.courseTitle)
+    .replace(/\{carga_horaria\}/gi, `${data.hours} horas`)
+    .replace(/\{horas\}/gi, `${data.hours} horas`)
+    .replace(/\{data_conclusao\}/gi, data.issueDate)
+    .replace(/\{data_emissao\}/gi, data.issueDate)
+    .replace(/\{data\}/gi, data.issueDate)
+    .replace(/\{codigo\}/gi, data.code)
+    .replace(/\{codigo_emissao\}/gi, data.code)
+    .replace(/\{cpf\}/gi, data.studentCpf || '123.456.789-00')
+    .replace(/\{cpf_aluno\}/gi, data.studentCpf || '123.456.789-00')
+    .replace(/\{instrutor\}/gi, data.instructor || 'Deds Academy')
+    .replace(/\{instituicao\}/gi, template?.institutionName || 'Deds Academy Educação e Tecnologia Ltda.')
+    .replace(/\{cnpj\}/gi, template?.institutionCnpj || '45.678.901/0001-23');
+}
+
+/**
+ * Normalização de coordenadas para compatibilidade
  */
 export function calculateNormalizedDropCoordinates(
   clientX: number,
   clientY: number,
   containerEl: HTMLElement,
   imageEl?: HTMLImageElement | null
-): {
-  x_percent: number;
-  y_percent: number;
-  drop_x: number;
-  drop_y: number;
-  rendered_image_width: number;
-  rendered_image_height: number;
-} {
-  // Se a tag <img> existir e tiver dimensões renderizadas, usamos o rect exato dela
+) {
   const targetRect =
     imageEl && imageEl.getBoundingClientRect().width > 0
       ? imageEl.getBoundingClientRect()
       : containerEl.getBoundingClientRect();
 
-  const rendered_image_width = targetRect.width;
-  const rendered_image_height = targetRect.height;
-
-  // Distância do ponto do cursor até a borda superior/esquerda da imagem renderizada
+  const rendered_image_width = targetRect.width || 1;
+  const rendered_image_height = targetRect.height || 1;
   const drop_x = clientX - targetRect.left;
   const drop_y = clientY - targetRect.top;
 
-  if (rendered_image_width <= 0 || rendered_image_height <= 0) {
-    return {
-      x_percent: 50,
-      y_percent: 50,
-      drop_x: 0,
-      drop_y: 0,
-      rendered_image_width: 1,
-      rendered_image_height: 1,
-    };
-  }
-
-  // x_percent = (drop_x / rendered_image_width) * 100
-  // y_percent = (drop_y / rendered_image_height) * 100
   let x_percent = (drop_x / rendered_image_width) * 100;
   let y_percent = (drop_y / rendered_image_height) * 100;
-
-  // Clampa estritamente entre 0% e 100% com precisão de 1 casa decimal
   x_percent = Math.max(0, Math.min(100, Math.round(x_percent * 10) / 10));
   y_percent = Math.max(0, Math.min(100, Math.round(y_percent * 10) / 10));
 
@@ -97,37 +147,6 @@ export function calculateNormalizedDropCoordinates(
   };
 }
 
-/**
- * Substitui os marcadores de dados dinâmicos do aluno ({aluno}, {curso}, {carga_horaria}, etc.)
- */
-export function replaceCertificatePlaceholders(
-  rawText: string,
-  data: StudentCertificateData,
-  template?: CertificateOfficialTemplate
-): string {
-  if (!rawText) return '';
-  return rawText
-    .replace(/\{aluno\}/gi, data.studentName)
-    .replace(/\{nome_aluno\}/gi, data.studentName)
-    .replace(/\{curso\}/gi, data.courseTitle)
-    .replace(/\{nome_curso\}/gi, data.courseTitle)
-    .replace(/\{carga_horaria\}/gi, `${data.hours}h`)
-    .replace(/\{horas\}/gi, `${data.hours}h`)
-    .replace(/\{data_conclusao\}/gi, data.issueDate)
-    .replace(/\{data_emissao\}/gi, data.issueDate)
-    .replace(/\{data\}/gi, data.issueDate)
-    .replace(/\{codigo\}/gi, data.code)
-    .replace(/\{codigo_emissao\}/gi, data.code)
-    .replace(/\{cpf\}/gi, data.studentCpf || '')
-    .replace(/\{cpf_aluno\}/gi, data.studentCpf || '')
-    .replace(/\{instrutor\}/gi, data.instructor || 'Prof. Dr. Carlos Mendes')
-    .replace(/\{instituicao\}/gi, template?.institutionName || 'Deds Academy Educação e Tecnologia Ltda.')
-    .replace(/\{cnpj\}/gi, template?.institutionCnpj || '48.912.834/0001-92');
-}
-
-/**
- * Retorna o valor resolvido para uma chave de campo
- */
 export function resolveFieldValue(
   fieldKey: string,
   data: StudentCertificateData,
@@ -141,258 +160,227 @@ export function resolveFieldValue(
     case 'nome_curso':
       return data.courseTitle;
     case 'carga_horaria':
-      return `${data.hours}h`;
+    case 'horas':
+      return `${data.hours} horas`;
     case 'data_conclusao':
     case 'data_emissao':
+    case 'data':
       return data.issueDate;
     case 'codigo':
     case 'codigo_emissao':
       return data.code;
-    case 'cpf_aluno':
     case 'cpf':
-      return data.studentCpf ? `CPF: ${data.studentCpf}` : '';
-    case 'instrutor_assinatura':
-    case 'instrutor':
-      return data.instructor || 'Prof. Dr. Carlos Mendes';
-    case 'dados_instituicao':
-      return `${template?.institutionName || 'Deds Academy'} • CNPJ ${template?.institutionCnpj || '48.912.834/0001-92'}`;
-    case 'registro_academico':
-      return 'Livro de Registro: 14 • Folha: 89 • Registro Oficial Deds Academy';
-    case 'amparo_legal':
-      return 'Certificado válido em todo território nacional conforme Lei nº 9.394/96 e Dec. Presidencial nº 5.154/04.';
-    case 'conteudo_programatico':
-      return 'Conteúdo programático oficial: Módulos Teóricos, Laboratório Prático e Avaliação de Conhecimento.';
+    case 'cpf_aluno':
+      return data.studentCpf || '';
     default:
       return '';
   }
 }
 
 /**
- * Desenha o certificado diretamente sobre um elemento HTML5 Canvas (Offscreen) em alta resolução.
- * Não faz captura do DOM nem screenshot com html2canvas.
+ * Renderiza o lado (Frente ou Verso) do certificado em alta resolução (2048 x 1448)
+ * utilizando o grid pixel-perfect oficial desenhado pelo Antigravity.
  */
 export async function renderCertificateCanvas(
   studentData: StudentCertificateData,
-  template: CertificateOfficialTemplate,
+  _template?: CertificateOfficialTemplate,
   side: CertificateSide = 'frente',
-  options?: {
-    forcedWidth?: number;
-    forcedHeight?: number;
-  }
+  options?: { forcedWidth?: number; forcedHeight?: number }
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
-  const bgUrl = side === 'frente' ? template.frontBgImage : template.backBgImage;
 
-  // 1. Carrega a imagem de fundo original (template A4 importado ou tema vetorizado)
-  let bgImg: HTMLImageElement | null = null;
-  if (bgUrl) {
-    bgImg = new Image();
-    bgImg.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      if (!bgImg) return resolve();
-      bgImg.onload = () => resolve();
-      bgImg.onerror = () => {
-        console.warn('Não foi possível carregar a imagem de fundo do certificado:', bgUrl);
-        resolve(); // Segue com fundo padrão se falhar
-      };
-      bgImg.src = bgUrl;
-    });
-  }
+  // Resolução base de alta definição (2x do padrão 1024x724 = 2048x1448)
+  const baseW = 1024;
+  const baseH = 724;
+  const scale = 2; // Alta resolução 300 DPI
 
-  // 2. Determina a resolução do Canvas (A4 landscape: proporção 297/210 = 1.414 ou resolução nativa da imagem)
-  let outWidth = options?.forcedWidth || 2970;
-  let outHeight = options?.forcedHeight || Math.round(outWidth / (297 / 210));
-
-  if (bgImg && bgImg.naturalWidth > 0 && bgImg.naturalHeight > 0) {
-    // Preserva a fidelidade e nitidez 100% da imagem original importada
-    const natW = bgImg.naturalWidth;
-    const natH = bgImg.naturalHeight;
-    outWidth = Math.max(2480, natW);
-    outHeight = Math.round(outWidth * (natH / natW));
-  }
+  const outWidth = options?.forcedWidth || baseW * scale;
+  const outHeight = options?.forcedHeight || baseH * scale;
 
   canvas.width = outWidth;
   canvas.height = outHeight;
 
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) {
-    throw new Error('Não foi possível obter o contexto 2D do Canvas.');
+    throw new Error('Não foi possível obter contexto 2D para renderização.');
   }
 
-  // Ativa renderização de texto e suavização de alta qualidade
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 3. Desenha a arte de fundo importada ou gradiente oficial
-  if (bgImg && bgImg.naturalWidth > 0) {
-    ctx.drawImage(bgImg, 0, 0, outWidth, outHeight);
-  } else {
-    // Fundo vetorial sofisticado se o usuário ainda não tiver importado imagem própria
-    const preset = side === 'frente' ? template.frontPreset : template.backPreset;
-    const grad = ctx.createLinearGradient(0, 0, outWidth, outHeight);
-    if (preset === 'classic_light') {
-      grad.addColorStop(0, '#f8fafc');
-      grad.addColorStop(0.5, '#f1f5f9');
-      grad.addColorStop(1, '#e2e8f0');
-    } else if (preset === 'emerald_luxury') {
-      grad.addColorStop(0, '#022c22');
-      grad.addColorStop(0.5, '#064e3b');
-      grad.addColorStop(1, '#021f18');
-    } else {
-      grad.addColorStop(0, '#0c1324');
-      grad.addColorStop(0.5, '#080d19');
-      grad.addColorStop(1, '#04060d');
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, outWidth, outHeight);
+  // Fator multiplicador em relação à resolução de referência 1024x724
+  const factorX = outWidth / baseW;
+  const factorY = outHeight / baseH;
 
-    if (template.showBorders) {
-      ctx.strokeStyle = 'rgba(217, 119, 6, 0.4)';
-      ctx.lineWidth = Math.round(outWidth * 0.002);
-      ctx.strokeRect(outWidth * 0.02, outHeight * 0.025, outWidth * 0.96, outHeight * 0.95);
-      ctx.strokeStyle = 'rgba(217, 119, 6, 0.8)';
-      ctx.lineWidth = Math.round(outWidth * 0.0035);
-      ctx.strokeRect(outWidth * 0.03, outHeight * 0.04, outWidth * 0.94, outHeight * 0.92);
-    }
+  const fx = (x: number) => x * factorX;
+  const fy = (y: number) => y * factorY;
+  const fsize = (size: number) => size * factorY;
+
+  // 1. Carrega e desenha o plano de fundo
+  const bgUrl = side === 'frente' ? OFFICIAL_FRONT_BG : OFFICIAL_BACK_BG;
+  try {
+    const bgImg = await loadImage(bgUrl);
+    ctx.drawImage(bgImg, 0, 0, outWidth, outHeight);
+  } catch (err) {
+    console.warn(`[Certificado] Imagem de fundo não carregou (${bgUrl}), usando gradiente oficial:`, err);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, outWidth, outHeight);
   }
 
-  // 4. Renderiza cada um dos campos configurados exatamente nas coordenadas relativas (x_percent, y_percent)
-  const fieldsArray = Object.values(template.fields || {}) as CertificateFieldConfig[];
-  const sideFields = fieldsArray.filter((f) => f && f.side === side && f.visible !== false);
+  const studentName = studentData.studentName || 'Nome do Aluno';
+  const studentCpf = studentData.studentCpf || '000.000.000-00';
+  const courseTitle = studentData.courseTitle || 'Nome do Curso';
+  const hoursText = `${studentData.hours || 40} horas`;
+  const issueDate = studentData.issueDate || new Date().toLocaleDateString('pt-BR');
+  const certCode = studentData.code || 'DA2026-0001';
+  const institutionCnpj = studentData.institutionCnpj || '45.678.901/0001-23';
 
-  for (const field of sideFields) {
-    // Normalização das coordenadas (0 a 100%)
-    const xPct = field.x_percent !== undefined ? field.x_percent : field.x !== undefined ? field.x : 50;
-    const yPct = field.y_percent !== undefined ? field.y_percent : field.y !== undefined ? field.y : 50;
+  if (side === 'frente') {
+    // -------------------------------------------------------------
+    // FRENTE DO CERTIFICADO (Pixel-Perfect)
+    // -------------------------------------------------------------
 
-    const posX = (xPct / 100) * outWidth;
-    const posY = (yPct / 100) * outHeight;
-
-    // Caso especial: QR Code
-    if (field.key === 'qr_code') {
-      const qrPixelBase = field.size || 125;
-      // Proporcional à altura do certificado
-      const qrRenderSize = Math.round((qrPixelBase / 650) * outHeight);
-
-      try {
-        const verifyUrl = `https://dedsacademy.com/validar?codigo=${encodeURIComponent(studentData.code)}`;
-        const qrCanvas = document.createElement('canvas');
-        await QRCode.toCanvas(qrCanvas, verifyUrl, {
-          width: qrRenderSize,
-          margin: 1,
-          color: {
-            dark: '#0f172a',
-            light: '#ffffff',
-          },
-        });
-
-        const qrLeft = posX - qrRenderSize / 2;
-        const qrTop = posY - qrRenderSize / 2;
-
-        // Fundo branco com cantos arredondados sob o QR Code
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(qrLeft - 8, qrTop - 8, qrRenderSize + 16, qrRenderSize + 16);
-        ctx.drawImage(qrCanvas, qrLeft, qrTop, qrRenderSize, qrRenderSize);
-      } catch (qrErr) {
-        console.error('Erro ao renderizar QR code no canvas:', qrErr);
-      }
-      continue;
-    }
-
-    // 5. Cálculo do Tamanho da Fonte com Base em tamanho_fonte_relativo
-    let fontSizePx: number;
-    if (field.tamanho_fonte_relativo !== undefined && field.tamanho_fonte_relativo > 0) {
-      fontSizePx = Math.round((field.tamanho_fonte_relativo / 100) * outHeight);
-    } else {
-      // Fallback a partir de fontSize com base em altura de referência do editor (650px)
-      const baseEditorHeight = 650;
-      fontSizePx = Math.round(((field.fontSize || 14) / baseEditorHeight) * outHeight);
-    }
-    fontSizePx = Math.max(12, fontSizePx);
-
-    // Formatação de fonte e estilo
-    const weight =
-      field.fontWeight === 'black'
-        ? '900'
-        : field.fontWeight === 'bold'
-        ? 'bold'
-        : field.fontWeight === 'semibold'
-        ? '600'
-        : field.fontWeight === 'medium'
-        ? '500'
-        : 'normal';
-
-    const fontFamily = field.fontFamily || template.defaultFontFamily || 'Inter, sans-serif';
-    ctx.font = `${weight} ${fontSizePx}px ${fontFamily}`;
-    ctx.fillStyle = field.cor || field.color || '#ffffff';
-
-    const align = (field.alinhamento || field.textAlign || 'center') as CanvasTextAlign;
-    ctx.textAlign = align;
+    // 1. Nome do Aluno (Caligráfico Great Vibes, top: 300, left: 175, width: 674, height: 84)
+    ctx.font = `400 ${fsize(50)}px 'Great Vibes', 'Alex Brush', cursive`;
+    ctx.fillStyle = '#091e2b';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.fillText(studentName, fx(175 + 674 / 2), fy(300 + 84 / 2));
 
-    // 6. Resolução dos dados do aluno e substituição de tags ({aluno}, {curso}, {carga_horaria}, etc.)
-    let rawFieldValue = resolveFieldValue(field.key, studentData, template);
-    if (!rawFieldValue && field.sampleText) {
-      rawFieldValue = field.sampleText;
+    // 2. CPF do Aluno (Montserrat 600, top: 388, left: 175, width: 674)
+    ctx.font = `600 ${fsize(10.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#4b5563';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`CPF: ${studentCpf}`, fx(175 + 674 / 2), fy(388 + 8));
+
+    // 3. Coluna Curso (Montserrat 700, top: 521, left: 82, width: 198, height: 38)
+    ctx.font = `700 ${fsize(12.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#1a2941';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Se o nome do curso for longo, abrevia ou desenha em 2 linhas se necessário
+    if (courseTitle.length > 24) {
+      const parts = courseTitle.split(' ');
+      const mid = Math.ceil(parts.length / 2);
+      const line1 = parts.slice(0, mid).join(' ');
+      const line2 = parts.slice(mid).join(' ');
+      ctx.font = `700 ${fsize(10.5)}px 'Montserrat', sans-serif`;
+      ctx.fillText(line1, fx(82 + 198 / 2), fy(521 + 12));
+      ctx.fillText(line2, fx(82 + 198 / 2), fy(521 + 26));
+    } else {
+      ctx.fillText(courseTitle, fx(82 + 198 / 2), fy(521 + 38 / 2));
     }
-    // Suporta substituição de variáveis dentro de prefixos, sufixos ou textos customizados
-    let resolvedText = replaceCertificatePlaceholders(rawFieldValue, studentData, template);
 
-    // Evita prefixo redundante para data, horas ou código se já estiverem formatados
-    const isSpecialField =
-      field.key === 'data_emissao' ||
-      field.key === 'data_conclusao' ||
-      field.key === 'carga_horaria' ||
-      field.key === 'codigo_emissao' ||
-      field.key === 'codigo';
+    // 4. Coluna Carga Horária (Montserrat 700, top: 521, left: 295, width: 162, height: 38)
+    ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#1a2941';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(hoursText, fx(295 + 162 / 2), fy(521 + 38 / 2));
 
-    const prefix = !isSpecialField && field.prefix ? replaceCertificatePlaceholders(field.prefix, studentData, template) : '';
-    const suffix = !isSpecialField && field.suffix ? replaceCertificatePlaceholders(field.suffix, studentData, template) : '';
-    const finalText = `${prefix}${resolvedText}${suffix}`.trim();
+    // 5. Coluna Data de Conclusão (Montserrat 700, top: 521, left: 478, width: 192, height: 38)
+    ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#1a2941';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(issueDate, fx(478 + 192 / 2), fy(521 + 38 / 2));
 
-    if (!finalText) continue;
+    // 6. Coluna Código do Certificado (Montserrat 700, top: 521, left: 677, width: 190, height: 38)
+    ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#1a2941';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(certCode, fx(677 + 190 / 2), fy(521 + 38 / 2));
 
-    // 7. Quebra de linha inteligente (Text Wrap)
-    const isWrapped = field.textWrap !== false;
-    if (isWrapped) {
-      const maxWidthPct =
-        field.maxWidth ||
-        (field.key === 'nome_curso' || field.key === 'curso'
-          ? 34
-          : field.key === 'carga_horaria'
-          ? 26
-          : field.key === 'conteudo_programatico' || field.key === 'amparo_legal'
-          ? 65
-          : 70);
-
-      const maxWidthPx = (maxWidthPct / 100) * outWidth;
-      const lineHeightPx = fontSizePx * 1.25;
-
-      const words = finalText.split(' ');
-      const lines: string[] = [];
-      let currentLine = words[0] || '';
-
-      for (let i = 1; i < words.length; i++) {
-        const testLine = `${currentLine} ${words[i]}`;
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width <= maxWidthPx) {
-          currentLine = testLine;
-        } else {
-          lines.push(currentLine);
-          currentLine = words[i];
-        }
-      }
-      lines.push(currentLine);
-
-      const totalHeight = (lines.length - 1) * lineHeightPx;
-      const startY = posY - totalHeight / 2;
-
-      for (let i = 0; i < lines.length; i++) {
-        ctx.fillText(lines[i], posX, startY + i * lineHeightPx);
+    // 7. Assinatura do Aluno (top: 566, left: 140, width: 215, height: 66)
+    if (studentData.signatureImage) {
+      try {
+        const sigImg = await loadImage(studentData.signatureImage);
+        ctx.drawImage(sigImg, fx(140 + 10), fy(566 + 4), fx(195), fy(58));
+      } catch (sigErr) {
+        // Fallback para caligrafia
+        ctx.font = `400 ${fsize(34)}px 'Alex Brush', 'Great Vibes', cursive`;
+        ctx.fillStyle = '#0b2230';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(studentName, fx(140 + 215 / 2), fy(566 + 66 / 2));
       }
     } else {
-      ctx.fillText(finalText, posX, posY);
+      ctx.font = `400 ${fsize(34)}px 'Alex Brush', 'Great Vibes', cursive`;
+      ctx.fillStyle = '#0b2230';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(studentName, fx(140 + 215 / 2), fy(566 + 66 / 2));
     }
+
+    // 8. CPF na Assinatura (top: 672, left: 140, width: 215)
+    ctx.font = `600 ${fsize(9.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`CPF: ${studentCpf}`, fx(140 + 215 / 2), fy(672 + 9));
+
+    // 9. CNPJ Deds Academy na Assinatura da Instituição (top: 672, left: 600, width: 280)
+    ctx.font = `600 ${fsize(9.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`CNPJ: ${institutionCnpj}`, fx(600 + 280 / 2), fy(672 + 9));
+  } else {
+    // -------------------------------------------------------------
+    // VERSO DO CERTIFICADO (Pixel-Perfect)
+    // -------------------------------------------------------------
+
+    // 1. QR Code Dinâmico (top: 346, left: 646, width: 140, height: 140)
+    try {
+      const verifyUrl = `https://dedsacademy.vercel.app/validar?codigo=${encodeURIComponent(certCode)}`;
+      const qrCanvas = document.createElement('canvas');
+      await QRCode.toCanvas(qrCanvas, verifyUrl, {
+        width: Math.round(140 * factorX),
+        margin: 1,
+        color: {
+          dark: '#0b2230',
+          light: '#ffffff',
+        },
+      });
+
+      const qrLeft = fx(646);
+      const qrTop = fy(346);
+      const qrSize = fx(140);
+      ctx.drawImage(qrCanvas, qrLeft, qrTop, qrSize, qrSize);
+    } catch (qrErr) {
+      console.error('Erro ao gerar QR Code:', qrErr);
+    }
+
+    // 2. Link de Validação abaixo do QR Code (top: 494, left: 624, width: 184)
+    ctx.font = `600 ${fsize(8)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#006756';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('www.dedsacademy.com/validar-certificado', fx(624 + 184 / 2), fy(494 + 6));
+
+    // 3. Código em Destaque na Pill Branca (top: 556, left: 360, width: 405, height: 44)
+    ctx.font = `800 ${fsize(25)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#082132';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(certCode, fx(360 + 405 / 2), fy(556 + 44 / 2));
+
+    // 4. CNPJ Institucional no Verso (top: 486, left: 106, width: 220)
+    ctx.font = `600 ${fsize(8.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#006756';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`CNPJ: ${institutionCnpj}`, fx(106), fy(486 + 6));
+
+    // 5. Carimbo Digital Completo de Autenticidade (bottom: 24px, center)
+    ctx.font = `500 ${fsize(8.5)}px 'Montserrat', sans-serif`;
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const legalStamp = `🔐 Deds Academy • CNPJ: ${institutionCnpj} • Aluno: ${studentName} (CPF: ${studentCpf}) • Lei Federal 14.063/2020`;
+    ctx.fillText(legalStamp, outWidth / 2, fy(695));
   }
 
   return canvas;
@@ -411,19 +399,14 @@ function slugifyFileName(str: string): string {
 }
 
 /**
- * Faz o download do certificado oficial em imagem PNG de alta definição (desenhado diretamente no canvas)
+ * Faz o download do certificado oficial em imagem PNG de alta definição
  */
 export async function downloadCertificatePng(
   studentData: StudentCertificateData,
   template?: CertificateOfficialTemplate,
   side: CertificateSide = 'frente'
 ): Promise<void> {
-  const activeTemplate = template || getSavedCertificateTemplate();
-  if (!activeTemplate) {
-    throw new Error('Modelo de certificado não encontrado.');
-  }
-
-  const canvas = await renderCertificateCanvas(studentData, activeTemplate, side);
+  const canvas = await renderCertificateCanvas(studentData, template, side);
   const dataUrl = canvas.toDataURL('image/png');
 
   const studentSlug = slugifyFileName(studentData.studentName || 'Aluno');
@@ -439,49 +422,40 @@ export async function downloadCertificatePng(
 }
 
 /**
- * Gera e faz o download do certificado oficial em formato PDF A4 Paisagem (29,7 x 21 cm).
- * Desenha diretamente no Canvas e incorpora ao PDF com fidelidade milimétrica.
+ * Gera e faz o download do certificado oficial em formato PDF A4 Paisagem (297 x 210 mm).
+ * Inclui Frente e Verso em alta definição (300 DPI) em 2 páginas no mesmo arquivo.
  */
 export async function downloadCertificatePdf(
   studentData: StudentCertificateData,
   template?: CertificateOfficialTemplate,
   includeBackSide: boolean = true
 ): Promise<void> {
-  const activeTemplate = template || getSavedCertificateTemplate();
-  if (!activeTemplate) {
-    throw new Error('Modelo de certificado não encontrado.');
-  }
+  // 1. Renderiza a Frente
+  const frontCanvas = await renderCertificateCanvas(studentData, template, 'frente');
+  const frontDataUrl = frontCanvas.toDataURL('image/jpeg', 0.98);
 
-  // 1. Renderiza a Frente no Canvas
-  const frontCanvas = await renderCertificateCanvas(studentData, activeTemplate, 'frente');
-  const frontDataUrl = frontCanvas.toDataURL('image/png');
-
-  // 2. Inicializa o PDF em A4 Paisagem
+  // 2. Inicializa o PDF A4 Paisagem (297 x 210 mm)
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4', // 297 x 210 mm
+    format: 'a4',
     compress: true,
   });
 
-  // Insere a imagem da frente cobrindo exatamente a folha A4
-  pdf.addImage(frontDataUrl, 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+  // Página 1: Frente
+  pdf.addImage(frontDataUrl, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
 
-  // 3. Renderiza o Verso (se houver arte ou campos configurados para o verso)
-  const hasBackFields = Object.values(activeTemplate.fields || {}).some(
-    (f) => f && f.side === 'verso' && f.visible !== false
-  );
-
-  if (includeBackSide && (activeTemplate.backBgImage || hasBackFields)) {
-    const backCanvas = await renderCertificateCanvas(studentData, activeTemplate, 'verso');
-    const backDataUrl = backCanvas.toDataURL('image/png');
+  // Página 2: Verso
+  if (includeBackSide) {
+    const backCanvas = await renderCertificateCanvas(studentData, template, 'verso');
+    const backDataUrl = backCanvas.toDataURL('image/jpeg', 0.98);
     pdf.addPage('a4', 'landscape');
-    pdf.addImage(backDataUrl, 'PNG', 0, 0, 297, 210, undefined, 'FAST');
+    pdf.addImage(backDataUrl, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
   }
 
   const studentSlug = slugifyFileName(studentData.studentName || 'Aluno');
   const courseSlug = slugifyFileName(studentData.courseTitle || 'Curso');
-  const filename = `Certificado_Oficial_${studentSlug}_${courseSlug}.pdf`;
+  const filename = `Certificado_Oficial_DedsAcademy_${studentSlug}_${courseSlug}.pdf`;
 
   pdf.save(filename);
 }
