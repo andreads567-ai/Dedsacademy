@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig } from '../types';
 import { MiddlePromoBanner } from './MiddlePromoBanner';
 import { DedsOrbitAnimation } from './DedsOrbitAnimation';
-import { KnowledgeRocketEarthAnimation } from './KnowledgeRocketEarthAnimation';
 
 interface HeroSectionProps {
   onSearch: (query: string) => void;
@@ -55,21 +54,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div className="absolute top-1/3 -right-24 w-[500px] h-[500px] bg-accent-emerald-bright/5 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-content-max-width mx-auto px-gutter-mobile lg:px-gutter-desktop">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           {/* Left Column: Copy & Search */}
           <div className="lg:col-span-7 flex flex-col gap-6 z-10">
             <div
               onClick={onOpenCertificateModal}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-overlay self-start cursor-pointer hover:bg-surface-container-high transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-overlay self-start cursor-pointer hover:bg-surface-container-high transition-colors max-w-full"
               title="Clique para validar certificação e horas complementares"
             >
-              <span className="w-2 h-2 rounded-full bg-accent-emerald-bright animate-pulse" />
-              <span className="font-label-md text-label-md text-primary font-semibold tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-accent-emerald-bright animate-pulse shrink-0" />
+              <span className="font-label-md text-xs sm:text-label-md text-primary font-semibold tracking-wide truncate">
                 CERTIFICADO PARA HORAS COMPLEMENTARES • LEI 9.394/96
               </span>
             </div>
 
-            {/* Headline with interactive Deds Orbit Animation positioned cleanly above text */}
+            {/* Headline with interactive Deds Orbit Animation positioned cleanly */}
             <div className="relative">
               <h1 className="font-display text-display font-extrabold text-text-primary tracking-tight leading-none">
                 Aprenda.<br />
@@ -79,14 +78,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </span>
               </h1>
 
-              {/* Desktop position: raised up to avoid overlapping paragraph text and search bar */}
-              <div className="hidden lg:block absolute -top-24 xl:-top-28 right-0 xl:-right-6 w-[310px] xl:w-[350px] aspect-square pointer-events-none z-20">
+              {/* Desktop position (xl and up) with safe offset to ensure no text collision */}
+              <div className="hidden xl:block absolute -top-20 -right-2 2xl:-right-6 w-[320px] 2xl:w-[350px] aspect-square pointer-events-none z-20">
                 <DedsOrbitAnimation className="w-full h-full" />
               </div>
             </div>
 
-            {/* Mobile / Tablet position: centered gracefully between headline and text */}
-            <div className="lg:hidden w-full max-w-[280px] sm:max-w-[310px] aspect-square mx-auto my-1 pointer-events-none">
+            {/* Mobile, Tablet & Compact Laptop position: centered gracefully between headline and text */}
+            <div className="xl:hidden w-full max-w-[260px] sm:max-w-[300px] aspect-square mx-auto my-2 pointer-events-none">
               <DedsOrbitAnimation className="w-full h-full" />
             </div>
 
@@ -100,7 +99,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               className="mt-2 p-2 rounded-xl bg-surface-raised shadow-[0_12px_32px_rgba(0,0,0,0.6)] flex flex-col sm:flex-row items-center gap-2 max-w-2xl border border-border-subtle focus-within:border-primary/50 transition-all"
             >
               <div className="flex items-center gap-3 px-3 py-2 flex-1 w-full text-text-tertiary focus-within:text-text-primary">
-                <span className="material-symbols-outlined text-headline-sm">search</span>
+                <span className="material-symbols-outlined text-headline-sm shrink-0">search</span>
                 <input
                   id="hero-course-search"
                   value={searchInput}
@@ -113,7 +112,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <button
                 type="submit"
                 id="hero-search-button"
-                className="w-full sm:w-auto px-8 py-3.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-label-lg text-label-lg rounded-lg font-bold shadow-[0_0_24px_-2px_rgba(0,176,116,0.5)] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-8 py-3.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-label-lg text-label-lg rounded-lg font-bold shadow-[0_0_24px_-2px_rgba(0,176,116,0.5)] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
                 <span>Buscar</span>
                 <span className="material-symbols-outlined text-body-lg">arrow_forward</span>
@@ -142,33 +141,37 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
 
           {/* Right Column: Visual Stage with Photo Banner Card & Floating Badges */}
-          <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
-            {/* Main Hero Visual Card (Banner Anterior Devolvido) */}
+          <div className="lg:col-span-5 relative flex flex-col items-center lg:items-end justify-center w-full">
+            {/* Main Hero Visual Card */}
             <div className="relative w-full max-w-md aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl bg-surface-raised border border-border-subtle">
               <img
                 className="w-full h-full object-cover"
                 alt="Banner Principal Deds Academy"
-                src={banner.imageUrl}
+                src={banner.imageUrl || '/images/hero-banner.jpg'}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    '/images/hero-banner.jpg';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent" />
 
               {/* Capstone Academy Graphic Overlay */}
-              <div className="absolute bottom-6 left-6 right-6 p-4 rounded-xl bg-surface-overlay/90 backdrop-blur-md flex items-center justify-between border border-border-subtle/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary-container/20 flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-headline-sm">workspace_premium</span>
+              <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 p-3.5 sm:p-4 rounded-xl bg-surface-overlay/90 backdrop-blur-md flex items-center justify-between border border-border-subtle/50">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-primary-container/20 flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined text-lg sm:text-headline-sm">workspace_premium</span>
                   </div>
-                  <div>
-                    <div className="font-headline-sm text-label-lg font-bold text-text-primary leading-tight">
+                  <div className="min-w-0">
+                    <div className="font-headline-sm text-xs sm:text-label-lg font-bold text-text-primary leading-tight truncate">
                       {banner.overlayTitle}
                     </div>
-                    <div className="font-body-sm text-body-sm text-accent-emerald-bright font-medium">
+                    <div className="font-body-sm text-[11px] sm:text-body-sm text-accent-emerald-bright font-medium truncate">
                       {banner.overlaySubtitle}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center text-accent-gold font-label-md text-label-md">
-                  <span className="material-symbols-outlined text-body-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
+                <div className="flex items-center text-accent-gold font-label-md text-xs sm:text-label-md shrink-0">
+                  <span className="material-symbols-outlined text-sm sm:text-body-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
                     star
                   </span>
                   <span className="ml-1 text-text-primary font-bold">
@@ -178,12 +181,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
             </div>
 
-            {/* Floating Metric Badge 1 (Top Left Overlapping) */}
+            {/* Floating Metric Badge 1 (Top Left Overlapping on sm+) */}
             <div
-              className="absolute -top-4 -left-4 sm:-left-8 p-3.5 rounded-xl bg-surface-overlay/95 backdrop-blur-md shadow-xl hidden sm:flex items-center gap-3 animate-bounce border border-border-subtle"
+              className="absolute -top-4 -left-4 sm:-left-6 lg:-left-8 p-3 sm:p-3.5 rounded-xl bg-surface-overlay/95 backdrop-blur-md shadow-xl hidden sm:flex items-center gap-3 animate-bounce border border-border-subtle z-20"
               style={{ animationDuration: '4s' }}
             >
-              <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-body-lg">verified</span>
               </div>
               <div>
@@ -196,17 +199,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
             </div>
 
-            {/* Floating Metric Badge 2 (Bottom Right) */}
-            <div className="absolute -bottom-6 -right-2 sm:-right-6 p-4 rounded-xl bg-surface-raised shadow-2xl flex flex-col gap-2 max-w-[210px] border border-border-subtle">
+            {/* Floating Metric Badge 2 (Bottom Right Overlapping on sm+) */}
+            <div className="absolute -bottom-6 -right-2 sm:-right-4 lg:-right-6 p-3.5 sm:p-4 rounded-xl bg-surface-raised shadow-2xl hidden sm:flex flex-col gap-1.5 sm:gap-2 max-w-[210px] border border-border-subtle z-20">
               <div className="flex items-center justify-between">
-                <span className="font-label-sm text-label-sm uppercase font-bold text-text-tertiary">
+                <span className="font-label-sm text-[10px] sm:text-label-sm uppercase font-bold text-text-tertiary">
                   Avaliações
                 </span>
                 <div className="flex text-accent-gold text-label-sm">
                   {[1, 2, 3, 4, 5].map((s) => (
                     <span
                       key={s}
-                      className="material-symbols-outlined text-label-md"
+                      className="material-symbols-outlined text-xs sm:text-label-md"
                       style={{ fontVariationSettings: "'FILL' 1" }}
                     >
                       star
@@ -214,11 +217,41 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   ))}
                 </div>
               </div>
-              <div className="font-headline-sm text-headline-sm font-bold text-text-primary">
+              <div className="font-headline-sm text-sm sm:text-headline-sm font-bold text-text-primary">
                 {banner.ratingScore}
               </div>
-              <div className="font-body-sm text-body-sm text-text-tertiary">
+              <div className="font-body-sm text-[11px] sm:text-body-sm text-text-tertiary">
                 {banner.reviewsCountText}
+              </div>
+            </div>
+
+            {/* Mobile Metric Badges Strip (sm:hidden) - Guarantees both badges are 100% visible and beautifully aligned without collision on all mobile phones */}
+            <div className="w-full max-w-md grid grid-cols-2 gap-3 mt-4 sm:hidden">
+              <div className="p-3 rounded-xl bg-surface-raised border border-border-subtle flex items-center gap-2.5 shadow-md">
+                <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-base">verified</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-xs font-bold text-text-primary leading-tight truncate">
+                    {banner.badge1Number}
+                  </span>
+                  <span className="text-[10px] text-text-secondary leading-tight truncate block">
+                    {banner.badge1Text}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-surface-raised border border-border-subtle flex flex-col justify-center shadow-md">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] font-bold text-accent-gold flex items-center gap-0.5">
+                    <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <span>{banner.ratingScore}</span>
+                  </span>
+                  <span className="text-[9px] text-text-tertiary uppercase font-bold">Reviews</span>
+                </div>
+                <span className="text-[10px] text-text-tertiary truncate block mt-0.5">
+                  {banner.reviewsCountText}
+                </span>
               </div>
             </div>
           </div>

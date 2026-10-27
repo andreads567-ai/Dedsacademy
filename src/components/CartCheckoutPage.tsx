@@ -404,6 +404,10 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                           <img
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             src={item.course.image}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                            }}
                             alt={item.course.title}
                           />
                           <span className="absolute bottom-1 left-1 bg-surface-dim/90 backdrop-blur-md px-1.5 py-0.5 rounded text-[10px] font-label-sm text-primary font-semibold">

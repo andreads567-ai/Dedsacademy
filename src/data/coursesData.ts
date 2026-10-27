@@ -14,7 +14,7 @@ export const COURSES: Course[] = [
     lessonsCount: 148,
     originalPrice: 299.00,
     currentPrice: 189.90,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAOZVZj9w-cR3ltk83wPYazrGb_gzhy8uLRF_nCun5B6I1s2lLMgrpueKdafMyCzg1z_7k-fP5dYwbxpNI57l7b6OdYoqE7Yk-rMoBB9jMDBO7T8Xhmb24D66p99JIDnmPWneq2SbrhUokoBUAJtvRymOA9fCB9slum65OvMkPXUhzpx69uA6Bhnem_QH1CAHosCjUi1s2d53bQBzbygS0qoNy7ZDfeoLCH1TNp9dAyvMgdWqja8aXqaQ',
+    image: '/images/courses/python.jpg',
     badge: {
       text: 'Mais vendido',
       variant: 'emerald',
@@ -44,7 +44,7 @@ export const COURSES: Course[] = [
     lessonsCount: 92,
     originalPrice: 199.00,
     currentPrice: 129.90,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDBEDhkFOHg6hwD2hGe5il0mth2x2UbliczITXx7nBWCbesEZMJiQkqqpSerwgRi23N7zrFIMVryG1T9QE6NVa4ybekrWply2nyEBojfK7d3LsLPZD3CfX7MFDJo39XW4XgAuROAUltPO07ZLH0IgpcxBs-kmRYkvZq5B2ueuL_nlr42agoJC9ygLfPcII8a-MRvpACzaJjJruNY3I4IDlxwTkZ5gFK7QDzlA63cdYYYylxwvE7iTbycA',
+    image: '/images/courses/excel.jpg',
     badge: {
       text: 'Em alta',
       variant: 'secondary',
@@ -74,7 +74,7 @@ export const COURSES: Course[] = [
     lessonsCount: 74,
     originalPrice: 219.00,
     currentPrice: 149.90,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD_JUCApGdtfvTanZxuFyx2ydx6Mrual658xkyYp57964hudWggaSFXVHpzk_ayDS7i3gZUassoKUAqSRQO3jcQdCqg0cekaznu-3P5QFX_u_ze8Dm6qKw5iGvAYfuI1sFC6E5v5Ow-E1AyQrmAZ8KDLYfNzfu2FXPzILxEFY1JAX3tlDyBOoDfRQ1oYyDyY77bODotszVTasZY5aWlhbkxEXaixctjjlfxf5e_JG-p5KbbbbsO9Xrgsw',
+    image: '/images/courses/marketing.jpg',
     badge: {
       text: 'Novo',
       variant: 'dark',
@@ -104,7 +104,7 @@ export const COURSES: Course[] = [
     lessonsCount: 110,
     originalPrice: 289.00,
     currentPrice: 199.90,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDXZg4Q41qFvgI5EMzvE4IAwmUM4ZZfRso5TQw-7nuD-JYX0pXi-2fWuTAS6zL_2DUp4gm9qusgkbivo3V-iD6UkNA0mhaICEtWtyjt66ccK4MhQfVbLjm7i4NtcEoarwr8NDVCoidp_OvfWUaeAUc39RpniXJ9IX7sZoQopWkVeyU69W8dXuOrEM0h-lo4L6Z4gJOa1hFysH3BVkbo-jhqsV59YrVW9qj_sXz4pXgTecLRxNZ1eR6c1Q',
+    image: '/images/courses/ui-ux.jpg',
     badge: {
       text: 'Mais vendido',
       variant: 'emerald',
@@ -134,7 +134,7 @@ export const COURSES: Course[] = [
     lessonsCount: 195,
     originalPrice: 349.00,
     currentPrice: 229.90,
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBSwzvbChyynO58OGVHIUEjgfMf01HAbQTujKe1AxhWTf7xz_WA3OntYOrb5r_Rq7EelzZr9I-YtZ8hfoPUAl2U4M38egU8dgipHt0qthWNhv3J6oupX2cqIwH6k208gHSx1rskVcZTTYVLWxKqQi3BadNxZiI9DpgDiiPWEySatXptxY29sTv7l8MCf84GD2msO1qogjJ5rMnIowN_OvAt4akPmVGi2Dtz1oeTJtfGeFWjnqwv4G4hLw',
+    image: '/images/courses/web-dev.jpg',
     badge: {
       text: 'Em alta',
       variant: 'secondary',
@@ -468,27 +468,27 @@ export const TESTIMONIALS: Testimonial[] = [
     name: 'Ana Carolina',
     role: 'Aluna de Python & Dados',
     quote: '"A Deds Academy mudou minha vida! Consegui um novo emprego como Analista de Dados graças aos cursos práticos e ao certificado validado."',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBhYxChwDftfsBrQ5WDzMlk5GPxrxnHmL8gbjeWGAwsPijyEwTLm8LaP6O1nQNCl1xOy7oshOolJo7Fx3vJN8IIlxIfSp2OjuhWBSJrVktdkol0qHfDKwxOKfP1zGU573tjRrEpVfTVgQ2PcRsL74ufG-U1qkc_QxSlcmRE4aoLhmKDlx7ZtCI8bHYXxOiAFy7VSlp1UZ708VZqkIqRM8k9EDXuDhXH3g9_EteF8bcIzbgDtWuZN5Wuqw',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
   },
   {
     id: 'test-2',
     name: 'Carlos Eduardo',
     role: 'Aluno de Gestão de Projetos',
     quote: '"Plataforma incrível, cursos completos e com preço muito justo. Já concluí três formações e recomendo demais para quem quer crescer rápido."',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB_F25f1-g_iztPTCxZYZCbqODD8bgcCH5hWuOuEw_7MpyfKk174GWXI0WOpAtVUSiB5Y79PLuusr5xfFAy7PvS3hoVVwV3AxlPT76xt3lvlrhTMvMwm8TFfX28lG9aCZTZJXExL-ElYOvtgWJaHecp0cdvY4JCqqdzo5SKUAHg1j1HFuobXg3wKJhP78x1FmG9LUu3wWtiMIsYxOqjaxvUSgeRkebnn_Gtkk5jvXQzRuwQHpG6aGRMww',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
   },
   {
     id: 'test-3',
     name: 'Beatriz Lima',
     role: 'Aluna de UI/UX Design',
     quote: '"O conteúdo é direto ao ponto e o suporte da comunidade sempre me ajudou em tudo que precisei. Didática impecável dos instrutores."',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCaazVL37rCSIE_U_UfWS4M5DCEVYYCpdHEU2ZUpmZWfc9zR2eBKAERX6cK5k4DrmptkBOqhFwDGSzlEdiQVHhVoTKONBvqDTqxQ4Ch06jNihDwivn2huxrQTqV4l0cf5ToiWOTJue2zqFJRgPiv3OGlKHFDgUaeGI5re0pMxuJPG2J6jUrileEBu22jBN2wcS2pSZxQ4PDmO6Z4ORJ3mB0nRW2HuAocjKGGCcNZSAEi_DYNNWn9Rougw',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   },
   {
     id: 'test-4',
     name: 'Fernando Souza',
     role: 'Aluno de Full Stack Web',
     quote: '"Já fiz vários cursos em diversas plataformas e a Deds superou minhas expectativas. Conteúdo moderno, sem enrolação e 100% atualizado."',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4tsadnzgFfgegfksBg9b-NVrNFXbRwtRIpLbEI8dqdU0aDcl0Kg88TnCHt6Z61JlM6hKrm42lg6HcPcZNzl2qhsBewdRbUlqJ254Q4Q_lqFUM9MjEO6rtOO_bty-VDLvYvrCp1wrAwZljjcj9qjeb4nxOD5YdMY9SqLw1EckzprvE2MB347_h6vT3OWjavI1rM0g5hyo--F_zt3_cXxFR7924uhPMaiiU-zxcL9psQqfoqX0yPmdIbg',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
   },
 ];

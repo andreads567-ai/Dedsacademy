@@ -116,7 +116,8 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
                   setActiveFilter('Todos');
                 }
               }}
-              className="hidden lg:flex items-center gap-1 ml-4 font-label-lg text-label-lg text-primary hover:text-accent-emerald-bright transition-colors cursor-pointer"
+              className="flex items-center gap-1 ml-2 sm:ml-4 font-label-md sm:font-label-lg text-xs sm:text-label-lg text-primary hover:text-accent-emerald-bright transition-colors cursor-pointer shrink-0"
+              title="Acessar catálogo completo de cursos"
             >
               <span>Ver todos</span>
               <span className="material-symbols-outlined text-body-lg">arrow_forward</span>
@@ -124,7 +125,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
           </div>
         </div>
 
-        {/* Courses Grid (5 items) */}
+        {/* Courses Grid */}
         {displayCourses.length === 0 ? (
           <div className="text-center py-16 px-4 bg-surface-raised rounded-2xl border border-border-subtle max-w-md mx-auto space-y-3">
             <span className="material-symbols-outlined text-4xl text-primary">search_off</span>
@@ -165,6 +166,10 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       alt={course.title}
                       src={course.image}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                      }}
                     />
                     {effectiveBadge && (
                       <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-md font-label-sm text-label-sm font-bold shadow-md ${badgeClass}`}>
@@ -243,7 +248,13 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
         {/* Mobile Ver Todos Link */}
         <div className="mt-8 flex lg:hidden justify-center">
           <button
-            onClick={() => setActiveFilter('Todos')}
+            onClick={() => {
+              if (onOpenCatalog) {
+                onOpenCatalog();
+              } else {
+                setActiveFilter('Todos');
+              }
+            }}
             className="px-6 py-3 rounded-lg bg-surface-raised text-primary font-label-lg text-label-lg flex items-center gap-2 cursor-pointer hover:bg-surface-overlay"
           >
             <span>Ver todos os cursos</span>

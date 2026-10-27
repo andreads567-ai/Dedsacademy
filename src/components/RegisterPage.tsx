@@ -253,6 +253,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                   alt="Certificados com Validade Nacional - Deds Academy"
                   className="w-full h-auto object-cover"
                   src="/images/certificado-validade-nacional.png"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&auto=format&fit=crop&q=80';
+                  }}
                 />
               </div>
 
@@ -361,6 +365,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 alt="Estude no seu ritmo - Deds Academy"
                 className="w-full h-auto object-cover"
                 src="/images/estude-no-seu-ritmo.jpg"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/images/hero-banner.jpg';
+                }}
               />
             </div>
           </div>

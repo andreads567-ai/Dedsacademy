@@ -260,7 +260,10 @@ export const BlogPage: React.FC<BlogPageProps> = ({
                 <img
                   className="w-full h-full object-cover"
                   alt="Modern high-tech classroom and academic certificate documentation"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgCGpBwBIrakqTT0-kPrhHJOSdY07XciFmswMntAufpgnIHWqvU1993PRK6NzpkmqZmy1rmSLoCvBshRS6kd5yB0WFtNgOHdhLcYJTBGpp51QhiqRskL4dYFUIiV2ZjYXkAwLr5m2kZGY93z2NErX5rLXCLw00uXe2BTMGJoY95Ks2vqqD59HTXABQ0NNKDvIywnlOXU-aNB8pZAYUwNTZWq-aiujy0hOCzRd-VzxLGtjC5urZKdfTDQ"
+                  src="/images/estude-no-seu-ritmo.jpg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/images/certificado-validade-nacional.png';
+                  }}
                 />
               </div>
               <div className="p-space-md rounded-lg bg-surface-container-high flex flex-col gap-space-xs border border-border-subtle">
@@ -459,6 +462,9 @@ export const BlogPage: React.FC<BlogPageProps> = ({
                   className="w-full h-auto object-cover"
                   alt="Certificado de Conclusão - Deds Academy"
                   src="/images/certificado-conclusao-modelo.jpg"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/images/certificado-validade-nacional.png';
+                  }}
                 />
               </div>
             </div>

@@ -429,6 +429,10 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                   src={course.image}
                   alt={course.title}
                   className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
                   <div className="flex items-center justify-between text-white text-xs">

@@ -75,7 +75,8 @@ export default function App() {
 
   const [coursesList, setCoursesList] = useState<Course[]>(() => {
     try {
-      const saved = localStorage.getItem('deds_courses_list');
+      const savedCoursesRaw = localStorage.getItem('deds_courses_list');
+      const saved = savedCoursesRaw ? JSON.stringify(JSON.parse(savedCoursesRaw).map((c: any) => c.image && c.image.includes('lh3.googleusercontent.com') ? { ...c, image: COURSES.find((def) => def.id === c.id)?.image || '/images/courses/web-dev.jpg' } : c)) : null;
       if (saved) return JSON.parse(saved);
     } catch {}
     return COURSES;
@@ -150,7 +151,8 @@ export default function App() {
   // Hero Banner configuration state synchronized across Home and Admin Module 9
   const [heroBannerConfig, setHeroBannerConfig] = useState<HeroBannerConfig>(() => {
     try {
-      const saved = localStorage.getItem('deds_hero_banner_config');
+      const savedHeroRaw = localStorage.getItem('deds_hero_banner_config');
+      const saved = savedHeroRaw && !savedHeroRaw.includes('lh3.googleusercontent.com') ? savedHeroRaw : null;
       if (saved) return JSON.parse(saved);
     } catch {}
     return DEFAULT_HERO_BANNER;
@@ -246,7 +248,8 @@ export default function App() {
   // Middle Promotional Banner configuration state synchronized across Home and Admin Module 9
   const [middleBannerConfig, setMiddleBannerConfig] = useState<MiddlePromoBannerConfig>(() => {
     try {
-      const saved = localStorage.getItem('deds_middle_banner_config');
+      const savedMiddleRaw = localStorage.getItem('deds_middle_banner_config');
+      const saved = savedMiddleRaw && !savedMiddleRaw.includes('lh3.googleusercontent.com') ? savedMiddleRaw : null;
       if (saved) return JSON.parse(saved);
     } catch {}
     return DEFAULT_MIDDLE_PROMO_BANNER;

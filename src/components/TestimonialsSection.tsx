@@ -44,15 +44,19 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ testim
 
               <div className="flex items-center gap-3 pt-2 border-t border-border-subtle/40">
                 <img
-                  className="w-12 h-12 rounded-full object-cover ring-1 ring-border-subtle"
+                  className="w-12 h-12 rounded-full object-cover ring-1 ring-border-subtle shrink-0"
                   alt={item.name}
                   src={item.avatar}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                  }}
                 />
-                <div>
-                  <h4 className="font-headline-sm text-label-lg font-bold text-text-primary">
+                <div className="min-w-0">
+                  <h4 className="font-headline-sm text-label-lg font-bold text-text-primary truncate">
                     {item.name}
                   </h4>
-                  <span className="font-body-sm text-body-sm text-text-tertiary">
+                  <span className="font-body-sm text-body-sm text-text-tertiary truncate block">
                     {item.role}
                   </span>
                 </div>

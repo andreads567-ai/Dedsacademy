@@ -119,17 +119,17 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
               <span className="text-xs font-bold text-primary uppercase tracking-wider block">
                 Catálogo Completo de Formações
               </span>
-              <h1 className="text-3xl lg:text-4xl font-black text-text-primary mt-1 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-text-primary mt-1 tracking-tight">
                 {selectedCategory ? `Cursos de ${selectedCategory}` : 'Todos os Cursos Disponíveis'}
               </h1>
-              <p className="text-sm text-text-secondary mt-1.5 max-w-2xl">
+              <p className="text-xs sm:text-sm text-text-secondary mt-1.5 max-w-2xl">
                 Cursos práticos com certificado para atividades complementares universitárias, projetos reais para portfólio e suporte direto com especialistas.
               </p>
             </div>
 
             {/* Quick Search & Sort Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex items-center min-w-[240px]">
+              <div className="relative flex items-center min-w-[220px] sm:min-w-[240px]">
                 <span className="material-symbols-outlined absolute left-3 text-text-tertiary text-base">
                   search
                 </span>
@@ -167,10 +167,45 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
           </div>
         </div>
 
-        {/* Layout: Left Sidebar (Categorias) + Center (Todos os Cursos) */}
+        {/* Mobile / Tablet Horizontal Category Chip Bar (lg:hidden) */}
+        <div className="lg:hidden mb-6 overflow-x-auto pb-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory(null)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+              selectedCategory === null
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'bg-surface-raised text-text-secondary hover:text-text-primary border border-border-subtle'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">apps</span>
+            <span>Todos ({courses.length})</span>
+          </button>
+          {categories.map((cat) => {
+            const isSelected = selectedCategory?.toLowerCase() === cat.name.toLowerCase();
+            const count = categoryCounts[cat.name] ?? 0;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  isSelected
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-surface-raised text-text-secondary hover:text-text-primary border border-border-subtle'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">{cat.icon || 'folder'}</span>
+                <span>{cat.name} ({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Layout: Left Sidebar (Categorias no Desktop) + Center (Todos os Cursos) */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-          {/* LADO ESQUERDO: CATEGORIAS */}
-          <aside className="lg:col-span-1 bg-surface-raised border border-border-subtle rounded-2xl p-5 shadow-lg lg:sticky lg:top-28">
+          {/* LADO ESQUERDO: CATEGORIAS NO DESKTOP */}
+          <aside className="hidden lg:block lg:col-span-1 bg-surface-raised border border-border-subtle rounded-2xl p-5 shadow-lg lg:sticky lg:top-28">
             <div className="flex items-center justify-between pb-3 border-b border-border-subtle mb-4">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">category</span>
@@ -340,6 +375,10 @@ export const CoursesCatalogPage: React.FC<CoursesCatalogPageProps> = ({
                           src={course.image}
                           alt={course.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                          }}
                         />
                         {effectiveBadge && (
                           <span

@@ -24,6 +24,10 @@ export const Footer: React.FC<FooterProps> = ({
                 src="/logo.png"
                 alt="Deds Academy"
                 className="w-10 h-10 object-contain rounded-full shadow-[0_0_12px_rgba(0,192,160,0.25)] shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=100&auto=format&fit=crop&q=80';
+                }}
               />
               <span className="font-headline-sm text-headline-sm tracking-tight text-text-primary font-bold">
                 Deds <span className="text-primary">Academy</span>

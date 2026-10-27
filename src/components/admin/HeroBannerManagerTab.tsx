@@ -10,7 +10,7 @@ interface HeroBannerManagerTabProps {
 const PRESET_IMAGES = [
   {
     label: 'Oficial Deds (Profissional com Laptop)',
-    url: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD3RjbhYdYpcG8bEMcRoGanGqik_hu0oU1QgS3ppWFcKR3mWxNyU8UvQOaipy0SDpm3J2adzS1uqX0CplKZPzA35Kzz14SXTCUZrqaPeVovrBKFmxgMJRjmV_sW7q2ELgtX8Fc2SaMedqtrx2AVyk2Bd4oYyB1YfPZ0nJOcUuuEfjwOgTgq3kgUO6q2B997ZgQ-Rh3ZMrOC-DyIA_6qq0v6dqNkbEnzBBQzIUnK7AVkF-bb7wygYDP3PQ',
+    url: '/images/hero-banner.jpg',
   },
   {
     label: 'Dev & Engenharia de Software',

@@ -9,9 +9,9 @@ interface MiddleBannerManagerTabProps {
 
 const PRESET_HORIZONTAL_BANNERS = [
   {
-    label: 'Tecnologia & Programação (Promo Geral)',
-    url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1600&auto=format&fit=crop&q=80',
-    alt: 'Promoção de Cursos de Tecnologia com Certificado Válido',
+    label: 'Oficial Deds (Estude no seu Ritmo)',
+    url: '/images/estude-no-seu-ritmo.jpg',
+    alt: 'Estude no seu ritmo - Aulas interativas e conteúdos atualizados',
     link: '#cursos-section',
   },
   {

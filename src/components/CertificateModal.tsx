@@ -191,6 +191,9 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
               <div className="text-center py-4 space-y-2">
                 <img
                   src="/logo.png"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/images/logo.png';
+                  }}
                   alt="Deds Academy"
                   className="w-16 h-16 object-contain rounded-full shadow-[0_0_15px_rgba(0,192,160,0.3)] mx-auto mb-2"
                 />

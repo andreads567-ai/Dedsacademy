@@ -422,7 +422,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedEnrolledCourses.map((course) => {
                   const prog = progressData[course.id] || {
                     percent: 0,
@@ -447,6 +447,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           src={course.image}
                           alt={course.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
                         <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md text-xs font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
@@ -596,6 +600,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                             src={course.image}
                             alt={course.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                          }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
                           <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[11px] font-bold bg-surface-dim/80 backdrop-blur-md text-primary">

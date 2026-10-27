@@ -559,7 +559,7 @@ export interface HeroBannerConfig {
 }
 
 export const DEFAULT_HERO_BANNER: HeroBannerConfig = {
-  imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD3RjbhYdYpcG8bEMcRoGanGqik_hu0oU1QgS3ppWFcKR3mWxNyU8UvQOaipy0SDpm3J2adzS1uqX0CplKZPzA35Kzz14SXTCUZrqaPeVovrBKFmxgMJRjmV_sW7q2ELgtX8Fc2SaMedqtrx2AVyk2Bd4oYyB1YfPZ0nJOcUuuEfjwOgTgq3kgUO6q2B997ZgQ-Rh3ZMrOC-DyIA_6qq0v6dqNkbEnzBBQzIUnK7AVkF-bb7wygYDP3PQ',
+  imageUrl: '/images/hero-banner.jpg',
   badge1Number: '+10.000',
   badge1Text: 'Alunos certificados',
   overlayTitle: 'Carreiras Tech 2026',
@@ -577,7 +577,7 @@ export interface MiddlePromoBannerConfig {
 
 export const DEFAULT_MIDDLE_PROMO_BANNER: MiddlePromoBannerConfig = {
   enabled: true,
-  imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1600&auto=format&fit=crop&q=80',
+  imageUrl: '/images/estude-no-seu-ritmo.jpg',
   targetUrl: '#cursos-section',
   altText: 'Formações Profissionais e Tecnológicas com Certificado Válido - Deds Academy',
 };

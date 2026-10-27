@@ -741,6 +741,10 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                   src={course.bannerImage || course.image}
                   alt={course.title}
                   className="w-full h-full object-cover opacity-80"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80';
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex items-end p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between w-full gap-4">

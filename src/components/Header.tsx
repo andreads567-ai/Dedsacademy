@@ -153,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0F17]/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.5)] border-b border-[#1F293D]/50">
       <div className="h-20 max-w-content-max-width mx-auto px-gutter-mobile lg:px-gutter-desktop flex items-center justify-between gap-space-md">
         {/* Left Side: Brand & Navigation */}
-        <div className="flex items-center gap-space-lg">
+        <div className="flex items-center gap-space-md lg:gap-space-lg">
           <div className="flex items-center gap-3">
             <a
               className="flex items-center gap-space-xs text-text-primary group cursor-pointer"
@@ -161,7 +161,6 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={(e) => {
                 e.preventDefault();
                 if (isAdminArea) {
-                  // Keep admin on dashboard
                   return;
                 } else if (isStudentArea) {
                   if (onOpenStudentPortal) onOpenStudentPortal();
@@ -176,8 +175,12 @@ export const Header: React.FC<HeaderProps> = ({
                 src="/logo.png"
                 alt="Deds Academy"
                 className="w-10 h-10 object-contain rounded-full shadow-[0_0_12px_rgba(0,192,160,0.35)] group-hover:scale-105 transition-transform shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=100&auto=format&fit=crop&q=80';
+                }}
               />
-              <span className="font-headline-sm text-headline-sm tracking-tight text-text-primary group-hover:text-primary transition-colors font-bold">
+              <span className="font-headline-sm text-headline-sm tracking-tight text-text-primary group-hover:text-primary transition-colors font-bold whitespace-nowrap">
                 Deds <span className="text-primary">Academy</span>
               </span>
             </a>
@@ -190,16 +193,16 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* Desktop Nav: Hidden in admin mode. In student mode, only show Cursos button. In store mode, show all nav items. */}
+          {/* Desktop Nav: Fluid responsive navbar on lg+ (1024px and up) */}
           {isAdminArea ? null : isStudentArea ? (
-            <nav className="hidden xl:flex items-center gap-2 p-1 bg-surface-raised rounded-xl border border-border-subtle">
+            <nav className="hidden lg:flex items-center gap-2 p-1 bg-surface-raised rounded-xl border border-border-subtle">
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab('cursos');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`px-4 py-2 font-label-md text-label-md rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 py-1.5 lg:px-4 lg:py-2 font-label-md text-xs lg:text-label-md rounded-lg transition-all flex items-center gap-1.5 lg:gap-2 cursor-pointer ${
                   activeTab === 'cursos'
                     ? 'bg-primary-container text-on-primary font-bold shadow-[0_0_20px_-3px_rgba(0,176,116,0.35)]'
                     : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay font-semibold'
@@ -211,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </nav>
           ) : (
-            <nav className="hidden xl:flex items-center gap-space-xs p-space-2xs bg-surface-raised rounded-xl border border-border-subtle">
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-space-xs p-1 bg-surface-raised rounded-xl border border-border-subtle">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
@@ -219,9 +222,9 @@ export const Header: React.FC<HeaderProps> = ({
                     key={item.id}
                     href={`#${item.sectionId}`}
                     onClick={(e) => handleNavClick(e, item)}
-                    className={`px-space-sm py-space-xs font-label-md text-label-md rounded-lg transition-all ${
+                    className={`px-2.5 xl:px-space-sm py-1.5 font-label-md text-xs xl:text-label-md rounded-lg transition-all whitespace-nowrap ${
                       isActive
-                        ? 'bg-primary-container text-on-primary font-label-lg text-label-lg font-bold shadow-[0_0_20px_-3px_rgba(0,176,116,0.35)]'
+                        ? 'bg-primary-container text-on-primary font-bold shadow-[0_0_20px_-3px_rgba(0,176,116,0.35)]'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-overlay'
                     }`}
                   >
@@ -233,10 +236,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Center: Search input - Only visible on public store pages */}
+        {/* Center: Search input - Only visible on public store pages on md+ */}
         {!isAdminArea && !isStudentArea && (
           <div className="hidden md:flex items-center flex-1 max-w-xs lg:max-w-sm px-space-md py-space-xs bg-surface-raised rounded-lg text-text-tertiary focus-within:text-text-primary focus-within:bg-surface-overlay transition-all border border-transparent focus-within:border-border-strong">
-            <span className="material-symbols-outlined text-body-lg mr-space-xs text-text-tertiary">
+            <span className="material-symbols-outlined text-body-lg mr-space-xs text-text-tertiary shrink-0">
               search
             </span>
             <input
@@ -247,14 +250,14 @@ export const Header: React.FC<HeaderProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
-            <span className="px-space-2xs py-0.5 bg-surface-overlay text-text-tertiary font-label-sm text-label-sm rounded border border-border-subtle">
+            <span className="px-space-2xs py-0.5 bg-surface-overlay text-text-tertiary font-label-sm text-label-sm rounded border border-border-subtle shrink-0">
               ⌘K
             </span>
           </div>
         )}
 
         {/* Right Side: Action Icons & User */}
-        <div className="flex items-center gap-space-sm">
+        <div className="flex items-center gap-2 sm:gap-space-sm">
           {/* Cart Icon -> Opens Cart Checkout - Hidden in admin mode */}
           {!isAdminArea && (
             <button
@@ -322,7 +325,7 @@ export const Header: React.FC<HeaderProps> = ({
             })()}
 
             {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-84 sm:w-96 bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in max-h-[85vh] overflow-y-auto">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 bg-surface-raised border border-border-subtle rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in max-h-[85vh] overflow-y-auto">
                 <div className="flex items-center justify-between pb-3 border-b border-border-subtle sticky top-0 bg-surface-raised/95 backdrop-blur-md z-10">
                   <div className="flex items-center gap-2">
                     <span className="font-label-lg text-text-primary font-bold text-sm">
@@ -577,10 +580,10 @@ export const Header: React.FC<HeaderProps> = ({
                       src={currentUser.avatar}
                       alt={currentUser.name}
                       onError={() => setHeaderAvatarError(true)}
-                      className="w-8 h-8 rounded-lg object-cover border border-primary/40"
+                      className="w-8 h-8 rounded-lg object-cover border border-primary/40 shrink-0"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-primary/40">
+                    <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-primary/40 shrink-0">
                       {currentUser.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AL'}
                     </div>
                   )}
@@ -588,9 +591,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-surface-raised border border-border-subtle rounded-xl shadow-2xl p-2 z-50 animate-in fade-in">
+                  <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-surface-raised border border-border-subtle rounded-xl shadow-2xl p-2 z-50 animate-in fade-in">
                     <div className="px-3 py-2 border-b border-border-subtle">
-                      <p className="text-xs font-bold text-text-primary">{currentUser.name}</p>
+                      <p className="text-xs font-bold text-text-primary truncate">{currentUser.name}</p>
                       <p className="text-[11px] text-text-tertiary truncate">{currentUser.email}</p>
                     </div>
 
@@ -712,7 +715,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Menu Toggle Button */}
           <button
-            className="xl:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-overlay cursor-pointer"
+            className="lg:hidden p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-overlay cursor-pointer"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Abrir Menu"
           >
@@ -725,7 +728,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="xl:hidden bg-surface-raised border-b border-border-subtle px-4 py-4 space-y-3">
+        <div className="lg:hidden bg-surface-raised border-b border-border-subtle px-4 py-4 space-y-3 max-h-[calc(100vh-5.5rem)] overflow-y-auto">
           {isAdminArea ? (
             <div className="py-2 space-y-3">
               <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/10 text-primary border border-primary/25">
@@ -750,7 +753,7 @@ export const Header: React.FC<HeaderProps> = ({
             <>
               {!isStudentArea && (
                 <div className="flex items-center px-3 py-2 bg-surface-overlay rounded-lg text-text-tertiary">
-                  <span className="material-symbols-outlined text-body-lg mr-2">search</span>
+                  <span className="material-symbols-outlined text-body-lg mr-2 shrink-0">search</span>
                   <input
                     className="w-full bg-transparent border-none outline-none font-body-sm text-text-primary placeholder:text-text-tertiary"
                     placeholder="Buscar cursos..."

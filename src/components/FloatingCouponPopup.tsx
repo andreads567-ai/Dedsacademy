@@ -58,38 +58,13 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
       return true;
     });
 
-    // CRITICAL FIX: If no coupon is active, return null! NEVER fallback to list[0]!
     return active || null;
   }, [coupons, isOpen, activeTab, tick]);
 
-  // Track scroll position on Home to display only when entering Cursos, Categorias, Certificado, Blog, Contato
+  // Display on all public store sections without arbitrary scroll hiding
   useEffect(() => {
-    const handleScroll = () => {
-      // In dedicated subpages (cursos, blog, contato), always show
-      if (['cursos', 'blog', 'contato', 'categorias', 'certificados'].includes(activeTab)) {
-        setIsVisible(true);
-        return;
-      }
-
-      // On Home ('inicio'), show only when scrolled past Hero banner (e.g. scrollY > 280)
-      if (activeTab === 'inicio') {
-        if (window.scrollY > 280) {
-          setIsVisible(true);
-        } else {
-          setIsVisible(false);
-        }
-      } else {
-        // In other areas (like admin, aluno, checkout), hide
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Initial check
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    const isStoreView = ['inicio', 'cursos', 'categorias', 'certificados', 'blog', 'contato'].includes(activeTab);
+    setIsVisible(isStoreView);
   }, [activeTab]);
 
   if (!activeCoupon || isDismissed || !isVisible) {
@@ -121,13 +96,13 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
   return (
     <aside
       aria-label="Cupom promocional flutuante"
-      className="fixed bottom-6 left-6 z-40 flex flex-col items-start gap-2 select-none animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto"
+      className="fixed bottom-4 sm:bottom-6 left-4 sm:left-6 z-40 flex flex-col items-start gap-2 select-none animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto max-w-[calc(100vw-2rem)]"
     >
       {/* -------------------------------------------------------------
           EXPANDED CARD POPOVER
          ------------------------------------------------------------- */}
       {isOpen && (
-        <div className="w-80 sm:w-88 p-5 rounded-2xl bg-surface-raised border border-primary/40 shadow-2xl backdrop-blur-xl relative overflow-hidden animate-in zoom-in-95 duration-200 text-text-primary">
+        <div className="w-[calc(100vw-2rem)] max-w-[340px] sm:w-88 p-4 sm:p-5 rounded-2xl bg-surface-raised border border-primary/40 shadow-2xl backdrop-blur-xl relative overflow-hidden animate-in zoom-in-95 duration-200 text-text-primary">
           {/* Top Decorative Gradient */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent-gold via-primary to-accent-emerald-bright" />
 
@@ -232,23 +207,23 @@ export const FloatingCouponPopup: React.FC<FloatingCouponPopupProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="group flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-surface-raised border border-accent-gold/50 shadow-[0_4px_20px_rgba(251,191,36,0.25)] hover:border-accent-gold hover:shadow-[0_4px_24px_rgba(251,191,36,0.4)] transition-all cursor-pointer backdrop-blur-md active:scale-95"
+        className="group flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-surface-raised border border-accent-gold/50 shadow-[0_4px_20px_rgba(251,191,36,0.25)] hover:border-accent-gold hover:shadow-[0_4px_24px_rgba(251,191,36,0.4)] transition-all cursor-pointer backdrop-blur-md active:scale-95 max-w-full"
       >
         <span className="w-6 h-6 rounded-full bg-accent-gold text-slate-950 flex items-center justify-center shrink-0 animate-bounce">
           <span className="material-symbols-outlined text-sm font-bold">local_offer</span>
         </span>
 
-        <span className="text-xs font-extrabold text-accent-gold tracking-wide flex items-center gap-1">
+        <span className="text-xs font-extrabold text-accent-gold tracking-wide flex items-center gap-1 truncate">
           <span>Cupom: </span>
           <span className="font-mono text-text-primary group-hover:text-accent-gold transition-colors">
             {activeCoupon.code}
           </span>
-          <span className="px-1.5 py-0.2 rounded bg-accent-gold/20 text-accent-gold text-[10px] ml-0.5">
+          <span className="px-1.5 py-0.2 rounded bg-accent-gold/20 text-accent-gold text-[10px] ml-0.5 shrink-0">
             {formattedDiscount}
           </span>
         </span>
 
-        <span className="material-symbols-outlined text-xs text-text-tertiary group-hover:text-text-primary transition-colors ml-0.5">
+        <span className="material-symbols-outlined text-xs text-text-tertiary group-hover:text-text-primary transition-colors ml-0.5 shrink-0">
           {isOpen ? 'expand_more' : 'expand_less'}
         </span>
       </button>
