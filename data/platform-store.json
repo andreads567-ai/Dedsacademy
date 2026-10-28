@@ -1,6 +1,6 @@
 {
-  "version": 1793157193329,
-  "lastUpdated": "2026-10-28T03:13:13.329Z",
+  "version": 1793203160362,
+  "lastUpdated": "2026-10-28T15:59:20.362Z",
   "courses": [
     {
       "id": "python-zero-avancado",
@@ -625,7 +625,7 @@
     }
   ],
   "heroBanner": {
-    "imageUrl": "/images/hero-banner.jpg",
+    "imageUrl": "/uploads/hero-banner-1793203152680-3935.jpg",
     "badge1Number": "+10.000",
     "badge1Text": "Alunos certificados",
     "overlayTitle": "Carreiras Tech 2026",
