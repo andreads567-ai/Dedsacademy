@@ -37,6 +37,7 @@ import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, de
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
 import { sanitizeCourseList, getCacheBustedImageUrl, forceClearAndResyncSiteCache, DEDS_CACHE_VERSION } from './lib/cacheManager';
+import { fetchPlatformSyncData, syncUpdateToBackend, startLiveSync } from './lib/platformSyncClient';
 
 /**
  * SECURITY: Blocks unauthorized access to admin panel.
@@ -112,6 +113,7 @@ export default function App() {
     try {
       localStorage.setItem('deds_instructors_list', JSON.stringify(newList));
     } catch {}
+    syncUpdateToBackend('instructors', newList).catch(console.error);
     window.dispatchEvent(new CustomEvent('deds_instructors_updated', { detail: newList }));
   };
 
@@ -150,6 +152,7 @@ export default function App() {
       safeSaveLocalStorage('deds_checkout_banner_config', newConfig);
       window.dispatchEvent(new CustomEvent('deds_checkout_banner_updated', { detail: newConfig }));
     } catch {}
+    syncUpdateToBackend('checkoutBanner', newConfig).catch(console.error);
     showToast('Banner de Pagamento atualizado com sucesso!');
   };
 
@@ -169,6 +172,7 @@ export default function App() {
       safeSaveLocalStorage('deds_hero_banner_config', newConfig);
       window.dispatchEvent(new CustomEvent('deds_hero_banner_updated', { detail: newConfig }));
     } catch {}
+    syncUpdateToBackend('heroBanner', newConfig).catch(console.error);
     showToast('Banner da Home e selos atualizados com sucesso!');
   };
 
@@ -189,6 +193,7 @@ export default function App() {
     try {
       localStorage.setItem('deds_coupons_list', JSON.stringify(newList));
     } catch {}
+    syncUpdateToBackend('coupons', newList).catch(console.error);
     window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: newList }));
   };
 
@@ -228,6 +233,7 @@ export default function App() {
     try {
       localStorage.setItem('deds_campaigns_list', JSON.stringify(newList));
     } catch {}
+    syncUpdateToBackend('campaigns', newList).catch(console.error);
     window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: newList }));
   };
 
@@ -266,6 +272,7 @@ export default function App() {
       safeSaveLocalStorage('deds_middle_banner_config', newConfig);
       window.dispatchEvent(new CustomEvent('deds_middle_banner_updated', { detail: newConfig }));
     } catch {}
+    syncUpdateToBackend('middleBanner', newConfig).catch(console.error);
     showToast(
       newConfig.enabled
         ? 'Banner Faixa da Home atualizado e ativado!'
@@ -312,6 +319,7 @@ export default function App() {
         safeSaveLocalStorage('deds_blog_posts', updated);
         window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
+      syncUpdateToBackend('blogPosts', updated).catch(console.error);
       return updated;
     });
     showToast('Artigo publicado no blog com sucesso!');
@@ -324,6 +332,7 @@ export default function App() {
         safeSaveLocalStorage('deds_blog_posts', updated);
         window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
+      syncUpdateToBackend('blogPosts', updated).catch(console.error);
       return updated;
     });
     showToast('Artigo atualizado no blog com sucesso!');
@@ -336,6 +345,7 @@ export default function App() {
         safeSaveLocalStorage('deds_blog_posts', updated);
         window.dispatchEvent(new CustomEvent('deds_blog_posts_updated', { detail: updated }));
       } catch {}
+      syncUpdateToBackend('blogPosts', updated).catch(console.error);
       return updated;
     });
     showToast('Artigo removido com sucesso!');
@@ -376,6 +386,7 @@ export default function App() {
         ...prev,
       ];
       safeSaveLocalStorage('deds_announcements_list', updated);
+      syncUpdateToBackend('announcements', updated).catch(console.error);
       window.dispatchEvent(new CustomEvent('deds_announcements_updated', { detail: updated }));
       return updated;
     });
@@ -419,6 +430,107 @@ export default function App() {
     // Seed with initial demo data for the default student
     return { 'user-aluno-1': INITIAL_STUDENT_PROGRESS, 'user-aluno-alias': INITIAL_STUDENT_PROGRESS };
   });
+
+  // ─── Real-time Multi-Browser Platform Synchronization ─────────────────────
+  useEffect(() => {
+    // 1. Initial immediate pull from shared server backend
+    fetchPlatformSyncData().then((data) => {
+      if (data) {
+        if (data.courses && data.courses.length > 0) {
+          const sanitized = sanitizeCourseList(data.courses);
+          setCoursesList(sanitized);
+          try { localStorage.setItem('deds_courses_list', JSON.stringify(sanitized)); } catch {}
+        }
+        if (data.coupons && data.coupons.length > 0) {
+          setCouponsList(data.coupons);
+          try { localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons)); } catch {}
+          window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: data.coupons }));
+        }
+        if (data.campaigns && data.campaigns.length > 0) {
+          setCampaignsList(data.campaigns);
+          try { localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns)); } catch {}
+          window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: data.campaigns }));
+        }
+        if (data.heroBanner) {
+          setHeroBannerConfig(data.heroBanner);
+          safeSaveLocalStorage('deds_hero_banner_config', data.heroBanner);
+        }
+        if (data.middleBanner) {
+          setMiddleBannerConfig(data.middleBanner);
+          safeSaveLocalStorage('deds_middle_banner_config', data.middleBanner);
+        }
+        if (data.checkoutBanner) {
+          setCheckoutBannerConfig(data.checkoutBanner);
+          safeSaveLocalStorage('deds_checkout_banner_config', data.checkoutBanner);
+        }
+        if (data.categories && data.categories.length > 0) {
+          setCategoriesList(data.categories);
+          try { localStorage.setItem('deds_categories_list', JSON.stringify(data.categories)); } catch {}
+        }
+        if (data.instructors && data.instructors.length > 0) {
+          setInstructorsList(data.instructors);
+          try { localStorage.setItem('deds_instructors_list', JSON.stringify(data.instructors)); } catch {}
+        }
+        if (data.announcements && data.announcements.length > 0) {
+          setAnnouncementsList(data.announcements);
+          safeSaveLocalStorage('deds_announcements_list', data.announcements);
+        }
+        if (data.blogPosts && data.blogPosts.length > 0) {
+          setBlogPostsList(data.blogPosts);
+          safeSaveLocalStorage('deds_blog_posts', data.blogPosts);
+        }
+      }
+    });
+
+    // 2. Continuous Live Sync: auto-updates this browser whenever changes are made in another browser!
+    const stopLiveSync = startLiveSync((data) => {
+      if (data.courses && data.courses.length > 0) {
+        const sanitized = sanitizeCourseList(data.courses);
+        setCoursesList(sanitized);
+        try { localStorage.setItem('deds_courses_list', JSON.stringify(sanitized)); } catch {}
+      }
+      if (data.coupons && data.coupons.length > 0) {
+        setCouponsList(data.coupons);
+        try { localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons)); } catch {}
+        window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: data.coupons }));
+      }
+      if (data.campaigns && data.campaigns.length > 0) {
+        setCampaignsList(data.campaigns);
+        try { localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns)); } catch {}
+        window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: data.campaigns }));
+      }
+      if (data.heroBanner) {
+        setHeroBannerConfig(data.heroBanner);
+        safeSaveLocalStorage('deds_hero_banner_config', data.heroBanner);
+      }
+      if (data.middleBanner) {
+        setMiddleBannerConfig(data.middleBanner);
+        safeSaveLocalStorage('deds_middle_banner_config', data.middleBanner);
+      }
+      if (data.checkoutBanner) {
+        setCheckoutBannerConfig(data.checkoutBanner);
+        safeSaveLocalStorage('deds_checkout_banner_config', data.checkoutBanner);
+      }
+      if (data.categories && data.categories.length > 0) {
+        setCategoriesList(data.categories);
+        try { localStorage.setItem('deds_categories_list', JSON.stringify(data.categories)); } catch {}
+      }
+      if (data.instructors && data.instructors.length > 0) {
+        setInstructorsList(data.instructors);
+        try { localStorage.setItem('deds_instructors_list', JSON.stringify(data.instructors)); } catch {}
+      }
+      if (data.announcements && data.announcements.length > 0) {
+        setAnnouncementsList(data.announcements);
+        safeSaveLocalStorage('deds_announcements_list', data.announcements);
+      }
+      if (data.blogPosts && data.blogPosts.length > 0) {
+        setBlogPostsList(data.blogPosts);
+        safeSaveLocalStorage('deds_blog_posts', data.blogPosts);
+      }
+    }, 3000);
+
+    return () => stopLiveSync();
+  }, []);
 
   // ─── Supabase: Load data on mount, seed if empty ──────────────────────────
   useEffect(() => {
@@ -927,6 +1039,7 @@ export default function App() {
       try {
         localStorage.setItem('deds_courses_list', JSON.stringify(next));
       } catch {}
+      syncUpdateToBackend('courses', next).catch(console.error);
       return next;
     });
     upsertCourse(newCourse).catch(console.error);
@@ -941,6 +1054,7 @@ export default function App() {
       try {
         localStorage.setItem('deds_courses_list', JSON.stringify(next));
       } catch {}
+      syncUpdateToBackend('courses', next).catch(console.error);
       return next;
     });
     upsertCourse(updatedCourse).catch(console.error);
@@ -953,6 +1067,7 @@ export default function App() {
       try {
         localStorage.setItem('deds_courses_list', JSON.stringify(next));
       } catch {}
+      syncUpdateToBackend('courses', next).catch(console.error);
       return next;
     });
     sbDeleteCourse(courseId).catch(console.error);
@@ -965,6 +1080,7 @@ export default function App() {
     try {
       localStorage.setItem('deds_categories_list', JSON.stringify(newCategories));
     } catch {}
+    syncUpdateToBackend('categories', newCategories).catch(console.error);
     upsertCategories(newCategories).catch(console.error);
     showToast('Categorias sincronizadas em tempo real com todo o sistema!');
   };

@@ -166,6 +166,69 @@ export default defineConfig(({ mode }) => {
           }
         });
       });
+
+      // 6. Sincronização central da plataforma (GET e POST)
+      server.middlewares.use('/api/platform-sync', async (req, res) => {
+        const { getPlatformData, savePlatformData } = await import('./src/api/platformSyncHandler');
+        if (req.method === 'GET') {
+          try {
+            const data = getPlatformData();
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.statusCode = 200;
+            res.end(JSON.stringify(data));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk.toString(); });
+          req.on('end', async () => {
+            try {
+              const parsed = body ? JSON.parse(body) : {};
+              const result = savePlatformData(parsed);
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+          });
+          return;
+        }
+
+        res.statusCode = 405;
+        res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      });
+
+      // 7. Upload físico de imagens compartilhado
+      server.middlewares.use('/api/upload-image', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: any) => { body += chunk.toString(); });
+        req.on('end', async () => {
+          try {
+            const parsed = body ? JSON.parse(body) : {};
+            const { handleImageUpload } = await import('./src/api/platformSyncHandler');
+            const result = handleImageUpload(parsed);
+            res.setHeader('Content-Type', 'application/json');
+            res.statusCode = result.success ? 200 : 400;
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+        });
+      });
     },
   };
 

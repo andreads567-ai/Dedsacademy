@@ -9,6 +9,11 @@ import {
   refreshZohoAccessToken,
   sendZohoEmailMessage,
 } from './src/api/zohoHandler';
+import {
+  getPlatformData,
+  savePlatformData,
+  handleImageUpload,
+} from './src/api/platformSyncHandler';
 
 dotenv.config();
 dotenv.config({ path: '.env.local' });
@@ -118,6 +123,45 @@ app.post('/api/issue-certificate', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+
+// 7. Endpoint Central de Sincronização entre Navegadores (GET e POST)
+app.get('/api/platform-sync', (_req, res) => {
+  try {
+    const data = getPlatformData();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Erro ao obter dados da plataforma' });
+  }
+});
+
+app.post('/api/platform-sync', (req, res) => {
+  try {
+    const result = savePlatformData(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Erro ao sincronizar dados' });
+  }
+});
+
+// 8. Endpoint de Upload Físico de Imagens Compartilhado para Todos os Navegadores
+app.post('/api/upload-image', (req, res) => {
+  try {
+    const result = handleImageUpload(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Erro ao fazer upload da imagem' });
+  }
+});
+
+// Servir diretório de uploads compartilhados tanto em dev quanto em prod
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  }
+}));
 
 // Serve static assets in production with fine-grained cache control
 app.use(

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER } from '../../types';
 import { optimizeImageFile } from '../../lib/imageOptimizer';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface CheckoutBannerManagerTabProps {
   currentConfig?: CheckoutPaymentBannerConfig;
@@ -54,11 +55,12 @@ export const CheckoutBannerManagerTab: React.FC<CheckoutBannerManagerTabProps> =
         quality: 0.85,
       });
 
-      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      const serverUrl = await uploadImageToServer(optimized.dataUrl, 'checkout-banner');
+      setConfig((prev) => ({ ...prev, imageUrl: serverUrl }));
       setUrlInput('');
       setFileDetails({
         name: optimized.name,
-        size: `${optimized.sizeKb} KB (Otimizado)`,
+        size: `${optimized.sizeKb} KB (Salvo no servidor)`,
       });
     } catch (err: any) {
       setUploadError(err?.message || 'Erro ao processar imagem.');

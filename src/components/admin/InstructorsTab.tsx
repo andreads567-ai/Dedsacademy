@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Instructor, Course } from '../../types';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface InstructorsTabProps {
   instructors: Instructor[];
@@ -58,18 +59,23 @@ export const InstructorsTab: React.FC<InstructorsTabProps> = ({
     setIsModalOpen(true);
   };
 
-  const processImageFile = (file: File) => {
+  const processImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Por favor, envie um arquivo de imagem válido (PNG, JPG, WEBP, etc.).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setForm((prev) => ({ ...prev, avatar: reader.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const serverUrl = await uploadImageToServer(file, 'instructor');
+      setForm((prev) => ({ ...prev, avatar: serverUrl }));
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setForm((prev) => ({ ...prev, avatar: reader.result as string }));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

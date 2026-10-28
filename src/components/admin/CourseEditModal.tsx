@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Course, Category, Instructor, CourseStatus, CourseModule } from '../../types';
 import { ModuleLessonsManager } from './ModuleLessonsManager';
 import { INITIAL_INSTRUCTORS } from '../../data/usersData';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface CourseEditModalProps {
   course: Course | null;
@@ -188,37 +189,49 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
   }, [course]);
 
   // Handle Cover File Upload (Foto da Capa)
-  const handleCoverFileUpload = (file: File) => {
+  const handleCoverFileUpload = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione uma imagem válida (PNG, JPG, WebP).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageUrl(reader.result);
-        setImageFileName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const serverUrl = await uploadImageToServer(file, 'course-cover');
+      setImageUrl(serverUrl);
+      setImageFileName(file.name);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImageUrl(reader.result);
+          setImageFileName(file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle Banner File Upload (Banner de Destaque)
-  const handleBannerFileUpload = (file: File) => {
+  const handleBannerFileUpload = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione uma imagem válida (PNG, JPG, WebP) para o banner.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setBannerImageUrl(reader.result);
-        setBannerFileName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const serverUrl = await uploadImageToServer(file, 'course-banner');
+      setBannerImageUrl(serverUrl);
+      setBannerFileName(file.name);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setBannerImageUrl(reader.result);
+          setBannerFileName(file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Handle Video File Upload

@@ -3,6 +3,7 @@ import { Course, Category, Instructor, CourseStatus, CourseModule, CourseFinalEx
 import { ModuleLessonsManager } from './ModuleLessonsManager';
 import { ModuleQuizManager } from './ModuleQuizManager';
 import { CourseExamEditor } from './CourseExamEditor';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface CoursePostingTabProps {
   categories: Category[];
@@ -112,36 +113,48 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
     setVideoSourceType('upload');
   };
 
-  const handleCoverFileChange = (file: File) => {
+  const handleCoverFileChange = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione uma imagem válida (PNG, JPG, WebP).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setImageUrl(reader.result);
-        setImageFileName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const serverUrl = await uploadImageToServer(file, 'course-cover');
+      setImageUrl(serverUrl);
+      setImageFileName(file.name);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImageUrl(reader.result);
+          setImageFileName(file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleBannerFileChange = (file: File) => {
+  const handleBannerFileChange = async (file: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Por favor, selecione uma imagem válida (PNG, JPG, WebP) para o banner.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setBannerImageUrl(reader.result);
-        setBannerFileName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const serverUrl = await uploadImageToServer(file, 'course-banner');
+      setBannerImageUrl(serverUrl);
+      setBannerFileName(file.name);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setBannerImageUrl(reader.result);
+          setBannerFileName(file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleRemoveVideo = () => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER } from '../../types';
 import { optimizeImageFile } from '../../lib/imageOptimizer';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface MiddleBannerManagerTabProps {
   currentConfig?: MiddlePromoBannerConfig;
@@ -63,11 +64,12 @@ export const MiddleBannerManagerTab: React.FC<MiddleBannerManagerTabProps> = ({
         quality: 0.85,
       });
 
-      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      const serverUrl = await uploadImageToServer(optimized.dataUrl, 'middle-banner');
+      setConfig((prev) => ({ ...prev, imageUrl: serverUrl }));
       setUrlInput('');
       setFileDetails({
         name: optimized.name,
-        size: `${optimized.sizeKb} KB (Otimizado)`,
+        size: `${optimized.sizeKb} KB (Salvo no servidor)`,
       });
     } catch (err: any) {
       setUploadError(err?.message || 'Erro ao processar imagem.');

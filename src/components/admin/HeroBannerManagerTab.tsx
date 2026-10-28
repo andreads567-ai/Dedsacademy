@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { HeroBannerConfig, DEFAULT_HERO_BANNER } from '../../types';
 import { optimizeImageFile } from '../../lib/imageOptimizer';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface HeroBannerManagerTabProps {
   currentConfig?: HeroBannerConfig;
@@ -55,11 +56,12 @@ export const HeroBannerManagerTab: React.FC<HeroBannerManagerTabProps> = ({
         quality: 0.85,
       });
 
-      setConfig((prev) => ({ ...prev, imageUrl: optimized.dataUrl }));
+      const serverUrl = await uploadImageToServer(optimized.dataUrl, 'hero-banner');
+      setConfig((prev) => ({ ...prev, imageUrl: serverUrl }));
       setUrlInput('');
       setFileDetails({
         name: optimized.name,
-        size: `${optimized.sizeKb} KB (Otimizado)`,
+        size: `${optimized.sizeKb} KB (Salvo no servidor)`,
       });
     } catch (err: any) {
       setUploadError(err?.message || 'Erro ao processar imagem.');

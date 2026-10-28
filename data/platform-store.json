@@ -1,0 +1,756 @@
+{
+  "version": 1793157193329,
+  "lastUpdated": "2026-10-28T03:13:13.329Z",
+  "courses": [
+    {
+      "id": "python-zero-avancado",
+      "title": "Python do Zero ao Avançado",
+      "instructor": "João Paulo Silveira",
+      "instructorRole": "Especialista em Engenharia de Dados & Machine Learning",
+      "rating": 4.9,
+      "reviewsCount": 1250,
+      "studentsCount": 3840,
+      "status": "publicado",
+      "hours": 60,
+      "lessonsCount": 148,
+      "originalPrice": 299,
+      "currentPrice": 189.9,
+      "image": "/images/courses/python.jpg",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "category": "Tecnologia & IA",
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda lógica de programação, orientação a objetos, automações de scripts, análise de dados com Pandas e introdução a IA com projetos práticos do mercado.",
+      "syllabus": [
+        "Fundamentos da Linguagem & Estruturas de Dados",
+        "Programação Orientada a Objetos (POO) Moderna",
+        "Automação de Tarefas & Web Scraping",
+        "Análise de Dados com Pandas & NumPy",
+        "Construção de APIs com FastAPI",
+        "Deploy e Projeto Final com Certificação"
+      ]
+    },
+    {
+      "id": "excel-basico-avancado",
+      "title": "Excel do Básico ao Avançado",
+      "instructor": "Carla Mendes",
+      "instructorRole": "Consultora de BI e Inteligência Financeira",
+      "rating": 4.8,
+      "reviewsCount": 980,
+      "studentsCount": 2950,
+      "status": "publicado",
+      "hours": 40,
+      "lessonsCount": 92,
+      "originalPrice": 199,
+      "currentPrice": 129.9,
+      "image": "/images/courses/excel.jpg",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "category": "Finanças",
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Domine fórmulas complexas, PROCV/PROCX, Tabelas Dinâmicas, Dashboards Executivos de alto impacto e introdução a Power Query para automação corporativa.",
+      "syllabus": [
+        "Nivelamento Essencial & Formatação Condicional",
+        "Fórmulas Matemáticas, Lógicas e de Texto",
+        "Funções de Pesquisa (PROCV, PROCX, ÍNDICE+CORRESP)",
+        "Tabelas Dinâmicas & Segmentação de Dados",
+        "Criação de Dashboards Interativos Profissionais",
+        "Power Query para Limpeza e Modelagem de Dados"
+      ]
+    },
+    {
+      "id": "marketing-digital-pratica",
+      "title": "Marketing Digital na Prática",
+      "instructor": "Lucas Cruz",
+      "instructorRole": "Growth Leader & Estrategista de Performance",
+      "rating": 4.9,
+      "reviewsCount": 760,
+      "studentsCount": 1980,
+      "status": "publicado",
+      "hours": 30,
+      "lessonsCount": 74,
+      "originalPrice": 219,
+      "currentPrice": 149.9,
+      "image": "/images/courses/marketing.jpg",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "category": "Marketing",
+      "filterTags": [
+        "Lançamentos",
+        "Em alta"
+      ],
+      "description": "Campanhas de tráfego pago no Meta Ads e Google Ads, estratégias de funil de vendas, copywriting persuasivo e mensuração de ROAS e CAC.",
+      "syllabus": [
+        "Visão Estratégica & Mapeamento de Personas",
+        "Copywriting & Gatilhos Mentais de Alta Conversão",
+        "Meta Ads: Do Pixel à Escala de Campanhas",
+        "Google Ads & Estratégias de Pesquisa",
+        "Métricas Chave: CAC, LTV, ROAS e ROI",
+        "Estudos de Caso Reais de E-commerce e Infoprodutos"
+      ]
+    },
+    {
+      "id": "ui-ux-design",
+      "title": "UI/UX Design do Básico ao Avançado",
+      "instructor": "Juliana Nobre",
+      "instructorRole": "Senior Product Designer com atuação internacional",
+      "rating": 4.7,
+      "reviewsCount": 620,
+      "studentsCount": 1650,
+      "status": "publicado",
+      "hours": 50,
+      "lessonsCount": 110,
+      "originalPrice": 289,
+      "currentPrice": 199.9,
+      "image": "/images/courses/ui-ux.jpg",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "category": "Tecnologia & IA",
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda pesquisa com usuários, arquitetura de informação, wireframing, prototipagem avançada no Figma e construção de Design Systems escaláveis.",
+      "syllabus": [
+        "Fundamentos de UX & Metodologia Design Thinking",
+        "Pesquisa com Usuários, Entrevistas e Jornadas",
+        "Wireframing & Arquitetura de Informação",
+        "Figma do Zero ao Avançado (Auto Layout & Variantes)",
+        "Construção de Design System Escalável",
+        "Prototipagem Interativa & Apresentação para Stakeholders"
+      ]
+    },
+    {
+      "id": "desenvolvimento-web-completo",
+      "title": "Desenvolvimento Web Completo",
+      "instructor": "Rafael Martins",
+      "instructorRole": "Engenheiro de Software Full Stack",
+      "rating": 4.9,
+      "reviewsCount": 1100,
+      "studentsCount": 840,
+      "status": "rascunho",
+      "hours": 80,
+      "lessonsCount": 195,
+      "originalPrice": 349,
+      "currentPrice": 229.9,
+      "image": "/images/courses/web-dev.jpg",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "category": "Tecnologia & IA",
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Do HTML/CSS/JavaScript moderno até React, TypeScript, Node.js, bancos de dados relacionais e deploy em nuvem com CI/CD.",
+      "syllabus": [
+        "HTML5 Semântico, CSS3 Moderno & Flexbox/Grid",
+        "JavaScript ES6+ Moderno & Programação Assíncrona",
+        "React & Gerenciamento de Estado",
+        "Node.js, Express & Criação de REST APIs Seguras",
+        "Bancos de Dados SQL e NoSQL",
+        "Deploy Contínuo, Docker e Melhores Práticas DevOps"
+      ]
+    },
+    {
+      "id": "gestao-projetos-scrum",
+      "title": "Gestão Ágil de Projetos & Scrum",
+      "instructor": "Marcelo Ramos",
+      "instructorRole": "Enterprise Agile Coach & PMP",
+      "rating": 4.9,
+      "reviewsCount": 840,
+      "studentsCount": 2120,
+      "status": "publicado",
+      "hours": 45,
+      "lessonsCount": 88,
+      "originalPrice": 249,
+      "currentPrice": 159.9,
+      "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "category": "Administração",
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Domine metodologias ágeis, frameworks Scrum e Kanban, gestão de backlog, métricas ágeis e preparação para certificações internacionais.",
+      "syllabus": [
+        "Fundamentos do Manifesto Ágil e Mindset Lean",
+        "Papéis Scrum: Product Owner, Scrum Master e Dev Team",
+        "Cerimônias e Artefatos do Scrum na Prática",
+        "Kanban Visual & Otimização de Fluxo",
+        "Métricas Ágeis: Burndown, Velocity e Lead Time",
+        "Estudos de Caso de Transformação Ágil"
+      ]
+    },
+    {
+      "id": "lideranca-gestao-equipes",
+      "title": "Liderança Estratégica & Equipes",
+      "instructor": "Dra. Camila Duarte",
+      "instructorRole": "Consultora de Desenvolvimento Organizacional",
+      "rating": 4.8,
+      "reviewsCount": 650,
+      "studentsCount": 430,
+      "status": "previsto",
+      "hours": 35,
+      "lessonsCount": 64,
+      "originalPrice": 219,
+      "currentPrice": 139.9,
+      "image": "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "category": "Administração",
+      "filterTags": [
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Desenvolva liderança humanizada, comunicação não-violenta, feedbacks de alto impacto e alinhamento de metas com OKRs.",
+      "syllabus": [
+        "Estilos de Liderança Situacional",
+        "Comunicação Assertiva e Feedbacks Estruturados",
+        "Delegação Eficaz e Empoderamento de Times",
+        "Gestão de Conflitos e Resolução de Problemas",
+        "Framework de OKRs para Alinhamento de Metas",
+        "Cultura de Alta Performance e Segurança Psicológica"
+      ]
+    },
+    {
+      "id": "power-bi-mercado-financeiro",
+      "title": "Power BI para Análise Financeira",
+      "instructor": "Thiago Sampaio",
+      "instructorRole": "CFO & Especialista em BI Financeiro",
+      "rating": 4.9,
+      "reviewsCount": 920,
+      "studentsCount": 2450,
+      "status": "publicado",
+      "hours": 50,
+      "lessonsCount": 104,
+      "originalPrice": 279,
+      "currentPrice": 179.9,
+      "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "category": "Finanças",
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Construa relatórios dinâmicos de DRE, fluxo de caixa, EBITDA e dashboards executivos conectados a bases de dados reais com DAX avançado.",
+      "syllabus": [
+        "Modelagem de Dados Financeiros e Star Schema",
+        "DAX Essencial e Avançado para Cálculos Financeiros",
+        "Análise de DRE, Balanço e Fluxo de Caixa Dinâmico",
+        "Visuais Financeiros de Alta Precisão",
+        "Publicação no Power BI Service e RLS de Segurança",
+        "Projeto Final: Dashboard Executivo para C-Level"
+      ]
+    },
+    {
+      "id": "trafego-pago-avancado",
+      "title": "Tráfego Pago Avançado: Meta & Google Ads",
+      "instructor": "Camila Rocha",
+      "instructorRole": "Head de Mídia Paga & Performance",
+      "rating": 4.9,
+      "reviewsCount": 880,
+      "studentsCount": 1220,
+      "status": "inativo",
+      "hours": 40,
+      "lessonsCount": 82,
+      "originalPrice": 259,
+      "currentPrice": 159.9,
+      "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "category": "Marketing",
+      "filterTags": [
+        "Mais vendidos",
+        "Em alta"
+      ],
+      "description": "Estratégias de escala de tráfego, pixel API de conversão, otimização por inteligência artificial e criação de funis perpétuos.",
+      "syllabus": [
+        "Estrutura de Contas e API de Conversões do Meta",
+        "Google Search, Performance Max e YouTube Ads",
+        "Remarketing Avançado e Segmentação Lookalike",
+        "Copywriting e Criativos que Vendem no Feed e Reels",
+        "Análise de Atribuição e Tracking com UTMs",
+        "Otimização de Custos e Escala Segura de Investimento"
+      ]
+    },
+    {
+      "id": "people-analytics-rh",
+      "title": "People Analytics & Gestão por Competências",
+      "instructor": "Renata Silveira",
+      "instructorRole": "Diretora de RH Estratégico & Docente",
+      "rating": 4.9,
+      "reviewsCount": 710,
+      "studentsCount": 1430,
+      "status": "publicado",
+      "hours": 40,
+      "lessonsCount": 76,
+      "originalPrice": 249,
+      "currentPrice": 169.9,
+      "image": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "category": "Recursos Humanos",
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Transforme dados de recursos humanos em decisões de negócios: métricas de turnover, absenteísmo, eNPS e mapeamento de talentos.",
+      "syllabus": [
+        "Fundamentos de Dados aplicados a Gestão de Pessoas",
+        "Métricas Críticas: Turnover, Retenção e eNPS",
+        "Mapeamento de Competências e Matriz Nine Box",
+        "Dashboards de RH em Excel e Power BI",
+        "Planos de Desenvolvimento Individual (PDI)",
+        "Ética e LGPD no Tratamento de Dados de Colaboradores"
+      ]
+    },
+    {
+      "id": "recrutamento-tech-selecao",
+      "title": "Tech Recruiter: Atração e Seleção Tech",
+      "instructor": "Felipe Barreto",
+      "instructorRole": "Tech Talent Acquisition Specialist",
+      "rating": 4.8,
+      "reviewsCount": 530,
+      "studentsCount": 510,
+      "status": "previsto",
+      "hours": 30,
+      "lessonsCount": 58,
+      "originalPrice": 199,
+      "currentPrice": 129.9,
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "category": "Recursos Humanos",
+      "filterTags": [
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda a mapear stacks técnicas, conduzir entrevistas comportamentais com devs e negociar propostas competitivas no mercado de TI.",
+      "syllabus": [
+        "Mapeamento do Ecossistema de Tecnologia & Stacks",
+        "Hunting Ativo no LinkedIn e GitHub",
+        "Alinhamento de Job Description com Engineering Managers",
+        "Entrevista por Competências e Fit Cultural",
+        "Comunicação Transparente e Feedback a Candidatos",
+        "Fechamento de Proposta e Onboarding Integrado"
+      ]
+    },
+    {
+      "id": "autocad-2d-3d-projetos",
+      "title": "AutoCAD 2D e 3D para Projetos Técnicos",
+      "instructor": "Eng. Roberto Faria",
+      "instructorRole": "Engenheiro Civil & Projetista Especialista",
+      "rating": 4.9,
+      "reviewsCount": 890,
+      "studentsCount": 2340,
+      "status": "publicado",
+      "hours": 55,
+      "lessonsCount": 112,
+      "originalPrice": 289,
+      "currentPrice": 179.9,
+      "image": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "category": "Engenharia",
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Do desenho técnico básico à modelagem tridimensional, plantas baixas, cortes, elevações, pranchas e plotagem em conformidade com a ABNT.",
+      "syllabus": [
+        "Interface e Comandos de Precisão do AutoCAD",
+        "Desenho de Plantas Baixas, Cortes e Fachadas",
+        "Gerenciamento de Layers, Blocos Dinâmicos e Hachuras",
+        "Cotagem e Textos Normatizados (ABNT)",
+        "Modelagem 3D Básica e Renderização",
+        "Configuração de Layouts, Viewports e Plotagem em PDF"
+      ]
+    },
+    {
+      "id": "bim-revit-arquitetura",
+      "title": "BIM com Revit: Modelagem & Projetos",
+      "instructor": "Engª. Patrícia Lima",
+      "instructorRole": "BIM Manager & Coordenadora de Projetos",
+      "rating": 4.9,
+      "reviewsCount": 760,
+      "studentsCount": 690,
+      "status": "rascunho",
+      "hours": 65,
+      "lessonsCount": 130,
+      "originalPrice": 329,
+      "currentPrice": 219.9,
+      "image": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "category": "Engenharia",
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Aprenda a metodologia BIM na prática: modelagem paramétrica de arquitetura e estruturas, tabelas quantitativas automáticas e compatibilização.",
+      "syllabus": [
+        "Conceitos Fundamentais da Metodologia BIM",
+        "Modelagem de Paredes, Pisos, Coberturas e Esquadrias",
+        "Criação e Edição de Famílias Paramétricas",
+        "Extração Automática de Quantitativos de Materiais",
+        "Documentação Completa de Pranchas Executivas",
+        "Exportação IFC e Compatibilização de Projetos"
+      ]
+    },
+    {
+      "id": "inteligencia-artificial-prompts",
+      "title": "Inteligência Artificial & Prompts",
+      "instructor": "Dr. Gabriel Vasconcelos",
+      "instructorRole": "Pesquisador em IA Generativa & LLMs",
+      "rating": 4.9,
+      "reviewsCount": 1350,
+      "studentsCount": 3100,
+      "status": "publicado",
+      "hours": 35,
+      "lessonsCount": 68,
+      "originalPrice": 269,
+      "currentPrice": 169.9,
+      "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Lançamento",
+        "variant": "emerald"
+      },
+      "category": "Tecnologia & IA",
+      "filterTags": [
+        "Em alta",
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda Engenharia de Prompts para Gemini, ChatGPT e Claude, automações com n8n/Make, agentes de IA e aplicação prática nos negócios.",
+      "syllabus": [
+        "Fundamentos de LLMs e Mecanismo de Atenção",
+        "Técnicas Avançadas de Prompting (Few-Shot, CoT)",
+        "Construção de Agentes Autônomos de Produtividade",
+        "Integração de Modelos de IA via API",
+        "Automação de Fluxos de Trabalho com IA",
+        "Boas Práticas de Governança e Segurança em IA"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "administracao",
+      "name": "Administração",
+      "courseCount": 17,
+      "icon": "business_center"
+    },
+    {
+      "id": "tecnologia-ia",
+      "name": "Tecnologia & IA",
+      "courseCount": 20,
+      "icon": "memory"
+    },
+    {
+      "id": "financas",
+      "name": "Finanças",
+      "courseCount": 13,
+      "icon": "payments"
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "courseCount": 16,
+      "icon": "trending_up"
+    },
+    {
+      "id": "recursos-humanos",
+      "name": "Recursos Humanos",
+      "courseCount": 14,
+      "icon": "groups"
+    },
+    {
+      "id": "engenharia",
+      "name": "Engenharia",
+      "courseCount": 14,
+      "icon": "precision_manufacturing"
+    }
+  ],
+  "coupons": [
+    {
+      "id": "cupom-1",
+      "code": "BEMVINDO10",
+      "discountType": "percentage",
+      "discountValue": 10,
+      "startDateTime": "2026-09-01T00:00",
+      "endDateTime": "2026-12-31T23:59",
+      "usageLimitPerCpf": 1,
+      "usageLimitTotal": 500,
+      "currentUses": 142,
+      "status": "ativo",
+      "description": "Cupom de boas-vindas para novos alunos cadastrados",
+      "createdAt": "2026-09-01T00:00:00Z"
+    },
+    {
+      "id": "cupom-2",
+      "code": "DEDS20",
+      "discountType": "percentage",
+      "discountValue": 20,
+      "startDateTime": "2026-09-10T08:00",
+      "endDateTime": "2026-12-31T23:59",
+      "usageLimitPerCpf": 1,
+      "usageLimitTotal": 250,
+      "currentUses": 89,
+      "status": "ativo",
+      "description": "Desconto especial para aquisição de formações técnicas",
+      "createdAt": "2026-09-10T08:00:00Z"
+    },
+    {
+      "id": "cupom-3",
+      "code": "TURBO50",
+      "discountType": "fixed",
+      "discountValue": 50,
+      "startDateTime": "2026-09-15T00:00",
+      "endDateTime": "2026-12-31T23:59",
+      "usageLimitPerCpf": 2,
+      "usageLimitTotal": 100,
+      "currentUses": 34,
+      "status": "ativo",
+      "description": "Abatimento fixo de R$ 50 para compras acima de R$ 150",
+      "createdAt": "2026-09-15T00:00:00Z"
+    },
+    {
+      "id": "cupom-4",
+      "code": "BLACKFRIDAY",
+      "discountType": "percentage",
+      "discountValue": 40,
+      "startDateTime": "2026-08-01T00:00",
+      "endDateTime": "2026-08-31T23:59",
+      "usageLimitPerCpf": 1,
+      "usageLimitTotal": 1000,
+      "currentUses": 1000,
+      "status": "expirado",
+      "description": "Campanha especial antecipada do mês anterior",
+      "createdAt": "2026-08-01T00:00:00Z"
+    },
+    {
+      "id": "cupom-5",
+      "code": "PARCEIRO15",
+      "discountType": "percentage",
+      "discountValue": 15,
+      "startDateTime": "2026-09-01T00:00",
+      "endDateTime": "2026-12-31T23:59",
+      "usageLimitPerCpf": 1,
+      "usageLimitTotal": 300,
+      "currentUses": 12,
+      "status": "inativo",
+      "description": "Cupom de convênio e parcerias corporativas (pausado temporariamente)",
+      "createdAt": "2026-09-01T10:00:00Z"
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "camp-1",
+      "title": "Semana do Desenvolvedor Web & Full Stack",
+      "description": "Desconto agressivo em todas as formações da categoria Tecnologia & Programação",
+      "targetCourseIds": [
+        "course-1",
+        "course-2"
+      ],
+      "discountType": "percentage",
+      "discountValue": 25,
+      "startDateTime": "2026-09-15T00:00",
+      "endDateTime": "2026-12-31T23:59",
+      "status": "ativa",
+      "createdAt": "2026-09-15T09:00:00Z"
+    },
+    {
+      "id": "camp-2",
+      "title": "Oferta Relâmpago de Design UI/UX & Figma",
+      "description": "Preço promocional fixo para impulsionar novas matrículas",
+      "targetCourseIds": [
+        "course-3"
+      ],
+      "discountType": "fixed_price",
+      "discountValue": 89.9,
+      "startDateTime": "2026-09-16T12:00",
+      "endDateTime": "2026-12-31T23:59",
+      "status": "ativa",
+      "createdAt": "2026-09-16T12:00:00Z"
+    },
+    {
+      "id": "camp-3",
+      "title": "Campanha Férias Aceleradas",
+      "description": "Desconto geral em todo o catálogo da plataforma",
+      "targetCourseIds": [
+        "all"
+      ],
+      "discountType": "percentage",
+      "discountValue": 15,
+      "startDateTime": "2026-09-01T00:00",
+      "endDateTime": "2026-12-31T23:59",
+      "status": "pausada",
+      "createdAt": "2026-09-01T00:00:00Z"
+    }
+  ],
+  "heroBanner": {
+    "imageUrl": "/images/hero-banner.jpg",
+    "badge1Number": "+10.000",
+    "badge1Text": "Alunos certificados",
+    "overlayTitle": "Carreiras Tech 2026",
+    "overlaySubtitle": "Certificados Verificados",
+    "ratingScore": "4.9 / 5.0",
+    "reviewsCountText": "Mais de 12.000 reviews verificadas"
+  },
+  "middleBanner": {
+    "enabled": true,
+    "imageUrl": "/images/estude-no-seu-ritmo.jpg",
+    "targetUrl": "#cursos-section",
+    "altText": "Formações Profissionais e Tecnológicas com Certificado Válido - Deds Academy"
+  },
+  "checkoutBanner": {
+    "enabled": true,
+    "imageUrl": "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1200&auto=format&fit=crop&q=80",
+    "altText": "Banner Oficial de Pagamentos e Checkout - Deds Academy"
+  },
+  "instructors": [
+    {
+      "id": "inst-1",
+      "name": "João Paulo Silveira",
+      "email": "joao.silveira@dedsacademy.com.br",
+      "role": "Especialista em Engenharia de Dados & Machine Learning com 10 anos no mercado",
+      "specialty": "Tecnologia & IA",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "coursesCount": 4,
+      "studentsCount": 3820,
+      "rating": 4.9,
+      "status": "ativo"
+    },
+    {
+      "id": "inst-2",
+      "name": "Carla Mendes",
+      "email": "carla.mendes@dedsacademy.com.br",
+      "role": "Consultora de BI e Inteligência Financeira Corporativa",
+      "specialty": "Finanças & Negócios",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "coursesCount": 3,
+      "studentsCount": 2450,
+      "rating": 4.8,
+      "status": "ativo"
+    },
+    {
+      "id": "inst-3",
+      "name": "Lucas Nogueira",
+      "email": "lucas.nogueira@dedsacademy.com.br",
+      "role": "Growth Hacker & Estrategista de Performance e Mídia Paga",
+      "specialty": "Marketing Digital",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "coursesCount": 2,
+      "studentsCount": 1980,
+      "rating": 4.9,
+      "status": "ativo"
+    },
+    {
+      "id": "inst-4",
+      "name": "Marina Duarte",
+      "email": "marina.duarte@dedsacademy.com.br",
+      "role": "Senior Product Designer & Especialista em Design Systems",
+      "specialty": "Design & UI/UX",
+      "avatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+      "coursesCount": 3,
+      "studentsCount": 1650,
+      "rating": 4.9,
+      "status": "ativo"
+    },
+    {
+      "id": "inst-5",
+      "name": "Renata Silveira",
+      "email": "renata.silveira@dedsacademy.com.br",
+      "role": "Diretora de RH Estratégico & Docente em People Analytics",
+      "specialty": "Recursos Humanos",
+      "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "coursesCount": 2,
+      "studentsCount": 1240,
+      "rating": 4.9,
+      "status": "ativo"
+    }
+  ],
+  "blogPosts": [
+    {
+      "id": "post-1",
+      "title": "Horas Complementares (AACC): Tudo o que você precisa saber para validar na faculdade",
+      "category": "Horas Complementares",
+      "author": "Coordenação Pedagógica Deds",
+      "date": "14/09/2026",
+      "readTime": "6 min",
+      "image": "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80",
+      "summary": "Entenda os critérios da Lei nº 9.394/96 para aceitação de certificados de cursos livres e extracurriculares em atividades complementares universitárias.",
+      "status": "publicado",
+      "viewsCount": 3420
+    },
+    {
+      "id": "post-2",
+      "title": "Como a Inteligência Artificial Generativa está redefinindo o mercado de programação",
+      "category": "Tecnologia & Carreira",
+      "author": "Prof. João Paulo Silveira",
+      "date": "10/09/2026",
+      "readTime": "5 min",
+      "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=600&auto=format&fit=crop&q=80",
+      "summary": "Descubra por que engenheiros de prompt e desenvolvedores que dominam automação de LLMs estão recebendo propostas até 40% maiores.",
+      "status": "publicado",
+      "viewsCount": 2890
+    },
+    {
+      "id": "post-3",
+      "title": "Autenticação Criptográfica com QR Code: A segurança por trás do diploma Deds Academy",
+      "category": "Certificação",
+      "author": "Segurança & Compliance",
+      "date": "05/09/2026",
+      "readTime": "4 min",
+      "image": "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600&auto=format&fit=crop&q=80",
+      "summary": "Cada certificado gerado na Deds possui hash verificador imutável que permite consulta instantânea por qualquer comissão avaliadora.",
+      "status": "publicado",
+      "viewsCount": 1950
+    }
+  ],
+  "announcements": [
+    {
+      "id": "ann-1",
+      "title": "Módulo de Inteligência Artificial Generativa liberado em Python com certificados da Lei 9.394/96",
+      "author": "Coordenação Pedagógica",
+      "date": "28/10/2026",
+      "priority": "alta"
+    }
+  ]
+}

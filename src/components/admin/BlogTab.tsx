@@ -4,6 +4,7 @@ import { CheckoutBannerManagerTab } from './CheckoutBannerManagerTab';
 import { HeroBannerManagerTab } from './HeroBannerManagerTab';
 import { MiddleBannerManagerTab } from './MiddleBannerManagerTab';
 import { optimizeImageFile } from '../../lib/imageOptimizer';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
 
 interface BlogTabProps {
   posts: BlogPost[];
@@ -94,8 +95,9 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         maxHeight: 800,
         quality: 0.85,
       });
-      setForm((prev) => ({ ...prev, image: optimized.dataUrl }));
-      setImageFileName(`${optimized.name} (${optimized.sizeKb} KB)`);
+      const serverUrl = await uploadImageToServer(optimized.dataUrl, 'blog');
+      setForm((prev) => ({ ...prev, image: serverUrl }));
+      setImageFileName(`${optimized.name} (${optimized.sizeKb} KB - Servidor)`);
     } catch (err: any) {
       alert(err?.message || 'Falha ao processar arquivo de imagem.');
     } finally {
