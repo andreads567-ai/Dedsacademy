@@ -6,12 +6,12 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL =
-  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) ||
-  'https://fexbpxuvyijvsqzsfyhn.supabase.co';
+  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_URL || process.env?.SUPABASE_URL)) ||
+  'https://eemnymshmoyakvmikcem.supabase.co';
 
 const SUPABASE_KEY =
-  (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_ANON_KEY) ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZleGJweHV2eWlqdnNxenNmeWhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNTI1NzksImV4cCI6MjA2MTYyODU3OX0.aD4t5bE8_8Pj4H-68UsqqV9R9tV4iS2iG1o3v7a8u_0';
+  (typeof process !== 'undefined' && (process.env?.VITE_SUPABASE_ANON_KEY || process.env?.SUPABASE_ANON_KEY)) ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlbW55bXNobW95YWt2bWlrY2VtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3NzE1OTYsImV4cCI6MjEwNTM0NzU5Nn0.asPfurzOoGQ7u8rYJZN9HlvYrEUUll20ADzLHzHgx_U';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
