@@ -2,7 +2,7 @@
  * Client-side Realtime Platform Synchronization Service
  *
  * Guarantees cross-browser consistency (Opera, Edge, Chrome, Safari, Firefox, Mobile)
- * by storing and synchronizing state through the shared backend API instead of isolated localStorage.
+ * and server-activated cache invalidation without content deletion.
  */
 
 export interface PlatformSyncPayload {
@@ -21,17 +21,30 @@ export interface PlatformSyncPayload {
 
 let currentKnownVersion = 0;
 
+export function getServerCacheVersion(): number {
+  return currentKnownVersion;
+}
+
 /**
- * Fetch the latest platform data from the shared server
+ * Fetch the latest platform data with server-activated cache revalidation (ETag / If-None-Match)
  */
 export async function fetchPlatformSyncData(): Promise<PlatformSyncPayload | null> {
   try {
-    const res = await fetch(`/api/platform-sync?t=${Date.now()}`, {
-      headers: {
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
-    });
+    const headers: Record<string, string> = {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    };
+
+    if (currentKnownVersion > 0) {
+      headers['If-None-Match'] = `W/"${currentKnownVersion}"`;
+    }
+
+    const res = await fetch(`/api/platform-sync?t=${Date.now()}`, { headers });
+
+    // 304 Not Modified: Cache is still 100% valid, no new changes
+    if (res.status === 304) {
+      return null;
+    }
 
     if (!res.ok) {
       return null;
@@ -43,13 +56,13 @@ export async function fetchPlatformSyncData(): Promise<PlatformSyncPayload | nul
     }
     return data;
   } catch (err) {
-    console.warn('[PlatformSyncClient] Server unreachable, using local state:', err);
+    console.warn('[PlatformSyncClient] Server unreachable, maintaining active state:', err);
     return null;
   }
 }
 
 /**
- * Persist an update to the shared backend so all other browsers receive it
+ * Persist an update to the shared backend so all other browsers receive it and invalidate their cache
  */
 export async function syncUpdateToBackend(
   type:
@@ -82,6 +95,25 @@ export async function syncUpdateToBackend(
       currentKnownVersion = result.version;
     }
 
+    // Safely update current browser local cache for immediate feedback without deleting other data
+    try {
+      const storageKeyMap: Record<string, string> = {
+        courses: 'deds_courses_list',
+        categories: 'deds_categories_list',
+        coupons: 'deds_coupons_list',
+        campaigns: 'deds_campaigns_list',
+        heroBanner: 'deds_hero_banner_config',
+        middleBanner: 'deds_middle_banner_config',
+        checkoutBanner: 'deds_checkout_banner_config',
+        instructors: 'deds_instructors_list',
+        blogPosts: 'deds_blog_posts',
+      };
+      const key = storageKeyMap[type];
+      if (key && data !== undefined) {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+    } catch {}
+
     // Notify other components in the same window
     window.dispatchEvent(
       new CustomEvent('deds_backend_synced', { detail: { type, data, version: result.version } })
@@ -95,8 +127,9 @@ export async function syncUpdateToBackend(
 }
 
 /**
- * Upload an image file or base64 dataUrl to the shared server /public/uploads/ directory
- * Returns a public relative URL (e.g. /uploads/hero-banner-xxx.webp) accessible by ALL browsers.
+ * Upload an image file or base64 dataUrl to the shared server.
+ * On Vercel / serverless environments, returns an optimized, permanent self-contained URL
+ * that never causes 404s. On local server, writes to /uploads/.
  */
 export async function uploadImageToServer(
   source: File | string,
@@ -115,7 +148,6 @@ export async function uploadImageToServer(
     });
   }
 
-  // If not a dataUrl, return as is
   if (!dataUrl || !dataUrl.startsWith('data:image/')) {
     return dataUrl;
   }
@@ -148,6 +180,7 @@ export async function uploadImageToServer(
 
 /**
  * Start live background polling to synchronize changes across browsers automatically
+ * with server-activated invalidation and zero data deletion.
  */
 export function startLiveSync(
   onUpdate: (data: PlatformSyncPayload) => void,
@@ -162,6 +195,20 @@ export function startLiveSync(
       const data = await fetchPlatformSyncData();
       if (data && data.version && data.version > currentKnownVersion) {
         currentKnownVersion = data.version;
+
+        // Safely synchronize localStorage without deleting unrelated keys
+        try {
+          if (data.courses) localStorage.setItem('deds_courses_list', JSON.stringify(data.courses));
+          if (data.categories) localStorage.setItem('deds_categories_list', JSON.stringify(data.categories));
+          if (data.coupons) localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons));
+          if (data.campaigns) localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns));
+          if (data.heroBanner) localStorage.setItem('deds_hero_banner_config', JSON.stringify(data.heroBanner));
+          if (data.middleBanner) localStorage.setItem('deds_middle_banner_config', JSON.stringify(data.middleBanner));
+          if (data.checkoutBanner) localStorage.setItem('deds_checkout_banner_config', JSON.stringify(data.checkoutBanner));
+          if (data.instructors) localStorage.setItem('deds_instructors_list', JSON.stringify(data.instructors));
+          if (data.blogPosts) localStorage.setItem('deds_blog_posts', JSON.stringify(data.blogPosts));
+        } catch {}
+
         onUpdate(data);
       }
     } catch {} finally {

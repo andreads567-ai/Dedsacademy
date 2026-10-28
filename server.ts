@@ -124,12 +124,23 @@ app.post('/api/issue-certificate', async (req, res) => {
   }
 });
 
-// 7. Endpoint Central de Sincronização entre Navegadores (GET e POST)
-app.get('/api/platform-sync', (_req, res) => {
+// 7. Endpoint Central de Sincronização entre Navegadores (GET e POST) com Invalidação Ativada por Servidor
+app.get('/api/platform-sync', (req, res) => {
   try {
     const data = getPlatformData();
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const etag = `W/"${data.version}"`;
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+    res.setHeader('CDN-Cache-Control', 'no-store');
     res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('ETag', etag);
+    res.setHeader('X-Platform-Version', String(data.version));
+
+    const clientEtag = req.headers['if-none-match'];
+    if (clientEtag && clientEtag === etag) {
+      return res.status(304).end();
+    }
+
     res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Erro ao obter dados da plataforma' });
@@ -139,7 +150,10 @@ app.get('/api/platform-sync', (_req, res) => {
 app.post('/api/platform-sync', (req, res) => {
   try {
     const result = savePlatformData(req.body);
-    res.json(result);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('ETag', `W/"${result.version}"`);
+    res.setHeader('X-Platform-Version', String(result.version));
+    res.json({ ...result, invalidated: true });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || 'Erro ao sincronizar dados' });
   }

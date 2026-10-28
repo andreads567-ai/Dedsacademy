@@ -35,15 +35,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   };
 
   private handleResetCache = () => {
-    try {
-      const keysToClear = [
-        'deds_courses_list',
-        'deds_instructors_list',
-        'deds_coupons_list',
-        'deds_support_tickets',
-      ];
-      keysToClear.forEach((k) => localStorage.removeItem(k));
-    } catch {}
     window.location.href = '/';
   };
 
@@ -86,7 +77,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 onClick={this.handleResetCache}
                 className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold text-xs transition-all cursor-pointer border border-white/10"
               >
-                Limpar Cache &amp; Início
+                Voltar ao Início
               </button>
             </div>
           </div>

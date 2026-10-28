@@ -13,14 +13,16 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isVercel = Boolean(process.env.VERCEL);
-const projectRoot = isVercel
-  ? '/tmp'
-  : (process.cwd() || path.resolve(__dirname, '../..'));
 
-const DATA_DIR = isVercel ? path.join('/tmp', 'data') : path.join(projectRoot, 'data');
-const STORE_FILE = path.join(DATA_DIR, 'platform-store.json');
-const UPLOADS_DIR = isVercel ? path.join('/tmp', 'uploads') : path.join(projectRoot, 'public', 'uploads');
-const DIST_UPLOADS_DIR = isVercel ? path.join('/tmp', 'uploads') : path.join(projectRoot, 'dist', 'uploads');
+const projectRoot = process.cwd() || path.resolve(__dirname, '../..');
+const PRIMARY_DATA_DIR = path.join(projectRoot, 'data');
+const PRIMARY_STORE_FILE = path.join(PRIMARY_DATA_DIR, 'platform-store.json');
+
+const TMP_DATA_DIR = path.join('/tmp', 'data');
+const TMP_STORE_FILE = path.join(TMP_DATA_DIR, 'platform-store.json');
+
+const UPLOADS_DIR = path.join(projectRoot, 'public', 'uploads');
+const DIST_UPLOADS_DIR = path.join(projectRoot, 'dist', 'uploads');
 
 export interface PlatformStore {
   version: number;
@@ -36,6 +38,8 @@ export interface PlatformStore {
   blogPosts: any[];
   announcements: any[];
 }
+
+let inMemoryStore: PlatformStore | null = null;
 
 function getInitialStore(): PlatformStore {
   return {
@@ -63,38 +67,54 @@ function getInitialStore(): PlatformStore {
 }
 
 export function ensureStoreFile(): PlatformStore {
+  if (inMemoryStore) {
+    return inMemoryStore;
+  }
+
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    // 1. Try reading from /tmp on Vercel if it exists
+    if (isVercel && fs.existsSync(TMP_STORE_FILE)) {
+      try {
+        const raw = fs.readFileSync(TMP_STORE_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        inMemoryStore = parsed;
+        return parsed;
+      } catch {}
     }
 
-    if (!fs.existsSync(STORE_FILE)) {
-      const initial = getInitialStore();
-      fs.writeFileSync(STORE_FILE, JSON.stringify(initial, null, 2), 'utf8');
-      return initial;
+    // 2. Try reading from project data/platform-store.json
+    if (fs.existsSync(PRIMARY_STORE_FILE)) {
+      try {
+        const raw = fs.readFileSync(PRIMARY_STORE_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        inMemoryStore = parsed;
+        return parsed;
+      } catch {}
     }
 
-    const raw = fs.readFileSync(STORE_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
-
-    // Guarantee all top-level keys exist
+    // 3. Fallback: create initial store and persist where writable
     const initial = getInitialStore();
-    let needsResave = false;
-    for (const key of Object.keys(initial) as (keyof PlatformStore)[]) {
-      if (parsed[key] === undefined) {
-        (parsed as any)[key] = initial[key];
-        needsResave = true;
+    inMemoryStore = initial;
+
+    try {
+      if (!fs.existsSync(PRIMARY_DATA_DIR)) {
+        fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
       }
+      fs.writeFileSync(PRIMARY_STORE_FILE, JSON.stringify(initial, null, 2), 'utf8');
+    } catch {
+      try {
+        if (!fs.existsSync(TMP_DATA_DIR)) {
+          fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+        }
+        fs.writeFileSync(TMP_STORE_FILE, JSON.stringify(initial, null, 2), 'utf8');
+      } catch {}
     }
 
-    if (needsResave) {
-      fs.writeFileSync(STORE_FILE, JSON.stringify(parsed, null, 2), 'utf8');
-    }
-
-    return parsed;
+    return initial;
   } catch (err) {
     console.error('[PlatformSyncHandler] Error ensuring store file:', err);
-    return getInitialStore();
+    inMemoryStore = getInitialStore();
+    return inMemoryStore;
   }
 }
 
@@ -118,12 +138,32 @@ export function savePlatformData(payload: {
 
     store.version = newVersion;
     store.lastUpdated = new Date().toISOString();
+    inMemoryStore = store;
 
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const json = JSON.stringify(store, null, 2);
+
+    // Try primary location first
+    let saved = false;
+    try {
+      if (!fs.existsSync(PRIMARY_DATA_DIR)) {
+        fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(PRIMARY_STORE_FILE, json, 'utf8');
+      saved = true;
+    } catch {
+      // Primary was read-only (e.g. Vercel serverless)
     }
 
-    fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+    // Try /tmp location as secondary persistence on serverless
+    if (!saved || isVercel) {
+      try {
+        if (!fs.existsSync(TMP_DATA_DIR)) {
+          fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+        }
+        fs.writeFileSync(TMP_STORE_FILE, json, 'utf8');
+      } catch {}
+    }
+
     return { success: true, version: newVersion };
   } catch (err: any) {
     console.error('[PlatformSyncHandler] Error saving store file:', err);
@@ -142,6 +182,13 @@ export function handleImageUpload(payload: {
       return { success: false, error: 'DataURL de imagem inválido' };
     }
 
+    // On Vercel, static files cannot be written to Vercel's global CDN at runtime.
+    // Returning the self-contained, already compressed Data URL ensures 100% availability
+    // across all browsers and devices without 404 errors.
+    if (isVercel) {
+      return { success: true, url: dataUrl };
+    }
+
     const [header, base64Data] = dataUrl.split(',');
     let ext = 'jpg';
     if (header.includes('image/png')) ext = 'png';
@@ -155,25 +202,29 @@ export function handleImageUpload(payload: {
 
     const buffer = Buffer.from(base64Data, 'base64');
 
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    }
-
-    const publicFilePath = path.join(UPLOADS_DIR, safeName);
-    fs.writeFileSync(publicFilePath, buffer);
-
-    // If dist exists, also write to dist/uploads so production server immediately serves it
-    if (fs.existsSync(path.join(projectRoot, 'dist'))) {
-      if (!fs.existsSync(DIST_UPLOADS_DIR)) {
-        fs.mkdirSync(DIST_UPLOADS_DIR, { recursive: true });
+    try {
+      if (!fs.existsSync(UPLOADS_DIR)) {
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
       }
-      fs.writeFileSync(path.join(DIST_UPLOADS_DIR, safeName), buffer);
-    }
 
-    const publicUrl = `/uploads/${safeName}`;
-    return { success: true, url: publicUrl };
+      const publicFilePath = path.join(UPLOADS_DIR, safeName);
+      fs.writeFileSync(publicFilePath, buffer);
+
+      if (fs.existsSync(path.join(projectRoot, 'dist'))) {
+        if (!fs.existsSync(DIST_UPLOADS_DIR)) {
+          fs.mkdirSync(DIST_UPLOADS_DIR, { recursive: true });
+        }
+        fs.writeFileSync(path.join(DIST_UPLOADS_DIR, safeName), buffer);
+      }
+
+      const publicUrl = `/uploads/${safeName}`;
+      return { success: true, url: publicUrl };
+    } catch (fsErr) {
+      console.warn('[PlatformSyncHandler] Filesystem write failed, falling back to dataUrl:', fsErr);
+      return { success: true, url: dataUrl };
+    }
   } catch (err: any) {
     console.error('[PlatformSyncHandler] Error uploading image:', err);
-    return { success: false, error: err.message || 'Erro ao salvar imagem no servidor' };
+    return { success: false, error: err.message || 'Erro ao processar imagem' };
   }
 }

@@ -167,14 +167,27 @@ export default defineConfig(({ mode }) => {
         });
       });
 
-      // 6. Sincronização central da plataforma (GET e POST)
+      // 6. Sincronização central da plataforma (GET e POST) com Invalidação Ativada por Servidor
       server.middlewares.use('/api/platform-sync', async (req, res) => {
         const { getPlatformData, savePlatformData } = await import('./src/api/platformSyncHandler');
         if (req.method === 'GET') {
           try {
             const data = getPlatformData();
+            const etag = `W/"${data.version}"`;
             res.setHeader('Content-Type', 'application/json');
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+            res.setHeader('ETag', etag);
+            res.setHeader('X-Platform-Version', String(data.version));
+
+            const clientEtag = req.headers['if-none-match'];
+            if (clientEtag && clientEtag === etag) {
+              res.statusCode = 304;
+              res.end();
+              return;
+            }
+
             res.statusCode = 200;
             res.end(JSON.stringify(data));
           } catch (err: any) {
@@ -192,8 +205,11 @@ export default defineConfig(({ mode }) => {
               const parsed = body ? JSON.parse(body) : {};
               const result = savePlatformData(parsed);
               res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+              res.setHeader('ETag', `W/"${result.version}"`);
+              res.setHeader('X-Platform-Version', String(result.version));
               res.statusCode = 200;
-              res.end(JSON.stringify(result));
+              res.end(JSON.stringify({ ...result, invalidated: true }));
             } catch (err: any) {
               res.statusCode = 500;
               res.end(JSON.stringify({ success: false, error: err.message }));

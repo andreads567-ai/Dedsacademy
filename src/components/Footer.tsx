@@ -1,5 +1,4 @@
 import React from 'react';
-import { forceClearAndResyncSiteCache } from '../lib/cacheManager';
 
 interface FooterProps {
   onOpenCertificateModal: () => void;
@@ -187,18 +186,6 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md font-body-sm text-body-sm text-text-tertiary">
           <p>© 2026 Deds Academy Educação e Tecnologia Ltda. Todos os direitos reservados.</p>
           <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => {
-                if (window.confirm('Deseja sincronizar o site e atualizar todas as informações e imagens agora?')) {
-                  forceClearAndResyncSiteCache();
-                }
-              }}
-              className="hover:text-primary transition-colors text-xs flex items-center gap-1 cursor-pointer bg-surface-overlay px-2.5 py-1 rounded-lg border border-border-subtle"
-              title="Limpar cache do navegador e sincronizar dados com o servidor"
-            >
-              <span className="material-symbols-outlined text-sm">sync</span>
-              <span>Sincronizar Site</span>
-            </button>
             <p className="flex items-center gap-space-xs">
               <span className="w-2 h-2 rounded-full bg-primary inline-block animate-pulse" />
               Plataforma Operacional | Suporte 24/7

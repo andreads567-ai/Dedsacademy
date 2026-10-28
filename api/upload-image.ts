@@ -5,7 +5,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -19,6 +24,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = handleImageUpload(req.body);
     return res.status(result.success ? 200 : 400).json(result);
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message || 'Erro ao fazer upload da imagem' });
+    return res.status(500).json({ success: false, error: err.message || 'Erro ao processar imagem' });
   }
 }

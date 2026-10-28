@@ -36,7 +36,7 @@ import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, S
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
-import { sanitizeCourseList, getCacheBustedImageUrl, forceClearAndResyncSiteCache, DEDS_CACHE_VERSION } from './lib/cacheManager';
+import { sanitizeCourseList, getCacheBustedImageUrl, DEDS_CACHE_VERSION } from './lib/cacheManager';
 import { fetchPlatformSyncData, syncUpdateToBackend, startLiveSync } from './lib/platformSyncClient';
 
 /**
