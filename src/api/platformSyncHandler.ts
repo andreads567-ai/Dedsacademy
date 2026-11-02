@@ -14,7 +14,8 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const projectRoot = process.cwd() || path.resolve(__dirname, '../..');
+const isInsideDist = path.basename(__dirname) === 'dist';
+const projectRoot = isInsideDist ? path.resolve(__dirname, '..') : (process.cwd() || __dirname);
 const PRIMARY_DATA_DIR = path.join(projectRoot, 'data');
 const PRIMARY_STORE_FILE = path.join(PRIMARY_DATA_DIR, 'platform-store.json');
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createStripeCheckoutSession } from './src/api/stripeHandler';
 import { processStripeWebhook } from './src/api/stripeWebhookHandler';
@@ -23,10 +24,30 @@ dotenv.config({ path: '.env.local' });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Identifica a raiz do projeto de forma resiliente tanto em dev quanto em produção (dist/server.js no Coolify/Docker)
+const isInsideDist = path.basename(__dirname) === 'dist';
+const projectRoot = isInsideDist ? path.resolve(__dirname, '..') : (process.cwd() || __dirname);
+const distDir = isInsideDist ? __dirname : path.join(projectRoot, 'dist');
+const publicDir = path.join(projectRoot, 'public');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '10mb' }));
+
+// 0. Endpoints de Healthcheck dedicados (essenciais para Coolify, Docker e Hostinger)
+app.get('/health', (_req, res) => {
+  res.status(200).send('OK');
+});
+
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    platform: 'Deds Academy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // 1. Endpoint para criar sessão de checkout
 app.post('/api/create-checkout-session', async (req, res) => {
@@ -196,16 +217,24 @@ app.post('/api/upload-image', (req, res) => {
 });
 
 // Servir diretório de uploads compartilhados tanto em dev quanto em prod
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
+const uploadsDir = path.join(publicDir, 'uploads');
+const distUploadsDir = path.join(distDir, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  try { fs.mkdirSync(uploadsDir, { recursive: true }); } catch {}
+}
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res) => {
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
   }
 }));
+if (distUploadsDir !== uploadsDir && fs.existsSync(distUploadsDir)) {
+  app.use('/uploads', express.static(distUploadsDir));
+}
 
 // Servir diretório do gerador oficial de certificados (index.html, style.css, script.js, frente.png, verso.png)
-const certGenDir = path.join(__dirname, 'public', 'certificate-generator');
-const certGenFallback = path.join(__dirname, 'certificate-generator');
+const certGenDir = path.join(publicDir, 'certificate-generator');
+const certGenDistDir = path.join(distDir, 'certificate-generator');
+const certGenFallback = path.join(projectRoot, 'certificate-generator');
 
 app.use('/certificate-generator', (req, res, next) => {
   if (req.url === '' || req.url === '/') {
@@ -213,12 +242,13 @@ app.use('/certificate-generator', (req, res, next) => {
   }
   next();
 });
+app.use('/certificate-generator', express.static(certGenDistDir));
 app.use('/certificate-generator', express.static(certGenDir));
 app.use('/certificate-generator', express.static(certGenFallback));
 
 // Serve static assets in production with fine-grained cache control
 app.use(
-  express.static(path.join(__dirname, 'dist'), {
+  express.static(distDir, {
     setHeaders: (res, filePath) => {
       // 1. Never cache HTML files - always force validation
       if (filePath.endsWith('.html')) {
@@ -238,13 +268,19 @@ app.use(
   })
 );
 
+const indexHtmlPath = path.join(distDir, 'index.html');
+
 app.get('*', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  if (fs.existsSync(indexHtmlPath)) {
+    res.sendFile(indexHtmlPath);
+  } else {
+    res.status(200).send('<!DOCTYPE html><html><head><title>Deds Academy</title></head><body><h1>Deds Academy</h1><p>Aplicação online.</p></body></html>');
+  }
 });
 
-app.listen(port, () => {
-  console.log(`[Deds Academy] Servidor rodando em http://localhost:${port}`);
+app.listen(Number(port), '0.0.0.0', () => {
+  console.log(`[Deds Academy] Servidor rodando em http://0.0.0.0:${port}`);
 });
