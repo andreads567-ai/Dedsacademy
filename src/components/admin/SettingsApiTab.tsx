@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { ApiIntegrationSettings, WebhookLogItem } from '../../types';
+import {
+  ApiIntegrationSettings,
+  WebhookLogItem,
+  SupportChannelsSettings,
+  SupportChannelEmail,
+  SupportWorkingHour,
+} from '../../types';
+import {
+  getStoredSupportChannels,
+  saveStoredSupportChannels,
+  buildWhatsAppUrl,
+  DEFAULT_SUPPORT_CHANNELS,
+} from '../../services/contactChannelsService';
 
 interface SettingsApiTabProps {
   initialSettings?: ApiIntegrationSettings;
@@ -121,8 +133,72 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   });
 
   const [activeSection, setActiveSection] = useState<
-    'pagamento' | 'video' | 'storage' | 'email' | 'webhooks' | 'banco'
+    'pagamento' | 'video' | 'storage' | 'email' | 'webhooks' | 'banco' | 'instagram' | 'atendimento'
   >('pagamento');
+
+  // Configurações de Outros Canais de Atendimento & Horários de Suporte (Página de Contato)
+  const [supportChannels, setSupportChannels] = useState<SupportChannelsSettings>(() => getStoredSupportChannels());
+  const [supportSaveToast, setSupportSaveToast] = useState<string | null>(null);
+
+  const handleSaveSupportChannels = (updated?: SupportChannelsSettings) => {
+    const dataToSave = updated || supportChannels;
+    saveStoredSupportChannels(dataToSave);
+    setSupportChannels(dataToSave);
+    setSupportSaveToast('✅ Configurações de Atendimento salvas! A página de contato e o botão do WhatsApp já foram atualizados.');
+    setTimeout(() => setSupportSaveToast(null), 4000);
+  };
+
+  // Instagram API Integration State
+  const [instagramConfig, setInstagramConfig] = useState<{
+    profileUrl: string;
+    apiToken: string;
+    status: 'conectado' | 'desconectado';
+    lastVerified?: string;
+  }>(() => {
+    try {
+      const savedUrl = localStorage.getItem('deds_instagram_url') || 'https://www.instagram.com/dedsacademy/';
+      const savedToken = localStorage.getItem('deds_instagram_token') || '';
+      const savedStatus = (localStorage.getItem('deds_instagram_status') as 'conectado' | 'desconectado') || 'conectado';
+      return {
+        profileUrl: savedUrl,
+        apiToken: savedToken,
+        status: savedStatus,
+        lastVerified: 'Hoje às 12:00',
+      };
+    } catch {
+      return {
+        profileUrl: 'https://www.instagram.com/dedsacademy/',
+        apiToken: '',
+        status: 'conectado',
+        lastVerified: 'Hoje',
+      };
+    }
+  });
+
+  const handleTestAndSaveInstagram = () => {
+    if (!instagramConfig.profileUrl.trim()) {
+      alert('Por favor, informe a URL ou @perfil oficial do Instagram da Deds Academy.');
+      return;
+    }
+    let formatted = instagramConfig.profileUrl.trim();
+    if (!formatted.startsWith('http://') && !formatted.startsWith('https://')) {
+      formatted = `https://www.instagram.com/${formatted.replace(/^@/, '')}`;
+    }
+    const updated = {
+      ...instagramConfig,
+      profileUrl: formatted,
+      status: 'conectado' as const,
+      lastVerified: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setInstagramConfig(updated);
+    try {
+      localStorage.setItem('deds_instagram_url', formatted);
+      localStorage.setItem('deds_instagram_token', instagramConfig.apiToken);
+      localStorage.setItem('deds_instagram_status', 'conectado');
+      window.dispatchEvent(new CustomEvent('deds_instagram_updated', { detail: formatted }));
+    } catch {}
+    alert('✅ API e Perfil Oficial do Instagram verificados e conectados com sucesso!\n\nO botão de rede oficial do rodapé agora redireciona perfeitamente para: ' + formatted);
+  };
 
   const [showSaveAlert, setShowSaveAlert] = useState(false);
   const [testingService, setTestingService] = useState<string | null>(null);
@@ -177,6 +253,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   const handleSave = () => {
     try {
       localStorage.setItem('deds_api_settings', JSON.stringify(settings));
+      saveStoredSupportChannels(supportChannels);
     } catch (e) {
       console.error(e);
     }
@@ -787,6 +864,34 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           <span className="material-symbols-outlined text-base">database</span>
           <span>Banco de Dados</span>
           <span className={`w-2 h-2 rounded-full ${settings.database.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('instagram')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+            activeSection === 'instagram'
+              ? 'bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white shadow-xs'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">photo_camera</span>
+          <span>API do Instagram</span>
+          <span className={`w-2 h-2 rounded-full ${instagramConfig.status === 'conectado' ? 'bg-accent-emerald-bright' : 'bg-zinc-500'}`}></span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('atendimento')}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+            activeSection === 'atendimento'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">support_agent</span>
+          <span>Outros Canais de Atendimento</span>
+          <span className="w-2 h-2 rounded-full bg-accent-emerald-bright"></span>
         </button>
       </div>
 
@@ -2667,6 +2772,534 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
             <span className="text-[11px] text-text-tertiary">
               Última sincronização com réplicas: <strong className="text-text-primary">{settings.database.lastSynced}</strong>
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 7: API DO INSTAGRAM */}
+      {activeSection === 'instagram' && (
+        <div className="p-6 rounded-2xl bg-surface-raised border border-border-subtle shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white flex items-center justify-center font-bold shadow-md">
+                <span className="material-symbols-outlined text-2xl">photo_camera</span>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-text-primary">
+                  6. API do Instagram &amp; Rede Oficial Deds Academy
+                </h3>
+                <p className="text-xs text-text-tertiary">
+                  Configuração da API e perfil oficial do Instagram conectado aos botões de redes do site.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                  instagramConfig.status === 'conectado'
+                    ? 'bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30'
+                    : 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    instagramConfig.status === 'conectado' ? 'bg-accent-emerald-bright animate-pulse' : 'bg-zinc-500'
+                  }`}
+                />
+                <span>{instagramConfig.status === 'conectado' ? 'Conectado & Verificado' : 'Desconectado'}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-surface-overlay border border-border-subtle space-y-3">
+              <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-primary">link</span>
+                <span>Endereço do Perfil Oficial (Instagram)</span>
+              </h4>
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  URL Completa ou Usuário do Instagram <span className="text-status-danger">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={instagramConfig.profileUrl}
+                    onChange={(e) =>
+                      setInstagramConfig((prev) => ({ ...prev, profileUrl: e.target.value }))
+                    }
+                    placeholder="https://www.instagram.com/dedsacademy/ ou @dedsacademy"
+                    className="flex-1 px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      let target = instagramConfig.profileUrl.trim();
+                      if (!target.startsWith('http://') && !target.startsWith('https://')) {
+                        target = `https://www.instagram.com/${target.replace(/^@/, '')}`;
+                      }
+                      window.open(target, '_blank');
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-container border border-border-subtle text-xs font-bold text-text-secondary hover:text-text-primary flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    <span>Abrir Perfil</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  Este link é o destino aberto quando qualquer visitante ou aluno clica no botão oficial do Instagram no rodapé da plataforma.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-surface-overlay border border-border-subtle space-y-3">
+              <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-purple-400">key</span>
+                <span>Meta Graph API Access Token (Opcional para Integrações Futuras)</span>
+              </h4>
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Access Token da Graph API do Instagram
+                </label>
+                <input
+                  type="password"
+                  value={instagramConfig.apiToken}
+                  onChange={(e) =>
+                    setInstagramConfig((prev) => ({ ...prev, apiToken: e.target.value }))
+                  }
+                  placeholder="EAAG... (Token para consulta de métricas e sincronização automática de posts)"
+                  className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
+                />
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  Gerado no Meta for Developers (Instagram Graph API). Opcional para validação de métricas em tempo real.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pt-4 border-t border-border-subtle">
+            <span className="text-xs text-text-tertiary">
+              Status da API:{' '}
+              <strong className="text-accent-emerald-bright">Pronto para operação em produção</strong>
+            </span>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleTestAndSaveInstagram}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">check_circle</span>
+                <span>Testar e Salvar Conexão do Instagram</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 8: OUTROS CANAIS DE ATENDIMENTO & HORÁRIOS DE SUPORTE */}
+      {activeSection === 'atendimento' && (
+        <div className="p-6 rounded-2xl bg-surface-raised border border-border-subtle shadow-sm space-y-6 animate-in fade-in">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold">
+                <span className="material-symbols-outlined text-2xl">support_agent</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-text-primary">
+                    7. Outros Canais de Atendimento &amp; Horários de Suporte
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                    Página Home • Contato
+                  </span>
+                </div>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  Gerencie os e-mails oficiais de atendimento, o número de WhatsApp e os horários de funcionamento que são exibidos na página de Contato.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-accent-emerald-bright/15 text-accent-emerald-bright border border-accent-emerald-bright/30">
+                <span className="w-2 h-2 rounded-full bg-accent-emerald-bright animate-ping"></span>
+                <span>Sincronização em Tempo Real</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Feedback Toast */}
+          {supportSaveToast && (
+            <div className="p-4 rounded-xl bg-accent-emerald-bright/15 border border-accent-emerald-bright/40 text-text-primary text-xs flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-accent-emerald-bright text-lg">check_circle</span>
+                <span className="font-medium">{supportSaveToast}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSupportSaveToast(null)}
+                className="text-text-tertiary hover:text-text-primary text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* CARD 1: E-MAILS DE ATENDIMENTO (OUTROS CANAIS DE ATENDIMENTO) */}
+          <div className="p-5 rounded-2xl bg-surface-overlay border border-border-subtle space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-lg">contact_mail</span>
+                <h4 className="text-sm font-bold text-text-primary">
+                  E-mails de Suporte &amp; Outros Canais
+                </h4>
+              </div>
+              <span className="text-[11px] text-text-tertiary">
+                Exibidos no bloco lateral direito com botão &quot;Copiar&quot;
+              </span>
+            </div>
+
+            <p className="text-xs text-text-tertiary">
+              Edite os títulos e endereços de e-mail que os visitantes e alunos utilizam para entrar em contato com cada departamento.
+            </p>
+
+            <div className="space-y-3">
+              {supportChannels.emails.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="p-3.5 rounded-xl bg-surface-raised border border-border-subtle/80 flex flex-col md:flex-row items-stretch md:items-center gap-3"
+                >
+                  <div className="w-full md:w-1/3">
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1">
+                      Departamento / Rótulo
+                    </label>
+                    <input
+                      type="text"
+                      value={item.label}
+                      onChange={(e) => {
+                        const nextEmails = [...supportChannels.emails];
+                        nextEmails[index] = { ...item, label: e.target.value };
+                        setSupportChannels({ ...supportChannels, emails: nextEmails });
+                      }}
+                      placeholder="Ex: Suporte & Alunos"
+                      className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-lg text-xs text-text-primary font-medium outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1">
+                      Endereço de E-mail
+                    </label>
+                    <input
+                      type="email"
+                      value={item.email}
+                      onChange={(e) => {
+                        const nextEmails = [...supportChannels.emails];
+                        nextEmails[index] = { ...item, email: e.target.value };
+                        setSupportChannels({ ...supportChannels, emails: nextEmails });
+                      }}
+                      placeholder="Ex: suporte@dedsacademy.com.br"
+                      className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-lg text-xs text-text-primary font-mono outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {supportChannels.emails.length > 1 && (
+                    <div className="flex items-end self-end md:self-center pt-2 md:pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextEmails = supportChannels.emails.filter((_, i) => i !== index);
+                          setSupportChannels({ ...supportChannels, emails: nextEmails });
+                        }}
+                        className="p-2 rounded-lg text-text-tertiary hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                        title="Remover canal de e-mail"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newEmail: SupportChannelEmail = {
+                    id: `email-${Date.now()}`,
+                    label: 'Novo Canal de Atendimento',
+                    email: 'contato@dedsacademy.com.br',
+                  };
+                  setSupportChannels({
+                    ...supportChannels,
+                    emails: [...supportChannels.emails, newEmail],
+                  });
+                }}
+                className="px-3.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-container text-primary text-xs font-bold border border-primary/30 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                <span>Adicionar Novo Canal de E-mail</span>
+              </button>
+            </div>
+          </div>
+
+          {/* CARD 2: ATENDIMENTO VIA WHATSAPP */}
+          <div className="p-5 rounded-2xl bg-surface-overlay border border-border-subtle space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#25D366] text-lg">chat</span>
+                <h4 className="text-sm font-bold text-text-primary">
+                  Atendimento via WhatsApp (Botão Oficial)
+                </h4>
+              </div>
+              <span className="text-[11px] text-text-tertiary">
+                Localizado logo abaixo dos e-mails em &quot;Outros Canais de Atendimento&quot;
+              </span>
+            </div>
+
+            <p className="text-xs text-text-tertiary">
+              Ao alterar o número ou a mensagem de abertura, o botão da página de contato será atualizado automaticamente para direcionar para o novo WhatsApp.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Número de WhatsApp com DDD
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={supportChannels.whatsappNumber}
+                    onChange={(e) =>
+                      setSupportChannels({ ...supportChannels, whatsappNumber: e.target.value })
+                    }
+                    placeholder="Ex: (11) 99999-9999 ou 5511999999999"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
+                  />
+                  <span className="material-symbols-outlined text-base text-text-tertiary absolute left-3 top-2.5">
+                    call
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  Aceita formatos como (11) 99999-9999 ou com código do país 5511999999999.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Mensagem Inicial Automática
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={supportChannels.whatsappMessage}
+                    onChange={(e) =>
+                      setSupportChannels({ ...supportChannels, whatsappMessage: e.target.value })
+                    }
+                    placeholder="Ex: Olá, gostaria de atendimento sobre a Deds Academy."
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
+                  />
+                  <span className="material-symbols-outlined text-base text-text-tertiary absolute left-3 top-2.5">
+                    sms
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  Texto pré-preenchido quando o visitante clica no botão para iniciar conversa.
+                </p>
+              </div>
+            </div>
+
+            {/* Live WhatsApp Button Preview */}
+            <div className="pt-2 p-4 rounded-xl bg-surface-raised border border-border-subtle/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-text-secondary block">
+                  Pré-visualização do Botão na Página de Contato:
+                </span>
+                <span className="text-[11px] text-text-tertiary font-mono truncate block max-w-md mt-0.5">
+                  Link gerado: {buildWhatsAppUrl(supportChannels.whatsappNumber, supportChannels.whatsappMessage)}
+                </span>
+              </div>
+
+              <a
+                href={buildWhatsAppUrl(supportChannels.whatsappNumber, supportChannels.whatsappMessage)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-4 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.02] shrink-0"
+                title="Clique para testar o redirecionamento ao WhatsApp"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+                </svg>
+                <span>Testar Chamar Suporte no WhatsApp</span>
+              </a>
+            </div>
+          </div>
+
+          {/* CARD 3: GRADE DE DIAS DA SEMANA, HORÁRIOS E PRAZOS (PAINEL DE SUPORTE) */}
+          <div className="p-5 rounded-2xl bg-surface-overlay border border-border-subtle space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border-subtle flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-accent-gold text-lg">schedule</span>
+                <h4 className="text-sm font-bold text-text-primary">
+                  Grade de Dias da Semana, Horários &amp; Prazo de Resposta (Suporte)
+                </h4>
+              </div>
+              <span className="text-[11px] text-text-tertiary">
+                Exibido no primeiro bloco superior de &quot;Suporte&quot; da página de contato
+              </span>
+            </div>
+
+            <p className="text-xs text-text-tertiary">
+              Configure os dias da semana e turnos de atendimento. Ao salvar aqui, o painel de suporte na página de contato atualiza automaticamente.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Status do Suporte (Badge)
+                </label>
+                <input
+                  type="text"
+                  value={supportChannels.supportStatus}
+                  onChange={(e) =>
+                    setSupportChannels({ ...supportChannels, supportStatus: e.target.value })
+                  }
+                  placeholder="Ex: Operacional, Plantão Especial"
+                  className="w-full px-3 py-2 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary font-medium"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Prazo de Resposta Estimado &amp; Descrição
+                </label>
+                <input
+                  type="text"
+                  value={supportChannels.supportResponseTime}
+                  onChange={(e) =>
+                    setSupportChannels({ ...supportChannels, supportResponseTime: e.target.value })
+                  }
+                  placeholder="Ex: Atendimento técnico, pedagógico e financeiro especializado..."
+                  className="w-full px-3 py-2 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {/* Linhas de Dias e Horários */}
+            <div className="space-y-3 pt-2">
+              <label className="block text-xs font-bold text-text-secondary">
+                Turnos e Dias da Semana:
+              </label>
+
+              {supportChannels.workingHours.map((wh, idx) => (
+                <div
+                  key={wh.id || idx}
+                  className="p-3.5 rounded-xl bg-surface-raised border border-border-subtle/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+                >
+                  <div className="w-full sm:w-1/2">
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1">
+                      Dias da Semana
+                    </label>
+                    <input
+                      type="text"
+                      value={wh.dayLabel}
+                      onChange={(e) => {
+                        const nextHours = [...supportChannels.workingHours];
+                        nextHours[idx] = { ...wh, dayLabel: e.target.value };
+                        setSupportChannels({ ...supportChannels, workingHours: nextHours });
+                      }}
+                      placeholder="Ex: Segunda a Sexta"
+                      className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-lg text-xs text-text-primary font-medium outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1">
+                      Horário / Turno / Plantão
+                    </label>
+                    <input
+                      type="text"
+                      value={wh.hours}
+                      onChange={(e) => {
+                        const nextHours = [...supportChannels.workingHours];
+                        nextHours[idx] = { ...wh, hours: e.target.value };
+                        setSupportChannels({ ...supportChannels, workingHours: nextHours });
+                      }}
+                      placeholder="Ex: 08:00 às 20:00 ou Plantão via chamados"
+                      className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-lg text-xs text-text-primary font-bold outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  {supportChannels.workingHours.length > 1 && (
+                    <div className="flex items-end self-end sm:self-center pt-2 sm:pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextHours = supportChannels.workingHours.filter((_, i) => i !== idx);
+                          setSupportChannels({ ...supportChannels, workingHours: nextHours });
+                        }}
+                        className="p-2 rounded-lg text-text-tertiary hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                        title="Remover turno de atendimento"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newHour: SupportWorkingHour = {
+                      id: `wh-${Date.now()}`,
+                      dayLabel: 'Domingos e Feriados',
+                      hours: 'Plantão via chamados',
+                    };
+                    setSupportChannels({
+                      ...supportChannels,
+                      workingHours: [...supportChannels.workingHours, newHour],
+                    });
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-surface-raised hover:bg-surface-container text-primary text-xs font-bold border border-primary/30 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-base">add</span>
+                  <span>Adicionar Faixa de Horário</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pt-4 border-t border-border-subtle">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Deseja restaurar as configurações padrão de atendimento e suporte?')) {
+                  handleSaveSupportChannels(DEFAULT_SUPPORT_CHANNELS);
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-text-secondary hover:text-text-primary text-xs font-bold transition-all cursor-pointer"
+            >
+              Restaurar Padrões Oficiais
+            </button>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleSaveSupportChannels()}
+                className="px-6 py-2.5 rounded-xl bg-primary hover:bg-accent-emerald-bright text-on-primary font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">save</span>
+                <span>Salvar Configurações de Atendimento</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

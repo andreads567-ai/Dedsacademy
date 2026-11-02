@@ -62,7 +62,7 @@ O verso utiliza a mesma proporção e dimensões exatas em um bloco separado:
 
 Campos dinâmicos do verso:
 1. **QR Code Dinâmico**: gerado em tempo real com o link de validação e o código do aluno.
-2. **Link de Validação**: texto clicável (`www.dedsacademy.com/validar-certificado`).
+2. **Link de Validação**: texto clicável (`www.dedsacademy.com.br/validar-certificado`).
 3. **Pill de Código em Destaque**: caixa branca no rodapé com o código alfanumérico.
 4. **Registro de Autenticidade Digital**: carimbo e hash com base na Lei Federal 14.063/2020.
 
@@ -81,7 +81,7 @@ Todos os textos estão posicionados milimetricamente sobre os espaços em branco
 | **Carga Horária** | `.campo-horas` | `521px` | `295px` | `162px` | `38px` | Montserrat 700 (13.5px) | `#1a2941` |
 | **Data de Conclusão** | `.campo-data` | `521px` | `478px` | `192px` | `38px` | Montserrat 700 (13px) | `#1a2941` |
 | **Código do Certificado** | `.campo-codigo-frente` | `521px` | `677px` | `190px` | `38px` | Montserrat 700 (13px) | `#1a2941` |
-| **Assinatura do Aluno** | `.campo-assinatura-aluno` | `566px` | `140px` | `215px` | `66px` | Alex Brush (34px) / Imagem | `#0b2230` |
+| **Assinatura do Aluno** | `.campo-assinatura-aluno` | `566px` | `140px` | `215px` | `66px` | Alex Brush (Auto-ajustável 15–32px, line-height 1.05) / Imagem | `#0b2230` |
 | **CPF na Assinatura** | `.campo-cpf-assinatura` | `672px` | `140px` | `215px` | `18px` | Montserrat 600 (9.5px) | `#475569` |
 | **CNPJ Deds Academy** | `.campo-cnpj-instituicao` | `672px` | `600px` | `280px` | `18px` | Montserrat 600 (9.5px) | `#475569` |
 
@@ -123,7 +123,7 @@ $aluno = [
     'horas'  => '120 horas',
     'data'   => '27 de Outubro de 2026',
     'codigo' => 'DA2026-A48-921',
-    'url'    => 'https://www.dedsacademy.com/validar-certificado'
+    'url'    => 'https://www.dedsacademy.com.br/validar-certificado'
 ];
 
 $html = file_get_contents('index.html');

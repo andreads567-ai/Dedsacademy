@@ -3,17 +3,25 @@
  * Gerenciamento de Dados, QR Code Dinâmico, Assinatura Digital e Exportação PDF
  */
 
+function obterCnpjAtivo() {
+  try {
+    const s = localStorage.getItem("deds_institution_cnpj");
+    if (s && s.trim()) return s.trim();
+  } catch (e) {}
+  return "45.678.901/0001-23";
+}
+
 // Estado global dos dados do certificado
 const certificadoState = {
-  nome: "André de Souza",
-  cpf: "123.456.789-00",
-  cnpj: "45.678.901/0001-23",
-  curso: "Desenvolvimento Web Full Stack & IA",
-  horas: "120 horas",
-  data: "27 de Maio de 2025",
-  codigo: "DA2025-0527-001",
-  urlValidacao: "https://www.dedsacademy.com/validar-certificado",
-  assinaturaNome: "André de Souza",
+  nome: "",
+  cpf: "",
+  cnpj: obterCnpjAtivo(),
+  curso: "",
+  horas: "",
+  data: "",
+  codigo: "",
+  urlValidacao: "https://www.dedsacademy.com.br/validar-certificado",
+  assinaturaNome: "",
   assinaturaImg: null,
   devMode: false
 };
@@ -21,12 +29,81 @@ const certificadoState = {
 // Instância do QRCode
 let qrcodeInstance = null;
 
-// Inicialização após carregamento do DOM
-document.addEventListener("DOMContentLoaded", () => {
+function inicializarApp() {
   carregarDadosDaURL();
   vincularEventosFormulario();
   inicializarCanvasAssinatura();
   atualizarCertificado();
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      atualizarAssinaturaAluno();
+    });
+  }
+
+  // Notifica o sistema pai que o gerador está pronto para receber dados
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: "DEDS_CERTIFICATE_READY" }, "*");
+    }
+  } catch (e) {}
+}
+
+// Inicialização segura compatível com execução em iframe e carregamento assíncrono
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", inicializarApp);
+} else {
+  inicializarApp();
+}
+
+// Função global para sincronização direta instantânea (sem depender de eventos assíncronos)
+window.sincronizarCertificado = function(data) {
+  if (!data) return;
+  if (data.nome !== undefined) certificadoState.nome = data.nome;
+  if (data.cpf !== undefined) certificadoState.cpf = data.cpf;
+  if (data.cnpj !== undefined && data.cnpj.trim()) {
+    const sCnpj = data.cnpj.trim();
+    certificadoState.cnpj = (sCnpj !== "45.678.901/0001-23") ? sCnpj : (obterCnpjAtivo() || sCnpj);
+  } else {
+    certificadoState.cnpj = obterCnpjAtivo();
+  }
+  if (data.curso !== undefined) certificadoState.curso = data.curso;
+  if (data.horas !== undefined) certificadoState.horas = data.horas;
+  if (data.data !== undefined) certificadoState.data = data.data;
+  if (data.codigo !== undefined) certificadoState.codigo = data.codigo;
+  if (data.url !== undefined) certificadoState.urlValidacao = data.url;
+  if (data.assinaturaImg !== undefined) certificadoState.assinaturaImg = data.assinaturaImg;
+
+  const elNome = document.getElementById("input-nome");
+  const elCpf = document.getElementById("input-cpf");
+  const elCnpj = document.getElementById("input-cnpj");
+  const elCurso = document.getElementById("input-curso");
+  const elHoras = document.getElementById("input-horas");
+  const elData = document.getElementById("input-data");
+  const elCodigo = document.getElementById("input-codigo");
+  const elUrl = document.getElementById("input-url");
+
+  if (elNome && data.nome !== undefined) elNome.value = data.nome;
+  if (elCpf && data.cpf !== undefined) elCpf.value = data.cpf;
+  if (elCnpj && data.cnpj !== undefined) elCnpj.value = data.cnpj;
+  if (elCurso && data.curso !== undefined) elCurso.value = data.curso;
+  if (elHoras && data.horas !== undefined) elHoras.value = data.horas;
+  if (elData && data.data !== undefined) elData.value = data.data;
+  if (elCodigo && data.codigo !== undefined) elCodigo.value = data.codigo;
+  if (elUrl && data.url !== undefined) elUrl.value = data.url;
+
+  if (data.lado) {
+    alternarVisualizacao(data.lado);
+  }
+
+  atualizarCertificado();
+};
+
+// Listener para sincronização direta com o sistema Deds Academy (via iframe ou postMessage)
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "DEDS_UPDATE_CERTIFICATE") {
+    window.sincronizarCertificado(event.data.payload);
+  }
 });
 
 /**
@@ -37,12 +114,52 @@ function carregarDadosDaURL() {
   const params = new URLSearchParams(window.location.search);
   if (params.has("nome")) certificadoState.nome = params.get("nome");
   if (params.has("cpf")) certificadoState.cpf = params.get("cpf");
-  if (params.has("cnpj")) certificadoState.cnpj = params.get("cnpj");
+  if (params.has("cnpj") && params.get("cnpj").trim()) {
+    const pCnpj = params.get("cnpj").trim();
+    certificadoState.cnpj = (pCnpj !== "45.678.901/0001-23") ? pCnpj : (obterCnpjAtivo() || pCnpj);
+  } else {
+    certificadoState.cnpj = obterCnpjAtivo();
+  }
   if (params.has("curso")) certificadoState.curso = params.get("curso");
   if (params.has("horas")) certificadoState.horas = params.get("horas");
   if (params.has("data")) certificadoState.data = params.get("data");
   if (params.has("codigo")) certificadoState.codigo = params.get("codigo");
   if (params.has("url")) certificadoState.urlValidacao = params.get("url");
+  if (params.has("assinaturaImg")) certificadoState.assinaturaImg = params.get("assinaturaImg");
+
+  // Apenas no modo avulso fora de iframe e sem parâmetros de busca pré-definidos
+  if (!certificadoState.nome && window.self === window.top && !window.location.search) {
+    certificadoState.nome = "André de Souza";
+    certificadoState.cpf = "123.456.789-00";
+    certificadoState.curso = "Desenvolvimento Web Full Stack & IA";
+    certificadoState.horas = "120 horas";
+    certificadoState.data = "27 de Maio de 2025";
+    certificadoState.codigo = "DA2025-0527-001";
+  }
+
+  if (!certificadoState.codigo) {
+    certificadoState.codigo = "DA" + new Date().getFullYear() + "-0001";
+  }
+
+  // Modo preview (oculta o painel de controle para exibição em modais ou visualização pública)
+  const isPreview =
+    params.get("preview") === "1" ||
+    params.get("preview") === "true" ||
+    params.get("readonly") === "1" ||
+    params.get("readonly") === "true" ||
+    window.self !== window.top;
+
+  if (isPreview) {
+    document.documentElement.classList.add("modo-preview");
+    document.body.classList.add("modo-preview");
+    const painel = document.querySelector(".painel-controle");
+    if (painel) painel.style.display = "none";
+  }
+
+  if (params.has("lado")) {
+    const lado = params.get("lado");
+    setTimeout(() => alternarVisualizacao(lado), 50);
+  }
 
   // Preenche os campos do formulário com os valores iniciais
   const elNome = document.getElementById("input-nome");
@@ -73,6 +190,11 @@ function vincularEventosFormulario() {
     if (el) {
       el.addEventListener("input", (e) => {
         certificadoState[prop] = e.target.value;
+        if (prop === "cnpj" && e.target.value.trim()) {
+          try {
+            localStorage.setItem("deds_institution_cnpj", e.target.value.trim());
+          } catch (err) {}
+        }
         atualizarCertificado();
       });
     }
@@ -108,6 +230,8 @@ function vincularEventosFormulario() {
  * Atualiza todos os elementos visuais do certificado frente e verso
  */
 function atualizarCertificado() {
+  const cnpjEfetivo = certificadoState.cnpj || obterCnpjAtivo();
+
   // Frente
   const spanAluno = document.getElementById("campo-aluno");
   const spanCpfAluno = document.getElementById("campo-cpf-aluno");
@@ -128,20 +252,14 @@ function atualizarCertificado() {
   if (spanData) spanData.textContent = certificadoState.data;
   if (spanCodigoFrente) spanCodigoFrente.textContent = certificadoState.codigo;
 
-  // Renderiza assinatura (imagem carregada ou texto manuscrito)
-  if (containerAssinatura) {
-    if (certificadoState.assinaturaImg) {
-      containerAssinatura.innerHTML = `<img src="${certificadoState.assinaturaImg}" alt="Assinatura" class="assinatura-img" />`;
-    } else {
-      containerAssinatura.innerHTML = `<span class="assinatura-texto">${certificadoState.nome || "Assinatura do Aluno"}</span>`;
-    }
-  }
+  // Renderiza assinatura (imagem carregada ou texto manuscrito auto-ajustado)
+  atualizarAssinaturaAluno();
 
   if (spanCpfAssinatura) {
     spanCpfAssinatura.textContent = certificadoState.cpf ? `CPF: ${certificadoState.cpf}` : "";
   }
   if (spanCnpjInstituicao) {
-    spanCnpjInstituicao.textContent = certificadoState.cnpj ? `CNPJ: ${certificadoState.cnpj}` : "";
+    spanCnpjInstituicao.textContent = cnpjEfetivo ? `CNPJ: ${cnpjEfetivo}` : "";
   }
 
   // Verso
@@ -158,14 +276,72 @@ function atualizarCertificado() {
     linkValidar.href = `${certificadoState.urlValidacao}?codigo=${encodeURIComponent(certificadoState.codigo)}`;
   }
   if (spanCnpjVerso) {
-    spanCnpjVerso.textContent = certificadoState.cnpj ? `CNPJ: ${certificadoState.cnpj}` : "";
+    spanCnpjVerso.textContent = cnpjEfetivo ? `CNPJ: ${cnpjEfetivo}` : "";
   }
   if (tagCpfVerso) tagCpfVerso.textContent = certificadoState.cpf || "000.000.000-00";
-  if (tagCnpjVerso) tagCnpjVerso.textContent = certificadoState.cnpj || "00.000.000/0001-00";
+  if (tagCnpjVerso) tagCnpjVerso.textContent = cnpjEfetivo || "00.000.000/0001-00";
   if (tagAlunoVerso) tagAlunoVerso.textContent = certificadoState.nome || "Aluno";
 
   // Atualiza QR Code dinâmico
   renderizarQRCode();
+}
+
+/**
+ * Renderiza e ajusta automaticamente o tamanho e a proporção da assinatura do aluno.
+ * Se o nome for longo, reduz a fonte proporcionalmente e faz a quebra de texto,
+ * aproximando as linhas com espaçamento reduzido e harmonioso (line-height otimizado),
+ * garantindo que não sobreponha a coluna de curso e mantenha a proporção ideal.
+ */
+function atualizarAssinaturaAluno() {
+  const container = document.getElementById("campo-assinatura-aluno");
+  if (!container) return;
+
+  // Se o aluno desenhou na tela ou carregou uma imagem de assinatura
+  if (certificadoState.assinaturaImg) {
+    const badge = container.querySelector(".dev-coords-badge");
+    const badgeHTML = badge ? badge.outerHTML : '<span class="dev-coords-badge">Top: 78.8% Left: 14.5%</span>';
+    container.innerHTML = `<img src="${certificadoState.assinaturaImg}" alt="Assinatura" class="assinatura-img" />${badgeHTML}`;
+    return;
+  }
+
+  const nomeLimpo = (certificadoState.nome || "").trim().replace(/\s+/g, " ");
+  const textoExibicao = nomeLimpo || "Assinatura do Aluno";
+
+  // Preserva badge do modo dev se existir
+  const badge = container.querySelector(".dev-coords-badge");
+  const badgeHTML = badge ? badge.outerHTML : '<span class="dev-coords-badge">Top: 78.8% Left: 14.5%</span>';
+
+  container.innerHTML = `<span class="assinatura-texto">${textoExibicao}</span>${badgeHTML}`;
+  const span = container.querySelector(".assinatura-texto");
+  if (!span) return;
+
+  // Escala inicial de tamanho de fonte baseado na extensão do nome
+  const len = textoExibicao.length;
+  let fontSize;
+
+  if (len <= 15) {
+    fontSize = 32; // Ex: "André de Souza"
+  } else if (len <= 22) {
+    fontSize = 26; // Ex: "Carlos Eduardo Lima"
+  } else if (len <= 36) {
+    fontSize = 21; // Ex: "João Carlos da Silva Souza Conceição"
+  } else if (len <= 46) {
+    fontSize = 18; // Ex: "André de Souza antonio abreu junior santos"
+  } else {
+    fontSize = 15; // Nomes excepcionalmente longos
+  }
+
+  span.style.fontSize = `${fontSize}px`;
+
+  // Limite máximo de altura disponível para a assinatura (62px)
+  // para evitar qualquer colisão com o campo de curso acima (bottom do curso em y:559px, assinatura em y:566px)
+  const maxHeight = 62;
+
+  // Redução dinâmica progressiva caso a quebra resulte em altura superior ao espaço seguro
+  while (span.offsetHeight > maxHeight && fontSize > 11) {
+    fontSize -= 0.5;
+    span.style.fontSize = `${fontSize}px`;
+  }
 }
 
 /**
@@ -176,7 +352,9 @@ function renderizarQRCode() {
   if (!qrContainer) return;
 
   qrContainer.innerHTML = "";
-  const destinoQR = `${certificadoState.urlValidacao}?codigo=${encodeURIComponent(certificadoState.codigo)}`;
+  const codigoAtivo = certificadoState.codigo || "DA" + new Date().getFullYear() + "-0001";
+  const urlBase = certificadoState.urlValidacao || "https://www.dedsacademy.com.br/validar-certificado";
+  const destinoQR = `${urlBase}?codigo=${encodeURIComponent(codigoAtivo)}`;
 
   if (typeof QRCode !== "undefined") {
     try {
@@ -190,22 +368,16 @@ function renderizarQRCode() {
       });
       return;
     } catch (e) {
-      console.warn("Erro ao gerar QRCode com QRCode.js, utilizando fallback", e);
+      console.warn("QRCode.js falhou, utilizando gerador nativo:", e);
     }
   }
 
-  // Fallback seguro em SVG vetorial caso QRCode.js falhe
+  // Fallback seguro com imagem QR Code de alta resolução
+  const encodedDestino = encodeURIComponent(destinoQR);
   qrContainer.innerHTML = `
-    <div style="text-align:center; padding: 6px;">
-      <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#0b2230" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-        <rect x="14" y="14" width="3" height="3"></rect>
-        <rect x="18" y="18" width="3" height="3"></rect>
-      </svg>
-      <div style="font-size: 8px; color: #0b2230; font-weight: 700;">QR CODE ATIVO</div>
-    </div>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=136x136&data=${encodedDestino}&color=0b2230&bgcolor=ffffff" 
+         alt="QR Code de Validação" 
+         style="width:136px;height:136px;display:block;margin:0 auto;object-fit:contain;" />
   `;
 }
 
@@ -235,7 +407,7 @@ function gerarCodigoAleatorio() {
 function carregarExemploAndre() {
   certificadoState.nome = "André de Souza";
   certificadoState.cpf = "123.456.789-00";
-  certificadoState.cnpj = "45.678.901/0001-23";
+  certificadoState.cnpj = obterCnpjAtivo() || "45.678.901/0001-23";
   certificadoState.curso = "Desenvolvimento Web Full Stack & IA";
   certificadoState.horas = "120 horas";
   certificadoState.data = "27 de Maio de 2025";
@@ -265,9 +437,15 @@ function alternarVisualizacao(modo, btnElement) {
   } else if (modo === "verso") {
     frente.style.display = "none";
     verso.style.display = "block";
+    renderizarQRCode();
   } else {
     frente.style.display = "block";
     verso.style.display = "block";
+    renderizarQRCode();
+  }
+
+  if (modo !== "verso") {
+    atualizarAssinaturaAluno();
   }
 }
 
@@ -296,6 +474,7 @@ function imprimirCertificado() {
   const verso = document.getElementById("certificado-verso");
   frente.style.display = "block";
   verso.style.display = "block";
+  atualizarAssinaturaAluno();
 
   window.print();
 }
@@ -304,7 +483,7 @@ function imprimirCertificado() {
  * Gera e faz download direto do arquivo PDF de alta resolução com as duas páginas
  * Utiliza html2pdf.js com renderização canvas 300DPI
  */
-function baixarPDF() {
+async function baixarPDF() {
   const container = document.getElementById("palco-certificados");
   const frente = document.getElementById("certificado-frente");
   const verso = document.getElementById("certificado-verso");
@@ -312,12 +491,20 @@ function baixarPDF() {
   // Garante visibilidade de ambas as páginas e aplica estilo de exportação
   frente.style.display = "block";
   verso.style.display = "block";
+  atualizarAssinaturaAluno();
   document.body.classList.add("exportando-pdf");
 
   const nomeSanitizado = (certificadoState.nome || "Aluno")
     .trim()
     .replace(/\s+/g, "_")
     .replace(/[^a-zA-Z0-9_-]/g, "");
+
+  // Garante que todas as fontes estejam prontas antes de rasterizar o canvas
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {}
+  }
 
   const options = {
     margin: 0,
@@ -327,7 +514,9 @@ function baixarPDF() {
       scale: 2,
       useCORS: true,
       logging: false,
-      scrollY: 0
+      scrollY: 0,
+      scrollX: 0,
+      windowWidth: 1024
     },
     jsPDF: {
       unit: "mm",

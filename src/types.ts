@@ -65,6 +65,7 @@ export interface Lesson {
   order?: number;
   duration?: string; // ex: "15 min"
   videoUrl?: string;
+  videoUrls?: string[]; // Multiple video links for the lesson
   videoFileName?: string;
   videoType?: 'upload' | 'url';
   imageUrl?: string;
@@ -206,6 +207,7 @@ export interface CertificateItem {
   status?: 'valido' | 'cancelado';
   cancelledAt?: string;
   cancellationReason?: string;
+  institutionCnpj?: string;
 }
 
 export interface StudentOrder {
@@ -410,6 +412,28 @@ export interface ApiIntegrationSettings {
   webhooks: WebhookLogItem[];
 }
 
+export interface SupportChannelEmail {
+  id: string;
+  label: string;
+  email: string;
+}
+
+export interface SupportWorkingHour {
+  id: string;
+  dayLabel: string;
+  hours: string;
+}
+
+export interface SupportChannelsSettings {
+  emails: SupportChannelEmail[];
+  whatsappNumber: string;
+  whatsappMessage: string;
+  workingHours: SupportWorkingHour[];
+  supportStatus: string;
+  supportResponseTime: string;
+  lastUpdated?: string;
+}
+
 export interface TicketMessage {
   id: string;
   sender: 'aluno' | 'suporte' | 'admin';
@@ -611,5 +635,75 @@ export interface SaleTransaction {
   cancellationReason?: string;
   cancelledAt?: string;
 }
+
+export interface StudentBannerItem {
+  id: string;
+  position: number; // 1 a 6
+  imageUrl: string;
+  title?: string;
+  linkUrl?: string;
+  enabled: boolean;
+}
+
+export interface StudentBannersConfig {
+  enabled: boolean;
+  intervalSeconds: number; // Padrão 5 segundos
+  banners: StudentBannerItem[];
+}
+
+export const DEFAULT_STUDENT_BANNERS_CONFIG: StudentBannersConfig = {
+  enabled: true,
+  intervalSeconds: 5,
+  banners: [
+    {
+      id: 'student-banner-1',
+      position: 1,
+      imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1400&auto=format&fit=crop&q=80',
+      title: 'Acelere sua Carreira com Formações Práticas e Certificados Reconhecidos',
+      linkUrl: '#cursos-section',
+      enabled: true,
+    },
+    {
+      id: 'student-banner-2',
+      position: 2,
+      imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1400&auto=format&fit=crop&q=80',
+      title: 'Certificados Válidos em Todo o Brasil com Amparo na Lei nº 9.394/96',
+      linkUrl: '#certificados',
+      enabled: true,
+    },
+    {
+      id: 'student-banner-3',
+      position: 3,
+      imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1400&auto=format&fit=crop&q=80',
+      title: 'Comprove Carga Horária e Horas Complementares na sua Faculdade',
+      linkUrl: '#horas',
+      enabled: true,
+    },
+    {
+      id: 'student-banner-4',
+      position: 4,
+      imageUrl: '',
+      title: 'Espaço Disponível para Banner 4',
+      linkUrl: '',
+      enabled: false,
+    },
+    {
+      id: 'student-banner-5',
+      position: 5,
+      imageUrl: '',
+      title: 'Espaço Disponível para Banner 5',
+      linkUrl: '',
+      enabled: false,
+    },
+    {
+      id: 'student-banner-6',
+      position: 6,
+      imageUrl: '',
+      title: 'Espaço Disponível para Banner 6',
+      linkUrl: '',
+      enabled: false,
+    },
+  ],
+};
 
 

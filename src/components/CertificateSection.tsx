@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { CertificateItem } from '../types';
 import { downloadCertificatePdf } from '../utils/certificateGenerator';
+import { validateCertificateInDB, DEDS_CERTIFICATES_STORAGE_KEY } from '../services/certificateService';
 
 interface CertificateSectionProps {
-  onOpenCertificateModal: () => void;
+  onOpenCertificateModal: (code?: string) => void;
   certificatesList?: CertificateItem[];
 }
 
@@ -12,6 +13,7 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
   certificatesList = [],
 }) => {
   const [inputCode, setInputCode] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
   const [searchResult, setSearchResult] = useState<{
     searched: boolean;
     status: 'valid' | 'invalid' | 'cancelled';
@@ -21,14 +23,65 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
     status: 'invalid',
   });
 
-  const handleValidateCode = (e: React.FormEvent) => {
+  const handleValidateCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = inputCode.replace('#', '').trim().toLowerCase();
-    if (!clean) return;
+    const rawClean = inputCode.trim();
+    if (!rawClean) return;
 
-    const found = certificatesList.find(
-      (c) => c.code.replace('#', '').trim().toLowerCase() === clean
-    );
+    setIsValidating(true);
+
+    // 1. Sempre carrega a lista atualizada do localStorage (onde o painel ADM registra)
+    let allCerts: CertificateItem[] = [];
+    try {
+      const savedStorage = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
+      if (savedStorage) {
+        const parsed: CertificateItem[] = JSON.parse(savedStorage);
+        if (Array.isArray(parsed)) allCerts.push(...parsed);
+      }
+    } catch {}
+
+    // Mescla com a lista fornecida por props sem duplicar
+    certificatesList.forEach((item) => {
+      if (!allCerts.some((c) => c.id === item.id || c.code.toLowerCase() === item.code.toLowerCase())) {
+        allCerts.push(item);
+      }
+    });
+
+    const cleanNoHash = rawClean.replace('#', '').trim();
+    const cleanLower = cleanNoHash.toLowerCase();
+    const cleanAlpha = cleanLower.replace(/[^a-z0-9]/g, '');
+    const searchDigits = rawClean.replace(/\D/g, '');
+
+    // Busca por código (com ou sem hífen/espaço), CPF do aluno ou nome
+    let found = allCerts.find((c) => {
+      const cCode = c.code.replace('#', '').trim().toLowerCase();
+      const cAlpha = cCode.replace(/[^a-z0-9]/g, '');
+      const cCpfDigits = (c.studentCpf || '').replace(/\D/g, '');
+      const cStudentName = (c.studentName || '').toLowerCase();
+      const cStudentCode = (c.studentCode || '').toLowerCase();
+
+      return (
+        cCode === cleanLower ||
+        (cleanAlpha.length >= 4 && cAlpha === cleanAlpha) ||
+        (searchDigits.length >= 8 && cCpfDigits === searchDigits) ||
+        (cStudentCode && cStudentCode === cleanLower) ||
+        (cleanLower.length >= 4 && cStudentName.includes(cleanLower))
+      );
+    });
+
+    // Se não encontrou no cache local, tenta buscar no Supabase
+    if (!found) {
+      try {
+        const dbCheck = await validateCertificateInDB(cleanNoHash, allCerts);
+        if (dbCheck.certificate) {
+          found = dbCheck.certificate;
+        }
+      } catch (err) {
+        console.warn('Erro ao consultar banco:', err);
+      }
+    }
+
+    setIsValidating(false);
 
     if (found) {
       if (found.status === 'cancelado') {
@@ -44,23 +97,6 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
           cert: found,
         });
       }
-    } else if (clean === 'da-2025-99841' || clean === 'deds-exc-2025-9842') {
-      setSearchResult({
-        searched: true,
-        status: 'valid',
-        cert: {
-          id: 'demo-sample',
-          courseId: 'ia-ml',
-          courseTitle: 'Inteligência Artificial & Machine Learning',
-          studentName: 'Lucas M. Silveira',
-          studentCpf: '384.920.118-04',
-          hours: 60,
-          issueDate: '15/02/2025',
-          code: '#DA-2025-99841',
-          instructor: 'Prof. Lucas M. Silveira',
-          status: 'valido',
-        },
-      });
     } else {
       setSearchResult({
         searched: true,
@@ -135,10 +171,13 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
                   />
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 shrink-0"
+                    disabled={isValidating || !inputCode.trim()}
+                    className="px-5 py-2.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
                   >
-                    <span className="material-symbols-outlined text-sm">search</span>
-                    <span>Validar Certificado</span>
+                    <span className="material-symbols-outlined text-sm">
+                      {isValidating ? 'hourglass_top' : 'search'}
+                    </span>
+                    <span>{isValidating ? 'Consultando...' : 'Validar Certificado'}</span>
                   </button>
                 </form>
 
@@ -165,6 +204,13 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
                             type="button"
                             onClick={async () => {
                               try {
+                                const activeCnpj =
+                                  (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null)?.trim() ||
+                                  (searchResult.cert!.institutionCnpj && searchResult.cert!.institutionCnpj !== '45.678.901/0001-23'
+                                    ? searchResult.cert!.institutionCnpj
+                                    : null) ||
+                                  searchResult.cert!.institutionCnpj ||
+                                  '45.678.901/0001-23';
                                 await downloadCertificatePdf({
                                   studentName: searchResult.cert!.studentName,
                                   courseTitle: searchResult.cert!.courseTitle,
@@ -172,6 +218,7 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
                                   issueDate: searchResult.cert!.issueDate,
                                   code: searchResult.cert!.code,
                                   instructor: searchResult.cert!.instructor,
+                                  institutionCnpj: activeCnpj,
                                 });
                               } catch (err) {
                                 console.error(err);
@@ -210,7 +257,7 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
               <div className="pt-2 flex flex-wrap items-center gap-4">
                 <button
                   type="button"
-                  onClick={onOpenCertificateModal}
+                  onClick={() => onOpenCertificateModal(searchResult.cert?.code || inputCode || undefined)}
                   className="px-5 py-2.5 rounded-xl bg-surface-overlay hover:bg-surface-container-high text-text-primary font-label-md text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer border border-border-subtle"
                 >
                   <span className="material-symbols-outlined text-base">verified</span>
@@ -222,17 +269,17 @@ export const CertificateSection: React.FC<CertificateSectionProps> = ({
             {/* Certificate Graphic Mockup with Official Certificate Model Image */}
             <div className="lg:col-span-5 flex justify-center w-full">
               <div
-                onClick={onOpenCertificateModal}
+                onClick={() => onOpenCertificateModal(searchResult.cert?.code || inputCode || undefined)}
                 className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl sm:rotate-1 hover:rotate-0 transition-transform duration-300 border border-border-subtle hover:border-primary/50 cursor-pointer group bg-surface-overlay"
                 title="Clique para visualizar e validar este certificado oficial"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-base">
                   <img
-                    src="/images/certificado-conclusao-modelo.jpg"
+                    src="/certificate-generator/frente.png"
                     alt="Modelo Oficial de Certificado Deds Academy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/images/certificado-validade-nacional.png';
+                      (e.target as HTMLImageElement).src = '/images/certificado-conclusao-modelo.jpg';
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">

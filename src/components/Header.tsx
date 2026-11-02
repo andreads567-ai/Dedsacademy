@@ -131,12 +131,13 @@ export const Header: React.FC<HeaderProps> = ({
     } else if (item.id === 'cursos') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (item.id === 'blog') {
-      setActiveTab('inicio');
-      setTimeout(() => {
-        onNavigateSection('blog-section');
-      }, 60);
+      setActiveTab('blog');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (item.id === 'contato') {
       setActiveTab('contato');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (item.id === 'inicio') {
+      setActiveTab('inicio');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       onNavigateSection(item.sectionId);
@@ -258,8 +259,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Side: Action Icons & User */}
         <div className="flex items-center gap-2 sm:gap-space-sm">
-          {/* Cart Icon -> Opens Cart Checkout - Hidden in admin mode */}
-          {!isAdminArea && (
+          {/* Cart Icon -> Opens Cart Checkout - Hidden for admin users and admin area */}
+          {!isAdminArea && currentUser?.role !== 'admin' && (
             <button
               id="cart-button"
               aria-label="Carrinho"
@@ -597,12 +598,35 @@ export const Header: React.FC<HeaderProps> = ({
                       <p className="text-[11px] text-text-tertiary truncate">{currentUser.email}</p>
                     </div>
 
-                    {isAdminArea ? (
+                    {currentUser.role === 'admin' || isAdminArea ? (
                       <div className="py-1">
                         <div className="px-3 py-2 text-xs text-text-secondary flex items-center gap-2 border-b border-border-subtle/50 mb-1">
                           <span className="material-symbols-outlined text-base text-primary">admin_panel_settings</span>
                           <span className="font-semibold">Super Admin Ativo</span>
                         </div>
+
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            if (onOpenAdminDashboard) onOpenAdminDashboard();
+                            else setActiveTab('admin');
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs font-semibold text-text-primary hover:bg-surface-overlay rounded-lg flex items-center gap-2 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-base text-secondary">admin_panel_settings</span>
+                          Painel do Admin (Gestão)
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onOpenAuth('login');
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-surface-overlay rounded-lg flex items-center gap-2 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-base text-primary">switch_account</span>
+                          Trocar de Conta / Entrar
+                        </button>
                       </div>
                     ) : (
                       <div className="py-1">
@@ -629,19 +653,6 @@ export const Header: React.FC<HeaderProps> = ({
                           <span className="material-symbols-outlined text-base text-accent-emerald-bright">storefront</span>
                           Catálogo de Cursos
                         </button>
-
-                        {!isStudentArea && currentUser.role === 'admin' && (
-                          <button
-                            onClick={() => {
-                              setUserDropdownOpen(false);
-                              if (onOpenAdminDashboard) onOpenAdminDashboard();
-                            }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-text-primary hover:bg-surface-overlay rounded-lg flex items-center gap-2 cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined text-base text-secondary">admin_panel_settings</span>
-                            Painel do Admin (Gestão)
-                          </button>
-                        )}
 
                         <button
                           onClick={() => {
@@ -832,21 +843,24 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2 pt-3 border-t border-border-subtle">
                 {currentUser ? (
                   <>
-                    <button
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        if (onOpenStudentPortal) onOpenStudentPortal();
-                        else setActiveTab('aluno');
-                      }}
-                      className="flex-1 py-2.5 rounded-lg bg-surface-overlay text-primary font-label-md font-bold text-center cursor-pointer"
-                    >
-                      Área do Aluno
-                    </button>
-                    {!isStudentArea && currentUser.role === 'admin' ? (
+                    {currentUser.role !== 'admin' && (
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          if (onOpenStudentPortal) onOpenStudentPortal();
+                          else setActiveTab('aluno');
+                        }}
+                        className="flex-1 py-2.5 rounded-lg bg-surface-overlay text-primary font-label-md font-bold text-center cursor-pointer"
+                      >
+                        Área do Aluno
+                      </button>
+                    )}
+                    {currentUser.role === 'admin' ? (
                       <button
                         onClick={() => {
                           setMobileMenuOpen(false);
                           if (onOpenAdminDashboard) onOpenAdminDashboard();
+                          else setActiveTab('admin');
                         }}
                         className="flex-1 py-2.5 rounded-lg bg-primary-container text-on-primary font-label-md font-bold text-center cursor-pointer"
                       >

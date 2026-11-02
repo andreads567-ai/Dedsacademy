@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 import { generateSequentialCertificateCode, saveCertificateToDB } from '../services/certificateService';
+import { InteractiveNoticeBox } from './admin/WordLikeEditor';
 
 export interface StudentCourseStudyPageProps {
   course: Course | null;
@@ -24,7 +25,7 @@ export interface StudentCourseStudyPageProps {
   progress?: StudentProgress;
   currentUser?: UserAccount | null;
   onSubmitReview?: (review: CourseReview) => void;
-  onOpenCertificateModal?: () => void;
+  onOpenCertificateModal?: (code?: string) => void;
   onSaveCertificate?: (cert: CertificateItem) => void;
 }
 
@@ -382,15 +383,28 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
     setFinalExamSubmitted(false);
   };
 
-  // Check if current lesson has real video
-  const hasVideo = Boolean(currentLessonItem?.videoUrl && currentLessonItem.videoUrl.trim() !== '');
+  const [activeStudentVideoIndex, setActiveStudentVideoIndex] = useState(0);
+
+  // Check if current lesson has real video(s)
+  const studentVideoUrls = useMemo(() => {
+    if (currentLessonItem?.videoUrls && currentLessonItem.videoUrls.length > 0) {
+      return currentLessonItem.videoUrls.filter((u) => u && u.trim());
+    }
+    return currentLessonItem?.videoUrl && currentLessonItem.videoUrl.trim() !== ''
+      ? [currentLessonItem.videoUrl]
+      : [];
+  }, [currentLessonItem]);
+
+  const hasVideo = studentVideoUrls.length > 0;
+  const currentVideoUrl = studentVideoUrls[activeStudentVideoIndex] || studentVideoUrls[0] || '';
   const isCurrentLessonCompleted = currentLessonItem ? completedLessonIds.includes(currentLessonItem.id) : false;
 
-  // Reset quiz states when changing lesson
+  // Reset quiz & video states when changing lesson
   useEffect(() => {
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizResult(null);
+    setActiveStudentVideoIndex(0);
   }, [selectedLessonId]);
 
   // Synchronize on course or progress change
@@ -1150,29 +1164,56 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 
             {/* Reprodutor de Vídeo (se houver cadastrado no ADM) */}
             {hasVideo && (
-              <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-lg border border-slate-200 dark:border-white/10">
-                {currentLessonItem.videoUrl?.includes('youtube.com') || currentLessonItem.videoUrl?.includes('youtu.be') ? (
-                  <iframe
-                    src={
-                      currentLessonItem.videoUrl.includes('watch?v=')
-                        ? currentLessonItem.videoUrl.replace('watch?v=', 'embed/')
-                        : currentLessonItem.videoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                    }
-                    title={currentLessonItem.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    src={currentLessonItem.videoUrl}
-                    controls
-                    poster={currentLessonItem.imageUrl || course.image}
-                    className="w-full h-full object-contain"
-                  >
-                    Seu navegador não suporta reprodução deste vídeo.
-                  </video>
+              <div className="space-y-2">
+                {studentVideoUrls.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">video_library</span>
+                      <span>Vídeos da Aula:</span>
+                    </span>
+                    {studentVideoUrls.map((_, vIdx) => (
+                      <button
+                        key={vIdx}
+                        type="button"
+                        onClick={() => setActiveStudentVideoIndex(vIdx)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeStudentVideoIndex === vIdx
+                            ? 'bg-primary text-on-primary shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
+                        }`}
+                      >
+                        {vIdx === 0 ? 'Vídeo 1: Principal' : `Vídeo ${vIdx + 1}`}
+                      </button>
+                    ))}
+                  </div>
                 )}
+
+                <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-lg border border-slate-200 dark:border-white/10">
+                  {currentVideoUrl?.includes('youtube.com') || currentVideoUrl?.includes('youtu.be') ? (
+                    <iframe
+                      key={currentVideoUrl}
+                      src={
+                        currentVideoUrl.includes('watch?v=')
+                          ? currentVideoUrl.replace('watch?v=', 'embed/')
+                          : currentVideoUrl.replace('youtu.be/', 'youtube.com/embed/')
+                      }
+                      title={currentLessonItem.title}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      key={currentVideoUrl}
+                      src={currentVideoUrl}
+                      controls
+                      poster={currentLessonItem.imageUrl || course.image}
+                      className="w-full h-full object-contain"
+                    >
+                      Seu navegador não suporta reprodução deste vídeo.
+                    </video>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1188,11 +1229,57 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
             )}
 
             {/* Conteúdo Formato Texto / Apostila / Ementa Completa */}
-            <article className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed space-y-5 bg-white dark:bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
-              <div className="whitespace-pre-line">
-                {currentLessonItem?.description ||
-                  `Seja bem-vindo(a) a esta etapa de aprendizado de "${course.title}".\n\nNesta lição, abordamos detalhadamente os principais conceitos teóricos, as metodologias de mercado e os exemplos práticos necessários para o domínio deste tópico.\n\nDedique atenção aos pontos-chave apresentados nesta apostila e aos materiais complementares anexados.`}
-              </div>
+            <article className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed bg-white dark:bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
+              {(() => {
+                const desc = currentLessonItem?.description ||
+                  `Seja bem-vindo(a) a esta etapa de aprendizado de "${course.title}".\n\nNesta lição, abordamos detalhadamente os principais conceitos teóricos, as metodologias de mercado e os exemplos práticos necessários para o domínio deste tópico.\n\nDedique atenção aos pontos-chave apresentados nesta apostila e aos materiais complementares anexados.`;
+
+                if (!desc.includes('deds-alert-box')) {
+                  return <div className="whitespace-pre-line">{desc}</div>;
+                }
+
+                // Parse alert box HTML snippets and regular text
+                const parts = desc.split(/(<div class="deds-alert-box"[\s\S]*?<\/div>)/gi);
+                return (
+                  <div className="space-y-4 not-prose">
+                    {parts.map((part, pIdx) => {
+                      if (part.includes('class="deds-alert-box"')) {
+                        const titleMatch = part.match(/data-title="([^"]*)"/);
+                        const timerMatch = part.match(/data-timer="([^"]*)"/);
+                        const bgMatch = part.match(/data-bg="([^"]*)"/);
+                        const colorMatch = part.match(/data-color="([^"]*)"/);
+                        const borderMatch = part.match(/data-border="([^"]*)"/);
+                        const iconMatch = part.match(/data-icon="([^"]*)"/);
+                        const cleanMessage = part
+                          .replace(/^<div[^>]*>/, '')
+                          .replace(/<\/div>$/, '')
+                          .replace(/<strong>.*?<\/strong>/, '')
+                          .replace(/<p>/g, '')
+                          .replace(/<\/p>/g, '\n')
+                          .trim();
+
+                        return (
+                          <InteractiveNoticeBox
+                            key={pIdx}
+                            title={titleMatch ? titleMatch[1] : 'AVISO'}
+                            message={cleanMessage}
+                            bgColor={bgMatch ? bgMatch[1] : '#1E293B'}
+                            textColor={colorMatch ? colorMatch[1] : '#FEF3C7'}
+                            borderColor={borderMatch ? borderMatch[1] : '#F59E0B'}
+                            timerSeconds={timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0}
+                            icon={iconMatch ? iconMatch[1] : '⚠️'}
+                          />
+                        );
+                      }
+                      return part.trim() ? (
+                        <div key={pIdx} className="whitespace-pre-line leading-relaxed text-slate-800 dark:text-slate-200">
+                          {part}
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                );
+              })()}
             </article>
 
             {/* Materiais Complementares e Anexos (Word, Excel, PDF) */}
@@ -1853,6 +1940,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                 onClick={async () => {
                   setIsGeneratingCertificatePdf(true);
                   try {
+                    const activeCnpj = (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null) || '45.678.901/0001-23';
                     await downloadCertificatePdf({
                       studentName: issuedCertData.studentName,
                       studentCpf: issuedCertData.studentCpf,
@@ -1863,6 +1951,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                       issueDate: issuedCertData.issueDate,
                       code: issuedCertData.code,
                       instructor: issuedCertData.instructor,
+                      institutionCnpj: activeCnpj,
                     });
                   } catch (err) {
                     console.error('Erro ao gerar certificado PDF:', err);
@@ -1909,7 +1998,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                   type="button"
                   onClick={() => {
                     onClose();
-                    onOpenCertificateModal();
+                    onOpenCertificateModal(issuedCertData?.code || undefined);
                   }}
                   className="text-xs text-primary font-bold hover:underline cursor-pointer"
                 >

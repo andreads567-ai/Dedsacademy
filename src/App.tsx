@@ -15,6 +15,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { CartCheckoutPage } from './components/CartCheckoutPage';
 import type { CheckoutData } from './components/CartCheckoutPage';
 import { CertificateModal } from './components/CertificateModal';
+import { InstructorsModal } from './components/InstructorsModal';
 import { AuthModal } from './components/AuthModal';
 import { CourseDetailPage } from './components/CourseDetailPage';
 import { StudentPortal } from './components/StudentPortal';
@@ -32,7 +33,8 @@ import { FloatingCouponPopup } from './components/FloatingCouponPopup';
 import { COURSES, CATEGORIES, TESTIMONIALS } from './data/coursesData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from './data/promotionsData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
-import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
+import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, StudentBannersConfig, DEFAULT_STUDENT_BANNERS_CONFIG, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
+import { getStoredStudentBanners, saveStoredStudentBanners } from './services/studentBannersService';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
@@ -145,6 +147,32 @@ export default function App() {
     } catch {}
     return DEFAULT_CHECKOUT_PAYMENT_BANNER;
   });
+
+  // Student Banners configuration state synchronized across Student Portal and Admin Module 9
+  const [studentBannersConfig, setStudentBannersConfig] = useState<StudentBannersConfig>(() =>
+    getStoredStudentBanners()
+  );
+
+  const handleUpdateStudentBannersConfig = (newConfig: StudentBannersConfig) => {
+    setStudentBannersConfig(newConfig);
+    try {
+      saveStoredStudentBanners(newConfig);
+    } catch {}
+    syncUpdateToBackend('studentBanners', newConfig).catch(console.error);
+    showToast('Banners do Painel do Aluno atualizados com sucesso!');
+  };
+
+  useEffect(() => {
+    const syncStudentBanners = () => {
+      setStudentBannersConfig(getStoredStudentBanners());
+    };
+    window.addEventListener('deds_student_banners_updated', syncStudentBanners);
+    window.addEventListener('storage', syncStudentBanners);
+    return () => {
+      window.removeEventListener('deds_student_banners_updated', syncStudentBanners);
+      window.removeEventListener('storage', syncStudentBanners);
+    };
+  }, []);
 
   const handleUpdateCheckoutBannerConfig = (newConfig: CheckoutPaymentBannerConfig) => {
     setCheckoutBannerConfig(newConfig);
@@ -438,8 +466,14 @@ export default function App() {
       if (data) {
         if (data.courses && data.courses.length > 0) {
           const sanitized = sanitizeCourseList(data.courses);
-          setCoursesList(sanitized);
-          try { localStorage.setItem('deds_courses_list', JSON.stringify(sanitized)); } catch {}
+          setCoursesList((prev) => {
+            const merged = [...sanitized];
+            prev.forEach((p) => {
+              if (!merged.some((m) => m.id === p.id)) merged.push(p);
+            });
+            try { localStorage.setItem('deds_courses_list', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
         }
         if (data.coupons && data.coupons.length > 0) {
           setCouponsList(data.coupons);
@@ -486,8 +520,14 @@ export default function App() {
     const stopLiveSync = startLiveSync((data) => {
       if (data.courses && data.courses.length > 0) {
         const sanitized = sanitizeCourseList(data.courses);
-        setCoursesList(sanitized);
-        try { localStorage.setItem('deds_courses_list', JSON.stringify(sanitized)); } catch {}
+        setCoursesList((prev) => {
+          const merged = [...sanitized];
+          prev.forEach((p) => {
+            if (!merged.some((m) => m.id === p.id)) merged.push(p);
+          });
+          try { localStorage.setItem('deds_courses_list', JSON.stringify(merged)); } catch {}
+          return merged;
+        });
       }
       if (data.coupons && data.coupons.length > 0) {
         setCouponsList(data.coupons);
@@ -532,16 +572,13 @@ export default function App() {
     return () => stopLiveSync();
   }, []);
 
-  // ─── Supabase: Load data on mount, seed if empty ──────────────────────────
+  // ─── Hostinger: Carregamento inicial de dados sincronizados ──────────────
   useEffect(() => {
     let cancelled = false;
-    async function loadFromSupabase() {
+    async function loadInitialData() {
       try {
-        // Seed Supabase tables if they are empty (first run)
-        await seedIfEmpty(INITIAL_USERS, COURSES, CATEGORIES);
-
-        // Fetch fresh data from Supabase
-        const [sbUsers, sbCourses, sbCategories, sbCertificates] = await Promise.all([
+        // Fetch fresh data from Hostinger backend / platform-sync
+        const [hbUsers, hbCourses, hbCategories, hbCertificates] = await Promise.all([
           fetchUsers(),
           fetchCourses(),
           fetchCategories(),
@@ -550,9 +587,9 @@ export default function App() {
 
         if (cancelled) return;
 
-        if (sbCertificates && sbCertificates.length > 0) {
+        if (hbCertificates && hbCertificates.length > 0) {
           setCertificatesList((prev) => {
-            const merged = [...sbCertificates];
+            const merged = [...hbCertificates];
             prev.forEach((p) => {
               if (!merged.some((m) => m.id === p.id || m.code === p.code)) {
                 merged.push(p);
@@ -563,29 +600,47 @@ export default function App() {
           });
         }
 
-        if (sbUsers && sbUsers.length > 0) {
-          setUsersList(sbUsers);
-          try { localStorage.setItem('deds_users_list', JSON.stringify(sbUsers)); } catch {}
+        if (hbUsers && hbUsers.length > 0) {
+          setUsersList((prev) => {
+            const merged = [...hbUsers];
+            prev.forEach((p) => {
+              if (!merged.some((m) => m.id === p.id || m.email === p.email)) {
+                merged.push(p);
+              }
+            });
+            try { localStorage.setItem('deds_users_list', JSON.stringify(merged)); } catch {}
+            return merged;
+          });
         }
-        if (sbCourses && sbCourses.length > 0) {
-          const sanitizedSb = sanitizeCourseList(sbCourses);
+        if (hbCourses && hbCourses.length > 0) {
+          const sanitizedHb = sanitizeCourseList(hbCourses);
           setCoursesList((prev) => {
-            const merged = [...sanitizedSb];
+            const merged = [...sanitizedHb];
             COURSES.forEach((official) => {
               if (!merged.some((m) => m.id === official.id)) {
                 merged.push(official);
+              }
+            });
+            prev.forEach((localCourse) => {
+              if (!merged.some((m) => m.id === localCourse.id)) {
+                merged.push(localCourse);
               }
             });
             try { localStorage.setItem('deds_courses_list', JSON.stringify(merged)); } catch {}
             return merged;
           });
         }
-        if (sbCategories && sbCategories.length > 0) {
+        if (hbCategories && hbCategories.length > 0) {
           setCategoriesList((prev) => {
-            const merged = [...sbCategories];
+            const merged = [...hbCategories];
             CATEGORIES.forEach((official) => {
               if (!merged.some((m) => m.id === official.id)) {
                 merged.push(official);
+              }
+            });
+            prev.forEach((p) => {
+              if (!merged.some((m) => m.id === p.id || m.name === p.name)) {
+                merged.push(p);
               }
             });
             try { localStorage.setItem('deds_categories_list', JSON.stringify(merged)); } catch {}
@@ -593,18 +648,24 @@ export default function App() {
           });
         }
 
-        console.log('[Supabase] Data loaded successfully.');
+        console.log('[Hostinger Sync] Dados da plataforma carregados com sucesso.');
       } catch (err) {
-        console.warn('[Supabase] Failed to load data, using localStorage/defaults:', err);
+        console.info('[Hostinger Sync] Carregado a partir do cache local:', err);
       }
     }
-    loadFromSupabase();
+    loadInitialData();
     return () => { cancelled = true; };
   }, []);
 
   // Modals & Drawers state
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
+  const [certModalInitialCode, setCertModalInitialCode] = useState<string | undefined>(undefined);
+
+  const handleOpenCertificateModal = (code?: string) => {
+    setCertModalInitialCode(code);
+    setIsCertModalOpen(true);
+  };
   const [authModal, setAuthModal] = useState<{
     isOpen: boolean;
     mode: 'login' | 'register';
@@ -642,6 +703,38 @@ export default function App() {
     } catch {}
     return INITIAL_CERTIFICATES;
   });
+
+  // Sincroniza em tempo real a lista viva de certificados quando gravada no localStorage pelo ADM
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'deds_certificates_list' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setCertificatesList(parsed);
+          }
+        } catch {}
+      }
+    };
+    const handleCnpjUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      const newCnpj = customEvent.detail;
+      if (newCnpj) {
+        setCertificatesList((prev) =>
+          prev.map((cert) => ({
+            ...cert,
+            institutionCnpj: newCnpj,
+          }))
+        );
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('deds_cnpj_updated', handleCnpjUpdated);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('deds_cnpj_updated', handleCnpjUpdated);
+    };
+  }, []);
 
   // Dynamic recalculation of course ratings and review counts based on real student reviews
   const enrichedCoursesList = useMemo(() => {
@@ -765,8 +858,11 @@ export default function App() {
       };
     } else {
       const normalizedEmail = (checkoutData.studentEmail || '').trim().toLowerCase();
+      const cleanCpfDigits = (checkoutData.studentCpf || '').replace(/\D/g, '');
       const existingUser = usersList.find(
-        (u) => u.email.trim().toLowerCase() === normalizedEmail
+        (u) =>
+          (cleanCpfDigits.length >= 11 && (u.cpf || '').replace(/\D/g, '') === cleanCpfDigits) ||
+          (normalizedEmail && (u.email || '').trim().toLowerCase() === normalizedEmail)
       );
 
       if (existingUser) {
@@ -823,6 +919,44 @@ export default function App() {
     try {
       localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
     } catch {}
+
+    // Record real sale transaction into deds_sales_transactions
+    try {
+      const saleAmount = newCourseIds.reduce((sum, id) => {
+        const c = coursesList.find((course) => course.id === id);
+        return sum + (c ? c.currentPrice : 149.9);
+      }, 0);
+      const firstCourseObj = coursesList.find((c) => c.id === newCourseIds[0]);
+
+      const newSale = {
+        id: `sale-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        orderNumber: `ORD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        studentName: targetUser.name,
+        studentEmail: targetUser.email,
+        studentCpf: targetUser.cpf || '384.920.118-04',
+        courseId: newCourseIds[0] || 'curso',
+        courseTitle: newCourseIds.map((id) => coursesList.find((c) => c.id === id)?.title || id).join(', '),
+        courseCategory: firstCourseObj?.category || 'Geral',
+        amount: saleAmount,
+        paymentMethod:
+          checkoutData.paymentMethod === 'pix'
+            ? 'PIX'
+            : checkoutData.paymentMethod === 'boleto'
+            ? 'Boleto Bancário'
+            : 'Cartão de Crédito',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        status: 'aprovada' as const,
+      };
+
+      const existingSalesStr = localStorage.getItem('deds_sales_transactions');
+      const existingSales = existingSalesStr ? JSON.parse(existingSalesStr) : [];
+      const updatedSales = [newSale, ...(Array.isArray(existingSales) ? existingSales : [])];
+      localStorage.setItem('deds_sales_transactions', JSON.stringify(updatedSales));
+      window.dispatchEvent(new CustomEvent('deds_sales_updated', { detail: updatedSales }));
+    } catch (saleErr) {
+      console.warn('Erro ao registrar transação de venda:', saleErr);
+    }
 
     setCartItems([]);
     setSelectedCourse(null);
@@ -1021,8 +1155,13 @@ export default function App() {
       setActiveNavTab('admin');
       showToast(`Bem-vindo(a) ao Painel de Gestão, ${user.name}!`);
     } else {
-      setActiveNavTab('aluno');
-      showToast(`Bem-vindo(a) à Área do Aluno, ${user.name}!`);
+      if (cartItems.length > 0) {
+        setActiveNavTab('carrinho');
+        showToast(`Bem-vindo(a), ${user.name}! Retornamos ao carrinho para você concluir sua compra.`);
+      } else {
+        setActiveNavTab('aluno');
+        showToast(`Bem-vindo(a) à Área do Aluno, ${user.name}!`);
+      }
     }
   };
 
@@ -1273,13 +1412,17 @@ export default function App() {
 
   const handleAdminIssueCertificate = (newCert: CertificateItem) => {
     setCertificatesList((prev) => {
-      const next = [newCert, ...prev];
+      const filtered = prev.filter((c) => c.id !== newCert.id && c.code !== newCert.code);
+      const next = [newCert, ...filtered];
       try { localStorage.setItem('deds_certificates_list', JSON.stringify(next)); } catch {}
       return next;
     });
+    if (newCert.institutionCnpj && newCert.institutionCnpj.trim()) {
+      try { localStorage.setItem('deds_institution_cnpj', newCert.institutionCnpj.trim()); } catch {}
+    }
     // Salva no backend / Supabase
     saveCertificateToDB(newCert).catch(console.error);
-    showToast(`Certificado para "${newCert.studentName}" emitido com sucesso!`);
+    showToast(`Certificado para "${newCert.studentName}" processado com sucesso!`);
   };
 
   const handleAdminCancelCertificate = (certId: string, reason?: string) => {
@@ -1344,6 +1487,12 @@ export default function App() {
       localStorage.setItem('deds_current_session', JSON.stringify(targetUser));
     } catch {}
     showToast(`Matrícula confirmada! "${course.title}" foi adicionado à sua lista de cursos.`);
+  };
+
+  // Select course to view details
+  const handleSelectCourse = (course: Course) => {
+    setSelectedCourse(course);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Launch classroom directly from presentation screen - RESTRICTED TO AUTHENTICATED & ENROLLED USERS
@@ -1428,10 +1577,22 @@ export default function App() {
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const addedCourseIds = cartItems.map((item) => item.course.id);
 
-  // Student enrolled courses objects
-  const studentEnrolledCourses = enrichedCoursesList.filter((c) =>
-    currentUser?.enrolledCourseIds?.includes(c.id)
-  );
+  // Student enrolled courses objects (active enrollments, completed courses and certificate courses)
+  const studentEnrolledCourses = useMemo(() => {
+    if (!currentUser) return [];
+    const courseIds = new Set<string>(currentUser.enrolledCourseIds || []);
+    (currentUser.completedCourseIds || []).forEach((id) => courseIds.add(id));
+    certificatesList
+      .filter((cert) => cert.studentId === currentUser.id)
+      .forEach((cert) => {
+        if (cert.courseId) courseIds.add(cert.courseId);
+        const match = enrichedCoursesList.find(
+          (course) => course.title.trim().toLowerCase() === cert.courseTitle.trim().toLowerCase()
+        );
+        if (match) courseIds.add(match.id);
+      });
+    return enrichedCoursesList.filter((c) => courseIds.has(c.id));
+  }, [currentUser, enrichedCoursesList, certificatesList]);
 
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col">
@@ -1453,6 +1614,9 @@ export default function App() {
               setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
               showToast('Acesso negado. Faça login com credenciais de administrador.');
               return;
+            }
+            if (tab === 'inicio') {
+              setSelectedCategory(null);
             }
             setSelectedCourse(null);
             setActiveNavTab(tab);
@@ -1535,6 +1699,14 @@ export default function App() {
             onCheckoutSuccess={handleCheckoutSuccess}
             currentUser={currentUser}
             onOpenAuth={() => setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' })}
+            onOpenRegister={(cpf) => {
+              setPendingRegistrationData({
+                cpf: cpf || '',
+                pendingCourseIds: cartItems.map((item) => item.course.id),
+                isFromPayment: false,
+              });
+              setActiveNavTab('cadastro');
+            }}
             usersList={usersList}
           />
         ) : activeNavTab === 'cursos' ? (
@@ -1546,10 +1718,7 @@ export default function App() {
             onUpdateInstructors={handleUpdateInstructors}
             initialCategory={selectedCategory}
             onAddToCart={handleAddToCart}
-            onSelectCourse={(course) => {
-              setSelectedCourse(course);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onSelectCourse={handleSelectCourse}
             addedCourseIds={addedCourseIds}
             currentUser={currentUser}
             onOpenStudentPortal={() => setActiveNavTab('aluno')}
@@ -1576,7 +1745,7 @@ export default function App() {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onLogout={handleLogout}
-            onOpenCertificateModal={() => setIsCertModalOpen(true)}
+            onOpenCertificateModal={(code?: string) => handleOpenCertificateModal(code)}
             onOpenCatalog={() => {
               setSelectedCategory(null);
               setActiveNavTab('cursos');
@@ -1587,6 +1756,10 @@ export default function App() {
             onSubmitReview={handleStudentSubmitReview}
             onEnrollCourse={handleEnrollCourse}
             onStartCourse={handleStartCourseFromPresentation}
+            onAddToCart={handleAddToCart}
+            onSelectCourse={handleSelectCourse}
+            studentBannersConfig={studentBannersConfig}
+            onOpenCart={() => setIsCartDrawerOpen(true)}
           />
           ) : (() => {
             // Redirect unauthenticated visitor to login
@@ -1622,6 +1795,8 @@ export default function App() {
             onUpdateMiddleBannerConfig={handleUpdateMiddleBannerConfig}
             checkoutBannerConfig={checkoutBannerConfig}
             onUpdateCheckoutBannerConfig={handleUpdateCheckoutBannerConfig}
+            studentBannersConfig={studentBannersConfig}
+            onUpdateStudentBannersConfig={handleUpdateStudentBannersConfig}
             announcements={announcementsList}
             onAddAnnouncement={handleAddAnnouncement}
             onAddCourse={handleAddCourse}
@@ -1638,6 +1813,11 @@ export default function App() {
             onUpdateCoupons={handleUpdateCoupons}
             campaigns={campaignsList}
             onUpdateCampaigns={handleUpdateCampaigns}
+            onNavigateHome={() => {
+              setSelectedCategory(null);
+              setActiveNavTab('inicio');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
           ) : (
             /* SECURITY: Non-admin access — show blocked screen and redirect immediately */
@@ -1657,7 +1837,8 @@ export default function App() {
             initialData={pendingRegistrationData}
             isPostCheckoutNotice={Boolean(pendingRegistrationData?.isFromPayment)}
             onRegistrationSuccess={(data: RegistrationData) => {
-              const pendingCourses = pendingRegistrationData?.pendingCourseIds || [];
+              const isAfterPayment = Boolean(pendingRegistrationData?.isFromPayment);
+              const pendingCourses = isAfterPayment ? (pendingRegistrationData?.pendingCourseIds || []) : [];
               const newUser: UserAccount = {
                 id: `user-${Date.now()}`,
                 name: data.name,
@@ -1679,8 +1860,13 @@ export default function App() {
               // 1. Notificação de boas-vindas e orientação de acesso
               sendWelcomeEmail(newUser).catch(console.error);
               setPendingRegistrationData(null);
-              setActiveNavTab('aluno');
-              showToast(`Cadastro realizado com sucesso! Bem-vindo(a), ${data.name}! Seus cursos já estão disponíveis.`);
+              if (!isAfterPayment && cartItems.length > 0) {
+                setActiveNavTab('carrinho');
+                showToast(`Cadastro realizado com sucesso, ${data.name}! Agora você pode prosseguir com o pagamento.`);
+              } else {
+                setActiveNavTab('aluno');
+                showToast(`Cadastro realizado com sucesso! Bem-vindo(a), ${data.name}! Seus cursos já estão disponíveis.`);
+              }
             }}
           />
         ) : activeNavTab === 'blog' ? (
@@ -1723,10 +1909,7 @@ export default function App() {
               activeFilter={activeCourseFilter}
               setActiveFilter={setActiveCourseFilter}
               onAddToCart={handleAddToCart}
-              onSelectCourse={(course) => {
-                setSelectedCourse(course);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onSelectCourse={handleSelectCourse}
               addedCourseIds={addedCourseIds}
               onOpenCatalog={() => {
                 setSelectedCategory(null);
@@ -1745,7 +1928,7 @@ export default function App() {
             {/* Certificate Section with Real Validation (Área Pública) */}
             <CertificateSection
               certificatesList={certificatesList}
-              onOpenCertificateModal={() => setIsCertModalOpen(true)}
+              onOpenCertificateModal={handleOpenCertificateModal}
             />
 
             {/* Student Testimonials */}
@@ -1777,7 +1960,7 @@ export default function App() {
       {/* Footer - Only shown in store & student portal, hidden in admin mode */}
       {activeNavTab !== 'admin' && (
         <Footer
-          onOpenCertificateModal={() => setIsCertModalOpen(true)}
+          onOpenCertificateModal={() => handleOpenCertificateModal()}
           onSelectCategoryFilter={(cat) => {
             setSelectedCategory(cat);
             setActiveNavTab('cursos');
@@ -1814,8 +1997,13 @@ export default function App() {
       {/* Certificate Validation Modal */}
       <CertificateModal
         isOpen={isCertModalOpen}
-        onClose={() => setIsCertModalOpen(false)}
+        onClose={() => {
+          setIsCertModalOpen(false);
+          setCertModalInitialCode(undefined);
+        }}
         certificatesList={certificatesList}
+        initialCode={certModalInitialCode}
+        students={usersList}
       />
 
       {/* Unified Authentication Modal (Aluno & Admin) */}

@@ -4,7 +4,7 @@ export const INITIAL_USERS: UserAccount[] = [
   // ── Alunos Cadastrados (Módulo 7) ──────────────────────────────────────────
   {
     id: 'user-aluno-1',
-    name: 'Aluno Deds Academy',
+    name: 'Lucas M. Silveira',
     email: 'aluno@123.com.br',
     role: 'aluno',
     studentCode: 'ALU-8921',
@@ -22,7 +22,7 @@ export const INITIAL_USERS: UserAccount[] = [
       state: 'SP',
     },
     certificateData: {
-      customName: 'Aluno Deds Academy',
+      customName: 'Lucas M. Silveira',
       customCpf: '384.920.118-04',
       signatureType: 'automatic',
       fontStyle: 'font-script',
@@ -31,105 +31,10 @@ export const INITIAL_USERS: UserAccount[] = [
     status: 'ativo',
     registeredAt: '15/01/2025',
     lastAccess: 'Hoje, 09:30',
-    enrolledCourseIds: ['python-zero-avancado', 'excel-basico-avancado', 'marketing-digital-pratica'],
-    completedCourseIds: ['excel-basico-avancado'],
-  },
-  {
-    id: 'user-aluno-alias',
-    name: 'André Silva',
-    email: 'andre.aluno@gmail.com',
-    role: 'aluno',
-    studentCode: 'ALU-9842',
-    password: 'senhaSegura@2025',
-    cpf: '384.920.118-04',
-    phone: '(11) 98765-4321',
-    address: {
-      cep: '04038-002',
-      street: 'Rua Domingos de Morais',
-      number: '2187',
-      complement: 'Bloco B - 104',
-      neighborhood: 'Vila Mariana',
-      city: 'São Paulo',
-      state: 'SP',
-    },
-    status: 'ativo',
-    registeredAt: '15/01/2025',
-    lastAccess: 'Hoje, 09:30',
     enrolledCourseIds: ['python-zero-avancado', 'excel-basico-avancado'],
     completedCourseIds: ['excel-basico-avancado'],
   },
-  {
-    id: 'user-aluno-2',
-    name: 'Beatriz Costa',
-    email: 'beatriz.costa@techmail.com',
-    role: 'aluno',
-    studentCode: 'ALU-5521',
-    password: 'alunoBeatriz#2025',
-    cpf: '219.450.887-12',
-    phone: '(21) 99123-8822',
-    address: {
-      cep: '22041-001',
-      street: 'Avenida Atlântica',
-      number: '2600',
-      complement: 'Apto 802',
-      neighborhood: 'Copacabana',
-      city: 'Rio de Janeiro',
-      state: 'RJ',
-    },
-    status: 'ativo',
-    registeredAt: '03/02/2025',
-    lastAccess: 'Hoje, 09:30',
-    enrolledCourseIds: ['ui-ux-design', 'python-zero-avancado'],
-    completedCourseIds: [],
-  },
-  {
-    id: 'user-aluno-3',
-    name: 'Rodrigo Mendonça',
-    email: 'rodrigo.m@empresa.com.br',
-    role: 'aluno',
-    studentCode: 'ALU-3140',
-    password: 'rodrigoPass@2025',
-    cpf: '541.229.301-85',
-    phone: '(31) 98455-1100',
-    address: {
-      cep: '30130-100',
-      street: 'Avenida Afonso Pena',
-      number: '1500',
-      complement: 'Sala 901',
-      neighborhood: 'Centro',
-      city: 'Belo Horizonte',
-      state: 'MG',
-    },
-    status: 'ativo',
-    registeredAt: '18/02/2025',
-    lastAccess: 'Hoje, 09:30',
-    enrolledCourseIds: ['power-bi-dashboards', 'excel-basico-avancado'],
-    completedCourseIds: ['power-bi-dashboards'],
-  },
-  {
-    id: 'user-aluno-4',
-    name: 'Camila Ferreira',
-    email: 'camila.f@designlab.io',
-    role: 'aluno',
-    studentCode: 'ALU-7819',
-    password: 'camilaDesign#2025',
-    cpf: '402.115.938-70',
-    phone: '(41) 97722-3344',
-    address: {
-      cep: '80020-000',
-      street: 'Rua XV de Novembro',
-      number: '700',
-      complement: 'Conjunto 32',
-      neighborhood: 'Centro',
-      city: 'Curitiba',
-      state: 'PR',
-    },
-    status: 'pendente',
-    registeredAt: '28/02/2025',
-    lastAccess: 'Hoje, 09:30',
-    enrolledCourseIds: ['ui-ux-design'],
-    completedCourseIds: [],
-  },
+
 
   // ── Colaboradores Internos & Equipe ADM (Módulo 8) ─────────────────────────
   {
@@ -266,62 +171,10 @@ export const INITIAL_STUDENT_PROGRESS: Record<string, StudentProgress> = {
   },
 };
 
-export const INITIAL_CERTIFICATES: CertificateItem[] = [
-  {
-    id: 'cert-01',
-    courseId: 'excel-basico-avancado',
-    courseTitle: 'Excel do Básico ao Avançado & Dashboards Dinâmicos',
-    courseCategory: 'Produtividade & Negócios',
-    studentId: 'user-aluno-alias',
-    studentCode: 'ALUNO-ALIAS',
-    studentName: 'André Silva',
-    studentCpf: '384.920.118-04',
-    hours: 40,
-    issueDate: '10/02/2025',
-    code: 'DEDS-EXC-2025-9842',
-    instructor: 'Prof. Camila Barros',
-    status: 'valido',
-  },
-];
+export const INITIAL_CERTIFICATES: CertificateItem[] = [];
 
-export const INITIAL_ORDERS: import('../types').StudentOrder[] = [
-  {
-    id: 'order-1',
-    orderNumber: 'DEDS-PED-98421',
-    title: 'Combo Especial: Python + Excel + Marketing Digital',
-    date: 'Hoje (recente)',
-    purchaseTimestamp: Date.now() - 3 * 3600 * 1000, // Comprado há 3 horas (dentro da janela de 24h)
-    paymentMethod: 'PIX Instantâneo',
-    invoiceNumber: '0091823',
-    totalPrice: 445.72,
-    status: 'liquidado',
-    courseIds: ['python-zero-avancado', 'excel-basico-avancado', 'marketing-digital-pratica'],
-  },
-  {
-    id: 'order-2',
-    orderNumber: 'DEDS-PED-91024',
-    title: 'Formação em Inteligência Artificial & Automação',
-    date: 'Hoje (recente)',
-    purchaseTimestamp: Date.now() - 1 * 3600 * 1000, // Comprado há 1 hora (0% concluído, dentro de 24h)
-    paymentMethod: 'Cartão de Crédito (12x)',
-    invoiceNumber: '0091910',
-    totalPrice: 199.90,
-    status: 'liquidado',
-    courseIds: ['ia-produtividade'],
-  },
-  {
-    id: 'order-3',
-    orderNumber: 'DEDS-PED-85412',
-    title: 'Design UI/UX Completo com Figma',
-    date: '10/12/2024',
-    purchaseTimestamp: Date.now() - 95 * 24 * 3600 * 1000, // Compra antiga (fora do prazo de 24h)
-    paymentMethod: 'Boleto Bancário',
-    invoiceNumber: '0087421',
-    totalPrice: 149.90,
-    status: 'liquidado',
-    courseIds: ['ui-ux-design'],
-  },
-];
+export const INITIAL_ORDERS: import('../types').StudentOrder[] = [];
+
 
 export const INITIAL_INSTRUCTORS: import('../types').Instructor[] = [
   {

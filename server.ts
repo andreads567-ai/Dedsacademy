@@ -13,6 +13,8 @@ import {
   getPlatformData,
   savePlatformData,
   handleImageUpload,
+  saveCertificate,
+  findCertificateByCode,
 } from './src/api/platformSyncHandler';
 
 dotenv.config();
@@ -118,11 +120,35 @@ app.post('/api/issue-certificate', async (req, res) => {
       instructor: instructor || 'Deds Academy',
       status: 'valido',
     };
+    saveCertificate(cert);
     return res.status(201).json({ success: true, certificate: cert });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
 });
+
+// 6.1 Endpoint para Validação Oficial de Certificados (Hostinger Database)
+const handleValidateCertificate = (req: express.Request, res: express.Response) => {
+  try {
+    const rawCode = (req.query.codigo || req.query.code || req.body?.code) as string;
+    if (!rawCode) {
+      return res.status(400).json({ error: 'Código de certificado não informado.' });
+    }
+    const cert = findCertificateByCode(rawCode);
+    if (!cert) {
+      return res.status(404).json({ valid: false, error: 'Certificado não encontrado nos registros oficiais.' });
+    }
+    return res.status(200).json({
+      valid: cert.status === 'valido',
+      status: cert.status,
+      certificate: cert,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Erro interno ao validar certificado' });
+  }
+};
+app.get('/api/validate-certificate', handleValidateCertificate);
+app.post('/api/validate-certificate', handleValidateCertificate);
 
 // 7. Endpoint Central de Sincronização entre Navegadores (GET e POST) com Invalidação Ativada por Servidor
 app.get('/api/platform-sync', (req, res) => {
@@ -176,6 +202,19 @@ app.use('/uploads', express.static(uploadsDir, {
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
   }
 }));
+
+// Servir diretório do gerador oficial de certificados (index.html, style.css, script.js, frente.png, verso.png)
+const certGenDir = path.join(__dirname, 'public', 'certificate-generator');
+const certGenFallback = path.join(__dirname, 'certificate-generator');
+
+app.use('/certificate-generator', (req, res, next) => {
+  if (req.url === '' || req.url === '/') {
+    req.url = '/index.html';
+  }
+  next();
+});
+app.use('/certificate-generator', express.static(certGenDir));
+app.use('/certificate-generator', express.static(certGenFallback));
 
 // Serve static assets in production with fine-grained cache control
 app.use(

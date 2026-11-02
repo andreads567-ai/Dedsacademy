@@ -133,6 +133,33 @@ export function initCacheManager(): void {
       localStorage.setItem('deds_categories_list', JSON.stringify(CATEGORIES));
     }
 
+    // 8. One-time Real Mode Transition: purge old mock sales, certificates and fictitious students
+    const REAL_MODE_FLAG = '2026.10.31-real-operational-v1';
+    const currentRealMode = localStorage.getItem('deds_real_mode_version');
+    if (currentRealMode !== REAL_MODE_FLAG) {
+      // Clear mock sales transactions
+      localStorage.setItem('deds_sales_transactions', JSON.stringify([]));
+
+      // Clear mock certificates
+      localStorage.setItem('deds_certificates_list', JSON.stringify([]));
+
+      // Clean users list: keep admins and ONLY aluno@123.com.br
+      try {
+        const rawUsers = localStorage.getItem('deds_users_list');
+        if (rawUsers) {
+          const parsedUsers = JSON.parse(rawUsers);
+          if (Array.isArray(parsedUsers)) {
+            const cleaned = parsedUsers.filter(
+              (u: any) => u.role === 'admin' || (u.role === 'aluno' && (u.email || '').trim().toLowerCase() === 'aluno@123.com.br')
+            );
+            localStorage.setItem('deds_users_list', JSON.stringify(cleaned));
+          }
+        }
+      } catch {}
+
+      localStorage.setItem('deds_real_mode_version', REAL_MODE_FLAG);
+    }
+
     localStorage.setItem('deds_cache_version', DEDS_CACHE_VERSION);
   } catch (err) {
     console.warn('[CacheManager] Error during cache initialization:', err);

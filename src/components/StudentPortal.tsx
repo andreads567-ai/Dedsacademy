@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, CourseReview, Category, SupportTicket } from '../types';
+import { Course, CertificateItem, StudentProgress, UserAccount, StudentOrder, CourseReview, Category, SupportTicket, StudentBannersConfig } from '../types';
 import { INITIAL_ORDERS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { CancellationModal } from './CancellationModal';
-import { SignatureModal } from './SignatureModal';
 import { StudentCourseStudyPage } from './StudentCourseStudyPage';
+import { StudentBannerCarousel } from './StudentBannerCarousel';
+import { getStoredStudentBanners } from '../services/studentBannersService';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 
@@ -15,15 +16,19 @@ interface StudentPortalProps {
   categories?: Category[];
   progressData: Record<string, StudentProgress>;
   certificates: CertificateItem[];
+  studentBannersConfig?: StudentBannersConfig;
   onNavigateHome: (sectionId?: string) => void;
   onLogout: () => void;
-  onOpenCertificateModal: () => void;
+  onOpenCertificateModal: (code?: string) => void;
   onOpenCatalog?: () => void;
   onCompleteLesson?: (courseId: string, lessonId: string, lessonTitle: string) => void;
   onCancelEnrollment?: (courseIds: string[]) => void;
   onSubmitReview?: (review: CourseReview) => void;
   onEnrollCourse?: (course: Course) => void;
   onStartCourse?: (course: Course) => void;
+  onAddToCart?: (course: Course) => void;
+  onSelectCourse?: (course: Course) => void;
+  onOpenCart?: () => void;
 }
 
 export const StudentPortal: React.FC<StudentPortalProps> = ({
@@ -34,6 +39,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   categories = [],
   progressData,
   certificates,
+  studentBannersConfig,
   onNavigateHome,
   onLogout,
   onOpenCertificateModal,
@@ -43,8 +49,32 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
   onSubmitReview,
   onEnrollCourse,
   onStartCourse,
+  onAddToCart,
+  onSelectCourse,
+  onOpenCart,
 }) => {
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [bannersConfig, setBannersConfig] = useState<StudentBannersConfig>(() =>
+    studentBannersConfig || getStoredStudentBanners()
+  );
+
+  useEffect(() => {
+    if (studentBannersConfig) {
+      setBannersConfig(studentBannersConfig);
+    }
+  }, [studentBannersConfig]);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setBannersConfig(getStoredStudentBanners());
+    };
+    window.addEventListener('deds_student_banners_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('deds_student_banners_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
   const [activeTab, setActiveTab] = useState<'cursos' | 'certificados' | 'horas' | 'financeiro' | 'suporte' | 'perfil'>('cursos');
   const [studentTickets, setStudentTickets] = useState<SupportTicket[]>(() => {
     try {
@@ -78,16 +108,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     state: user.address?.state || 'SP',
   });
 
-  // Certificate customization states (Dados para emissão de certificado)
-  const [certFormData, setCertFormData] = useState({
-    customName: user.certificateData?.customName || user.name || '',
-    customCpf: user.certificateData?.customCpf || user.cpf || '384.920.118-04',
-    signatureType: (user.certificateData?.signatureType || 'automatic') as 'upload' | 'draw' | 'automatic',
-    signatureImage: user.certificateData?.signatureImage || '',
-    fontStyle: user.certificateData?.fontStyle || 'font-script',
-  });
-  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
-
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,13 +125,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       city: user.address?.city || 'São Paulo',
       state: user.address?.state || 'SP',
     });
-    setCertFormData({
-      customName: user.certificateData?.customName || user.name || '',
-      customCpf: user.certificateData?.customCpf || user.cpf || '384.920.118-04',
-      signatureType: (user.certificateData?.signatureType || 'automatic') as 'upload' | 'draw' | 'automatic',
-      signatureImage: user.certificateData?.signatureImage || '',
-      fontStyle: user.certificateData?.fontStyle || 'font-script',
-    });
     setAvatarLoadFailed(false);
   }, [user]);
 
@@ -125,8 +138,172 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     lessonTitle: '',
   });
 
-  const totalHours = enrolledCourses.reduce((acc, c) => acc + c.hours, 0);
-  const completedHours = certificates.reduce((acc, cert) => acc + cert.hours, 0);
+  // Unifica todos os cursos do aluno: matriculados + cursos de certificados oficiais emitidos
+  const allStudentCourses = useMemo(() => {
+    const list: Course[] = [...enrolledCourses];
+    certificates.forEach((cert) => {
+      const already = list.some(
+        (c) => c.id === cert.courseId || c.title.trim().toLowerCase() === cert.courseTitle.trim().toLowerCase()
+      );
+      if (!already) {
+        list.push({
+          id: cert.courseId || `cert-course-${cert.id}`,
+          title: cert.courseTitle,
+          description: `Curso com certificado oficial emitido em ${cert.issueDate}`,
+          category: cert.courseCategory || 'Capacitação Profissional',
+          hours: cert.hours || 0,
+          price: 0,
+          originalPrice: 0,
+          rating: 5.0,
+          reviewsCount: 1,
+          featured: false,
+          status: 'publicado',
+          instructor: cert.instructor || 'Deds Academy',
+          imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60',
+          modules: [],
+        });
+      }
+    });
+    return list;
+  }, [enrolledCourses, certificates]);
+
+  const validCertificates = useMemo(() => {
+    return certificates.filter((c) => c.status !== 'cancelado');
+  }, [certificates]);
+
+  // Carga horária total concluída e certificada
+  const completedHours = useMemo(() => {
+    return validCertificates.reduce((acc, cert) => acc + (cert.hours || 0), 0);
+  }, [validCertificates]);
+
+  // Cursos em andamento: cursos de allStudentCourses que ainda não possuem certificado válido
+  const inProgressCourses = useMemo(() => {
+    return allStudentCourses.filter(
+      (course) =>
+        !validCertificates.some(
+          (cert) =>
+            cert.courseId === course.id ||
+            cert.courseTitle.trim().toLowerCase() === course.title.trim().toLowerCase()
+        )
+    );
+  }, [allStudentCourses, validCertificates]);
+
+  // Horas em andamento: soma das horas dos cursos ainda em andamento (nunca negativo!)
+  const inProgressHours = useMemo(() => {
+    return inProgressCourses.reduce((acc, c) => acc + (c.hours || 0), 0);
+  }, [inProgressCourses]);
+
+  const totalRegisteredHours = completedHours + inProgressHours;
+  const totalHours = totalRegisteredHours;
+
+  // Filtros para a aba Meus Certificados
+  const [certCourseFilter, setCertCourseFilter] = useState<string>('todos');
+  const [certDateOrder, setCertDateOrder] = useState<'recentes' | 'antigos'>('recentes');
+  const [certSearchQuery, setCertSearchQuery] = useState<string>('');
+
+  const parseCertDate = (dStr?: string) => {
+    if (!dStr) return 0;
+    const parts = dStr.trim().split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day).getTime() || 0;
+    }
+    return new Date(dStr).getTime() || 0;
+  };
+
+  const uniqueCertCourses = useMemo(() => {
+    const set = new Set<string>();
+    certificates.forEach((c) => {
+      if (c.courseTitle) set.add(c.courseTitle);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [certificates]);
+
+  const filteredCertificates = useMemo(() => {
+    return certificates
+      .filter((cert) => {
+        if (certCourseFilter !== 'todos' && cert.courseTitle !== certCourseFilter) {
+          return false;
+        }
+        if (certSearchQuery.trim()) {
+          const q = certSearchQuery.toLowerCase();
+          const matchTitle = (cert.courseTitle || '').toLowerCase().includes(q);
+          const matchCode = (cert.code || '').toLowerCase().includes(q);
+          const matchInstructor = (cert.instructor || '').toLowerCase().includes(q);
+          if (!matchTitle && !matchCode && !matchInstructor) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = parseCertDate(a.issueDate);
+        const timeB = parseCertDate(b.issueDate);
+        return certDateOrder === 'recentes' ? timeB - timeA : timeA - timeB;
+      });
+  }, [certificates, certCourseFilter, certDateOrder, certSearchQuery]);
+
+  // Registros estruturados para a tabela de AACC
+  const aaccTableItems = useMemo(() => {
+    type AaccItem = {
+      id: string;
+      courseTitle: string;
+      category: string;
+      hours: number;
+      status: 'concluido' | 'em_andamento' | 'cancelado';
+      certCode?: string;
+      issueDate?: string;
+    };
+
+    const items: AaccItem[] = [];
+
+    // 1. Cursos com certificados válidos (Concluídos)
+    validCertificates.forEach((cert) => {
+      items.push({
+        id: `cert-${cert.id}`,
+        courseTitle: cert.courseTitle,
+        category: cert.courseCategory || 'Capacitação Profissional',
+        hours: cert.hours || 0,
+        status: 'concluido',
+        certCode: cert.code,
+        issueDate: cert.issueDate,
+      });
+    });
+
+    // 2. Certificados cancelados (se houver)
+    certificates
+      .filter((c) => c.status === 'cancelado')
+      .forEach((cert) => {
+        items.push({
+          id: `cert-cancelled-${cert.id}`,
+          courseTitle: cert.courseTitle,
+          category: cert.courseCategory || 'Capacitação Profissional',
+          hours: cert.hours || 0,
+          status: 'cancelado',
+          certCode: cert.code,
+          issueDate: cert.issueDate,
+        });
+      });
+
+    // 3. Cursos em andamento (cursos matriculados que ainda não possuem certificado)
+    inProgressCourses.forEach((course) => {
+      const isCancelledOrder = orders.some(
+        (o) =>
+          (o.status === 'cancelado' || o.status === 'cancelamento_solicitado') &&
+          o.courseIds.includes(course.id)
+      );
+
+      items.push({
+        id: `course-${course.id}`,
+        courseTitle: course.title,
+        category: course.category || 'Geral',
+        hours: course.hours || 0,
+        status: isCancelledOrder ? 'cancelado' : 'em_andamento',
+      });
+    });
+
+    return items;
+  }, [validCertificates, certificates, inProgressCourses, orders]);
 
   const handleOpenLesson = (course: Course) => {
     const progress = progressData[course.id];
@@ -137,9 +314,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     });
   };
 
-  // Category filter state for enrolled courses and exploring courses
+  // Category filter state for enrolled courses and recommended courses
   const [enrolledCategoryFilter, setEnrolledCategoryFilter] = useState<string>('Todos');
-  const [exploreCategoryFilter, setExploreCategoryFilter] = useState<string>('Todas');
+  const [recommendedCategoryFilter, setRecommendedCategoryFilter] = useState<string>('Todas');
 
   const enrolledCategories = useMemo(() => {
     const set = new Set<string>();
@@ -159,10 +336,17 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     return Array.from(set);
   }, [categories, allCourses]);
 
-  const displayedExploreCourses = useMemo(() => {
-    if (exploreCategoryFilter === 'Todas') return allCourses;
-    return allCourses.filter((c) => c.category.toLowerCase() === exploreCategoryFilter.toLowerCase());
-  }, [allCourses, exploreCategoryFilter]);
+  const recommendedCategoriesList = useMemo(() => {
+    return effectiveCategoriesList;
+  }, [effectiveCategoriesList]);
+
+  const displayedRecommendedCourses = useMemo(() => {
+    // Cursos indicados com alta reputação (rating >= 4.0) ou catálogo completo
+    const highRated = allCourses.filter((c) => (c.rating || 5) >= 4.0);
+    const source = highRated.length > 0 ? highRated : allCourses;
+    if (recommendedCategoryFilter === 'Todas') return source;
+    return source.filter((c) => c.category.toLowerCase() === recommendedCategoryFilter.toLowerCase());
+  }, [allCourses, recommendedCategoryFilter]);
 
   const handleConfirmCancellation = (orderId: string, reason: string) => {
     const order = orders.find((o) => o.id === orderId);
@@ -242,6 +426,9 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           </div>
         </div>
 
+        {/* Banner Carrossel Retangular do Painel do Aluno (Até 6 banners com transição e pausa por clique) */}
+        <StudentBannerCarousel config={bannersConfig} onOpenCatalog={onOpenCatalog} />
+
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-surface-raised p-5 rounded-xl border border-border-subtle flex items-center gap-4">
@@ -249,7 +436,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <span className="material-symbols-outlined text-2xl">school</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-text-primary">{enrolledCourses.length}</span>
+              <span className="text-2xl font-bold text-text-primary">{allStudentCourses.length}</span>
               <p className="text-xs text-text-tertiary">Cursos Matriculados</p>
             </div>
           </div>
@@ -259,8 +446,10 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <span className="material-symbols-outlined text-2xl">schedule</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-text-primary">{totalHours}h</span>
-              <p className="text-xs text-text-tertiary">Carga Horária Total</p>
+              <span className="text-2xl font-bold text-text-primary">
+                {completedHours > 0 ? `${completedHours}h` : `${totalRegisteredHours}h`}
+              </span>
+              <p className="text-xs text-text-tertiary">Carga Horária Concluída</p>
             </div>
           </div>
 
@@ -269,7 +458,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <span className="material-symbols-outlined text-2xl">workspace_premium</span>
             </div>
             <div>
-              <span className="text-2xl font-bold text-text-primary">{certificates.length}</span>
+              <span className="text-2xl font-bold text-text-primary">{validCertificates.length}</span>
               <p className="text-xs text-text-tertiary">Certificados Emitidos</p>
             </div>
           </div>
@@ -360,21 +549,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const explorer = document.getElementById('secao-explorar-categorias');
-                    if (explorer) explorer.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-sm">explore</span>
-                  Explorar por Categoria
-                </button>
-                <button
                   onClick={() => (onOpenCatalog ? onOpenCatalog() : onNavigateHome('cursos-section'))}
-                  className="px-3.5 py-2 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-xs text-text-secondary hover:text-text-primary font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  title="Acessar todas as categorias e cursos disponíveis"
                 >
                   <span className="material-symbols-outlined text-sm">storefront</span>
-                  Ver Catálogo Completo
+                  Ver Categoria Completa
                 </button>
               </div>
             </div>
@@ -512,7 +692,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           {isCompleted && (
                             <button
                               type="button"
-                              onClick={onOpenCertificateModal}
+                              onClick={() => {
+                                const matchCert = certificates.find(
+                                  (c) => c.courseTitle.toLowerCase() === course.title.toLowerCase() || c.courseId === course.id
+                                );
+                                onOpenCertificateModal(matchCert?.code);
+                              }}
                               className="p-2.5 bg-surface-overlay hover:bg-surface-container text-accent-emerald-bright rounded-xl border border-border-subtle transition-all cursor-pointer"
                               title="Ver Certificado"
                             >
@@ -528,19 +713,20 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
             )}
 
             {/* ===================================================================
-                EXPLORAR & ADICIONAR CURSOS POR CATEGORIA (DIRETAMENTE NA ÁREA DO ALUNO)
+                CURSOS INDICADOS (FORMAÇÕES COM REPUTAÇÃO ENTRE 4 E 5 ESTRELAS)
                =================================================================== */}
-            <div id="secao-explorar-categorias" className="pt-8 border-t border-border-subtle space-y-6">
+            <div id="secao-cursos-indicados" className="pt-8 border-t border-border-subtle space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
-                  <span className="text-xs font-bold text-primary uppercase tracking-wider block">
-                    Formações da Deds Academy
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider block flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-sm text-accent-gold" style={{ fontVariationSettings: "'FILL' 1" }}>recommend</span>
+                    Seleção Recomendada • Alta Reputação
                   </span>
                   <h3 className="text-lg sm:text-xl font-bold text-text-primary mt-1">
-                    Escolha um Curso por Categoria
+                    Cursos Indicados
                   </h3>
                   <p className="text-xs text-text-tertiary mt-0.5">
-                    Selecione uma categoria abaixo para adicionar novas formações diretamente à sua matrícula.
+                    Formações recomendadas com reputações de excelência entre 4.0 e 5.0 estrelas e grande número de avaliações.
                   </p>
                 </div>
               </div>
@@ -549,22 +735,22 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
                 <button
                   type="button"
-                  onClick={() => setExploreCategoryFilter('Todas')}
+                  onClick={() => setRecommendedCategoryFilter('Todas')}
                   className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    exploreCategoryFilter === 'Todas'
+                    recommendedCategoryFilter === 'Todas'
                       ? 'bg-primary-container text-on-primary font-bold shadow-xs'
                       : 'bg-surface-raised text-text-secondary hover:text-text-primary hover:bg-surface-overlay border border-border-subtle'
                   }`}
                 >
                   Todas as Categorias
                 </button>
-                {effectiveCategoriesList.map((catName) => {
-                  const isSelected = exploreCategoryFilter.toLowerCase() === catName.toLowerCase();
+                {recommendedCategoriesList.map((catName) => {
+                  const isSelected = recommendedCategoryFilter.toLowerCase() === catName.toLowerCase();
                   return (
                     <button
                       key={catName}
                       type="button"
-                      onClick={() => setExploreCategoryFilter(catName)}
+                      onClick={() => setRecommendedCategoryFilter(catName)}
                       className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                         isSelected
                           ? 'bg-primary-container text-on-primary font-bold shadow-xs'
@@ -577,61 +763,97 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 })}
               </div>
 
-              {/* Grid of Available Courses to Enroll */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedExploreCourses.map((course) => {
-                  const isEnrolled = enrolledCourses.some((c) => c.id === course.id);
+              {/* Grid of Recommended Courses */}
+              {displayedRecommendedCourses.length === 0 ? (
+                <div className="p-8 text-center bg-surface-raised border border-border-subtle rounded-2xl space-y-2">
+                  <span className="material-symbols-outlined text-3xl text-text-tertiary">search_off</span>
+                  <p className="text-sm font-bold text-text-primary">Nenhum curso indicado nesta categoria.</p>
+                  <button
+                    type="button"
+                    onClick={() => setRecommendedCategoryFilter('Todas')}
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold cursor-pointer"
+                  >
+                    Ver Todas as Indicações
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedRecommendedCourses.map((course) => {
+                    const isEnrolled = enrolledCourses.some((c) => c.id === course.id);
 
-                  return (
-                    <div
-                      key={course.id}
-                      className="bg-surface-raised rounded-2xl border border-border-subtle overflow-hidden flex flex-col justify-between shadow-sm hover:border-primary/50 transition-all group hover:shadow-md cursor-pointer"
-                      onClick={() => {
-                        if (!isEnrolled && onEnrollCourse) {
-                          onEnrollCourse(course);
-                        }
-                        handleOpenLesson(course);
-                      }}
-                      title={isEnrolled ? "Clique para acessar este curso" : "Clique para se matricular e iniciar este curso"}
-                    >
-                      <div>
-                        <div className="relative h-40 w-full bg-surface-base overflow-hidden">
-                          <img
-                            src={getCacheBustedImageUrl(course.image)}
-                            alt={course.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
-                          <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[11px] font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
-                            {course.category}
-                          </span>
-                          <span className="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] text-white font-mono">
-                            {course.hours}h
-                          </span>
-                        </div>
-
-                        <div className="p-4 space-y-2">
-                          <h4 className="text-sm font-bold text-text-primary line-clamp-1 group-hover:text-primary transition-colors">
-                            {course.title}
-                          </h4>
-                          <p className="text-xs text-text-tertiary line-clamp-2 leading-relaxed">
-                            {course.description}
-                          </p>
-                          <div className="flex items-center justify-between text-[11px] text-text-tertiary pt-2 border-t border-border-subtle/50">
-                            <span>Instrutor: <strong className="text-text-secondary">{course.instructor}</strong></span>
-                            <span className="text-accent-gold font-bold flex items-center gap-0.5">
-                              ★ {course.rating.toFixed(1)}
+                    return (
+                      <div
+                        key={course.id}
+                        className="bg-surface-raised rounded-2xl border border-border-subtle overflow-hidden flex flex-col justify-between shadow-sm hover:border-primary/50 transition-all group hover:shadow-md cursor-pointer"
+                        onClick={() => {
+                          if (isEnrolled) {
+                            handleOpenLesson(course);
+                          } else if (onSelectCourse) {
+                            onSelectCourse(course);
+                          } else if (onOpenCatalog) {
+                            onOpenCatalog();
+                          }
+                        }}
+                        title={isEnrolled ? "Acessar aula deste curso" : "Ver detalhes do curso"}
+                      >
+                        <div>
+                          <div className="relative h-44 w-full bg-surface-base overflow-hidden">
+                            <img
+                              src={getCacheBustedImageUrl(course.image)}
+                              alt={course.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = FALLBACK_COURSE_IMAGE;
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-surface-dim via-transparent to-transparent"></div>
+                            <span className="absolute top-3 left-3 px-2 py-0.5 rounded-md text-[11px] font-bold bg-surface-dim/80 backdrop-blur-md text-primary">
+                              {course.category}
+                            </span>
+                            <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-accent-gold/95 text-black flex items-center gap-0.5 shadow-sm">
+                              <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                              {(course.rating || 5.0).toFixed(1)}
+                            </span>
+                            <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] text-white font-mono">
+                              {course.hours}h
                             </span>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="p-4 pt-0">
-                        {isEnrolled ? (
-                          <div className="flex items-center gap-2">
+                          <div className="p-4 space-y-2">
+                            <h4 className="text-sm font-bold text-text-primary line-clamp-1 group-hover:text-primary transition-colors">
+                              {course.title}
+                            </h4>
+                            <p className="text-xs text-text-tertiary line-clamp-2 leading-relaxed">
+                              {course.description}
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-text-tertiary pt-2 border-t border-border-subtle/50">
+                              <span>Instrutor: <strong className="text-text-secondary">{course.instructor}</strong></span>
+                              <span className="text-text-tertiary">
+                                {course.reviewsCount || 0} avaliações
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 pt-0">
+                          {/* Price preview */}
+                          <div className="flex items-center justify-between mb-3 pt-2 border-t border-border-subtle/50">
+                            <div>
+                              {course.originalPrice > course.currentPrice && (
+                                <span className="text-[10px] text-text-tertiary line-through block leading-none">
+                                  R$ {course.originalPrice.toFixed(2).replace('.', ',')}
+                                </span>
+                              )}
+                              <span className="text-sm font-black text-accent-emerald-bright">
+                                R$ {course.currentPrice.toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+                              Certificado Incluso
+                            </span>
+                          </div>
+
+                          {isEnrolled ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -643,28 +865,49 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                               <span className="material-symbols-outlined text-base">play_arrow</span>
                               <span>Já Matriculado • Acessar Aula</span>
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onEnrollCourse) {
-                                onEnrollCourse(course);
-                              }
-                              handleOpenLesson(course);
-                            }}
-                            className="w-full py-2.5 px-3 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95 shadow-[0_0_12px_rgba(0,176,116,0.3)]"
-                          >
-                            <span className="material-symbols-outlined text-base">school</span>
-                            <span>Matricular &amp; Iniciar Aula Imediatamente</span>
-                          </button>
-                        )}
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onSelectCourse) {
+                                    onSelectCourse(course);
+                                  } else if (onOpenCatalog) {
+                                    onOpenCatalog();
+                                  }
+                                }}
+                                className="flex-1 py-2.5 px-2 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-text-primary text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                title="Ver conteúdo completo do curso"
+                              >
+                                <span className="material-symbols-outlined text-sm">visibility</span>
+                                <span>Ver Curso</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onAddToCart) {
+                                    onAddToCart(course);
+                                  }
+                                  if (onOpenCart) {
+                                    onOpenCart();
+                                  }
+                                }}
+                                className="flex-1 py-2.5 px-2 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md active:scale-95 shadow-[0_0_12px_rgba(0,176,116,0.25)]"
+                                title="Adicionar ao carrinho para realizar o pagamento"
+                              >
+                                <span className="material-symbols-outlined text-sm">shopping_cart</span>
+                                <span>Adicionar Carrinho</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -672,91 +915,231 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
         {/* Tab 2: Meus Certificados */}
         {activeTab === 'certificados' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-text-primary">Certificados Oficiais Emitidos</h2>
-                <p className="text-xs text-text-tertiary">Documentos com código de verificação criptográfica válidos em todo o Brasil</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-text-primary">Certificados Oficiais Emitidos</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                    {certificates.length} {certificates.length === 1 ? 'registro' : 'registros'}
+                  </span>
+                </div>
+                <p className="text-xs text-text-tertiary">Documentos com código de verificação criptográfica válidos em todo o território nacional</p>
               </div>
               <button
                 onClick={onOpenCertificateModal}
-                className="px-4 py-2 bg-surface-overlay hover:bg-surface-container text-primary text-xs font-bold rounded-xl border border-border-subtle flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-surface-overlay hover:bg-surface-container text-primary text-xs font-bold rounded-xl border border-border-subtle flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
               >
                 <span className="material-symbols-outlined text-base">verified</span>
                 Validar Autenticidade
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {certificates.map((cert) => (
-                <div
-                  key={cert.id}
-                  className="bg-surface-raised rounded-2xl border border-border-subtle p-6 flex flex-col justify-between shadow-sm relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full pointer-events-none"></div>
-                  <div>
-                    <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
-                      <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">workspace_premium</span> Oficial Deds Academy
-                      </span>
-                      <span className="text-xs text-text-tertiary">Emitido em {cert.issueDate}</span>
-                    </div>
+            {/* Barra de Filtros: Por Curso, Por Data e Busca */}
+            <div className="bg-surface-raised rounded-2xl border border-border-subtle p-4 shadow-sm space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                {/* Filtro por Curso */}
+                <div className="lg:col-span-5">
+                  <label className="text-[11px] font-bold text-text-tertiary uppercase block mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs text-primary">school</span>
+                    Filtrar por Curso
+                  </label>
+                  <select
+                    value={certCourseFilter}
+                    onChange={(e) => setCertCourseFilter(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="todos">Todos os Cursos ({certificates.length})</option>
+                    {uniqueCertCourses.map((cTitle) => (
+                      <option key={cTitle} value={cTitle}>
+                        {cTitle}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    <h3 className="text-base font-bold text-text-primary mt-4">{cert.courseTitle}</h3>
-                    <p className="text-xs text-text-secondary mt-1">
-                      Titular:{' '}
-                      <span className="text-text-primary font-bold">
-                        {user.certificateData?.customName || cert.studentName}
-                      </span>{' '}
-                      (CPF: {user.certificateData?.customCpf || cert.studentCpf})
-                    </p>
-                    <p className="text-xs text-text-secondary mt-0.5">Instrutor: {cert.instructor}</p>
+                {/* Filtro / Ordenação por Data */}
+                <div className="lg:col-span-3">
+                  <label className="text-[11px] font-bold text-text-tertiary uppercase block mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs text-primary">calendar_today</span>
+                    Filtrar / Ordenar por Data
+                  </label>
+                  <select
+                    value={certDateOrder}
+                    onChange={(e) => setCertDateOrder(e.target.value as 'recentes' | 'antigos')}
+                    className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="recentes">Mais Recentes Primeiro</option>
+                    <option value="antigos">Mais Antigos Primeiro</option>
+                  </select>
+                </div>
 
-                    <div className="mt-4 p-3 rounded-xl bg-surface-container-low border border-border-subtle flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-text-tertiary block">Código de Autenticidade</span>
-                        <span className="font-mono text-primary font-bold">{cert.code}</span>
-                      </div>
-                      <span className="px-2 py-1 rounded bg-surface-raised text-accent-gold font-bold">{cert.hours}h registradas</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-border-subtle flex items-center gap-3">
-                    <button
-                      onClick={onOpenCertificateModal}
-                      className="flex-1 py-2.5 px-4 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-base">visibility</span>
-                      Visualizar Certificado
-                    </button>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await downloadCertificatePdf({
-                            studentName: user.certificateData?.customName || cert.studentName || user.name,
-                            studentCpf: user.certificateData?.customCpf || cert.studentCpf || user.cpf,
-                            studentCode: cert.studentCode || user.studentCode,
-                            courseTitle: cert.courseTitle,
-                            courseCategory: cert.courseCategory,
-                            hours: cert.hours,
-                            issueDate: cert.issueDate,
-                            code: cert.code,
-                            instructor: cert.instructor,
-                          });
-                        } catch (err) {
-                          console.error('Erro ao gerar certificado:', err);
-                          alert('Erro ao gerar PDF do certificado.');
-                        }
-                      }}
-                      className="px-4 py-2.5 bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold text-xs font-bold rounded-xl border border-accent-gold/40 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-                      title="Baixar Certificado Oficial em PDF A4 Paisagem"
-                    >
-                      <span className="material-symbols-outlined text-base">picture_as_pdf</span>
-                      Baixar PDF Oficial
-                    </button>
+                {/* Busca Rápida */}
+                <div className="lg:col-span-4">
+                  <label className="text-[11px] font-bold text-text-tertiary uppercase block mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-xs text-primary">search</span>
+                    Buscar Certificado
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={certSearchQuery}
+                      onChange={(e) => setCertSearchQuery(e.target.value)}
+                      placeholder="Curso, código (DA...) ou instrutor"
+                      className="w-full pl-9 pr-7 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary focus:outline-none focus:border-primary"
+                    />
+                    <span className="material-symbols-outlined text-sm text-text-tertiary absolute left-2.5 top-2.5">
+                      search
+                    </span>
+                    {certSearchQuery && (
+                      <button
+                        onClick={() => setCertSearchQuery('')}
+                        className="absolute right-2.5 top-2.5 text-text-tertiary hover:text-text-primary cursor-pointer"
+                        title="Limpar busca"
+                      >
+                        <span className="material-symbols-outlined text-xs">close</span>
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Status do Filtro e Botão de Limpar */}
+              <div className="flex items-center justify-between text-xs text-text-tertiary pt-2 border-t border-border-subtle/50 flex-wrap gap-2">
+                <span>
+                  Exibindo <strong className="text-text-primary font-bold">{filteredCertificates.length}</strong> de{' '}
+                  <strong className="text-text-primary font-bold">{certificates.length}</strong> certificados emitidos
+                </span>
+
+                {(certCourseFilter !== 'todos' || certSearchQuery.trim() || certDateOrder !== 'recentes') && (
+                  <button
+                    onClick={() => {
+                      setCertCourseFilter('todos');
+                      setCertSearchQuery('');
+                      setCertDateOrder('recentes');
+                    }}
+                    className="px-2.5 py-1 bg-surface-overlay hover:bg-surface-container text-xs font-bold text-text-secondary hover:text-text-primary rounded-lg border border-border-subtle flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-xs">filter_alt_off</span>
+                    Limpar Filtros
+                  </button>
+                )}
+              </div>
             </div>
+
+            {filteredCertificates.length === 0 ? (
+              <div className="bg-surface-raised rounded-2xl border border-dashed border-border-subtle p-12 text-center space-y-3">
+                <span className="material-symbols-outlined text-4xl text-text-tertiary">filter_none</span>
+                <h3 className="text-sm font-bold text-text-primary">Nenhum certificado encontrado</h3>
+                <p className="text-xs text-text-tertiary max-w-sm mx-auto">
+                  {certificates.length === 0
+                    ? 'Você ainda não possui certificados oficiais emitidos. Complete um curso para obter seu certificado com autenticidade reconhecida.'
+                    : 'Nenhum certificado corresponde aos filtros selecionados. Tente alterar os critérios de busca.'}
+                </p>
+                {(certCourseFilter !== 'todos' || certSearchQuery.trim() || certDateOrder !== 'recentes') && (
+                  <button
+                    onClick={() => {
+                      setCertCourseFilter('todos');
+                      setCertSearchQuery('');
+                      setCertDateOrder('recentes');
+                    }}
+                    className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Limpar Filtros
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredCertificates.map((cert) => (
+                  <div
+                    key={cert.id}
+                    className="bg-surface-raised rounded-2xl border border-border-subtle p-6 flex flex-col justify-between shadow-sm relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full pointer-events-none"></div>
+                    <div>
+                      <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
+                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-primary/10 text-primary flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">workspace_premium</span> Oficial Deds Academy
+                        </span>
+                        <span className="text-xs text-text-tertiary">Emitido em {cert.issueDate}</span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-text-primary mt-4">{cert.courseTitle}</h3>
+                      <p className="text-xs text-text-secondary mt-1">
+                        Titular:{' '}
+                        <span className="text-text-primary font-bold">
+                          {cert.studentName || user.name}
+                        </span>{' '}
+                        (CPF: {cert.studentCpf || user.cpf})
+                      </p>
+                      <p className="text-xs text-text-secondary mt-0.5">Instrutor: {cert.instructor}</p>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        CNPJ Deds Academy:{' '}
+                        <span className="font-mono text-text-primary font-medium">
+                          {(typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null)?.trim() ||
+                            (cert.institutionCnpj && cert.institutionCnpj !== '45.678.901/0001-23'
+                              ? cert.institutionCnpj
+                              : null) ||
+                            cert.institutionCnpj ||
+                            '45.678.901/0001-23'}
+                        </span>
+                      </p>
+
+                      <div className="mt-4 p-3 rounded-xl bg-surface-container-low border border-border-subtle flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-text-tertiary block">Código de Autenticidade</span>
+                          <span className="font-mono text-primary font-bold">{cert.code}</span>
+                        </div>
+                        <span className="px-2 py-1 rounded bg-surface-raised text-accent-gold font-bold">{cert.hours}h registradas</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-border-subtle flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                      <button
+                        onClick={() => onOpenCertificateModal(cert.code)}
+                        className="flex-1 py-2.5 px-4 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-base">visibility</span>
+                        Visualizar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const activeCnpj =
+                              (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null)?.trim() ||
+                              (cert.institutionCnpj && cert.institutionCnpj !== '45.678.901/0001-23'
+                                ? cert.institutionCnpj
+                                : null) ||
+                              cert.institutionCnpj ||
+                              '45.678.901/0001-23';
+                            await downloadCertificatePdf({
+                              studentName: cert.studentName || user.name,
+                              studentCpf: cert.studentCpf || user.cpf,
+                              studentCode: cert.studentCode || user.studentCode,
+                              courseTitle: cert.courseTitle,
+                              courseCategory: cert.courseCategory,
+                              hours: cert.hours,
+                              issueDate: cert.issueDate,
+                              code: cert.code,
+                              instructor: cert.instructor,
+                              institutionCnpj: activeCnpj,
+                            });
+                          } catch (err) {
+                            console.error('Erro ao gerar certificado:', err);
+                            alert('Erro ao gerar PDF do certificado.');
+                          }
+                        }}
+                        className="px-4 py-2.5 bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold text-xs font-bold rounded-xl border border-accent-gold/40 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                        title="Baixar Certificado Oficial em PDF A4 Paisagem"
+                      >
+                        <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                        Baixar PDF Oficial
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -767,32 +1150,50 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border-subtle">
                 <div>
                   <h2 className="text-lg font-bold text-text-primary">Dossiê de Atividades Complementares (AACC)</h2>
-                  <p className="text-xs text-text-tertiary">Conforme diretrizes da Lei Federal nº 9.394/96 para aproveitamento universitário</p>
+                  <p className="text-xs text-text-tertiary">Conforme diretrizes da Lei Federal nº 9.394/96 para aproveitamento acadêmico e universitário</p>
                 </div>
                 <button
                   onClick={() => alert('Dossiê consolidado de horas complementares gerado em PDF com sucesso!')}
-                  className="px-4 py-2.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                  className="px-4 py-2.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md flex items-center gap-2 cursor-pointer self-start sm:self-auto transition-all"
                 >
                   <span className="material-symbols-outlined text-base">picture_as_pdf</span>
                   Exportar Dossiê da Matrícula
                 </button>
               </div>
 
+              {/* 3 Cards: Horas Concluídas, Horas em Andamento e Certificados Emitidos (Sem Carga Total Contratada) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-6">
                 <div className="p-4 rounded-xl bg-surface-container-low border border-border-subtle">
-                  <span className="text-xs text-text-tertiary font-bold uppercase">Carga Total Contratada</span>
-                  <p className="text-2xl font-bold text-text-primary mt-1">{totalHours} Horas</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined text-base text-accent-emerald-bright">check_circle</span>
+                    <span className="text-xs text-text-tertiary font-bold uppercase">Horas Concluídas &amp; Certificadas</span>
+                  </div>
+                  <p className="text-2xl font-bold text-accent-emerald-bright">{completedHours} Horas</p>
+                  <span className="text-[11px] text-text-tertiary mt-1 block">Aproveitamento com comprovação oficial</span>
                 </div>
+
                 <div className="p-4 rounded-xl bg-surface-container-low border border-border-subtle">
-                  <span className="text-xs text-text-tertiary font-bold uppercase">Horas Concluídas &amp; Certificadas</span>
-                  <p className="text-2xl font-bold text-accent-emerald-bright mt-1">{completedHours} Horas</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined text-base text-accent-gold">hourglass_top</span>
+                    <span className="text-xs text-text-tertiary font-bold uppercase">Horas em Andamento</span>
+                  </div>
+                  <p className="text-2xl font-bold text-accent-gold">{inProgressHours} Horas</p>
+                  <span className="text-[11px] text-text-tertiary mt-1 block">Cursos matriculados em fase de conclusão</span>
                 </div>
+
                 <div className="p-4 rounded-xl bg-surface-container-low border border-border-subtle">
-                  <span className="text-xs text-text-tertiary font-bold uppercase">Horas em Andamento</span>
-                  <p className="text-2xl font-bold text-accent-gold mt-1">{totalHours - completedHours} Horas</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="material-symbols-outlined text-base text-primary">workspace_premium</span>
+                    <span className="text-xs text-text-tertiary font-bold uppercase">Certificados Emitidos</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary">
+                    {validCertificates.length} {validCertificates.length === 1 ? 'Certificado' : 'Certificados'}
+                  </p>
+                  <span className="text-[11px] text-text-tertiary mt-1 block">Documentos criptografados registrados</span>
                 </div>
               </div>
 
+              {/* Tabela de Registro Geral: Concluídos, Em Andamento e Cancelados */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-surface-container-low text-text-secondary uppercase">
@@ -805,39 +1206,67 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle/50">
-                    {enrolledCourses.map((c) => {
-                      const isDone = certificates.some((cert) => cert.courseId === c.id);
-                      return (
-                        <tr key={c.id} className="hover:bg-surface-overlay/50">
-                          <td className="p-3.5 font-bold text-text-primary">{c.title}</td>
-                          <td className="p-3.5 text-text-secondary">{c.category}</td>
-                          <td className="p-3.5 font-bold text-primary">{c.hours}h</td>
+                    {aaccTableItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-text-tertiary">
+                          Nenhuma atividade curricular ou complementar registrada no momento.
+                        </td>
+                      </tr>
+                    ) : (
+                      aaccTableItems.map((item) => (
+                        <tr key={item.id} className="hover:bg-surface-overlay/50 transition-colors">
+                          <td className="p-3.5 font-bold text-text-primary">
+                            <span>{item.courseTitle}</span>
+                            {item.issueDate && (
+                              <span className="text-[10px] text-text-tertiary font-normal block">
+                                Conclusão em {item.issueDate}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5 text-text-secondary">{item.category}</td>
+                          <td className="p-3.5 font-bold text-primary">{item.hours}h</td>
                           <td className="p-3.5">
-                            {isDone ? (
-                              <span className="px-2 py-0.5 rounded bg-accent-emerald-bright/10 text-accent-emerald-bright font-bold">
+                            {item.status === 'concluido' ? (
+                              <span className="px-2.5 py-1 rounded-md bg-accent-emerald-bright/15 text-accent-emerald-bright font-bold flex items-center gap-1 w-fit">
+                                <span className="material-symbols-outlined text-xs">check_circle</span>
                                 Concluído
                               </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded bg-accent-gold/10 text-accent-gold font-bold">
+                            ) : item.status === 'em_andamento' ? (
+                              <span className="px-2.5 py-1 rounded-md bg-accent-gold/15 text-accent-gold font-bold flex items-center gap-1 w-fit">
+                                <span className="material-symbols-outlined text-xs">hourglass_top</span>
                                 Em andamento
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-md bg-status-danger/15 text-status-danger font-bold flex items-center gap-1 w-fit">
+                                <span className="material-symbols-outlined text-xs">cancel</span>
+                                Cancelado
                               </span>
                             )}
                           </td>
                           <td className="p-3.5">
-                            {isDone ? (
+                            {item.status === 'concluido' && item.certCode ? (
                               <button
-                                onClick={onOpenCertificateModal}
-                                className="text-primary hover:underline font-semibold"
+                                onClick={() => onOpenCertificateModal(item.certCode)}
+                                className="px-2.5 py-1 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-mono font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Visualizar Certificado Oficial"
                               >
-                                Ver código
+                                <span className="material-symbols-outlined text-xs">workspace_premium</span>
+                                <span>{item.certCode}</span>
                               </button>
+                            ) : item.status === 'em_andamento' ? (
+                              <span className="text-text-tertiary flex items-center gap-1 font-medium">
+                                <span className="material-symbols-outlined text-xs">schedule</span>
+                                Pendente (Em andamento)
+                              </span>
                             ) : (
-                              <span className="text-text-tertiary">Pendente avaliação</span>
+                              <span className="text-status-danger/80 line-through text-xs font-medium">
+                                Cancelado / Revogado
+                              </span>
                             )}
                           </td>
                         </tr>
-                      );
-                    })}
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1008,11 +1437,8 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
               </div>
             )}
 
-            {/* Layout em 2 Colunas: Coluna Esquerda (Matrícula, Foto & Endereço) e Coluna Direita (Dados para Emissão de Certificado) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* COLUNA ESQUERDA (7 cols): Dados de Matrícula, Foto & Endereço */}
-              <div className="lg:col-span-7 bg-surface-raised rounded-2xl border border-border-subtle p-6 sm:p-7 shadow-sm space-y-6">
+            {/* Dados de Matrícula, Foto & Endereço (Largura Completa) */}
+            <div className="w-full bg-surface-raised rounded-2xl border border-border-subtle p-6 sm:p-7 shadow-sm space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
                   <div>
                     <h2 className="text-lg font-bold text-text-primary">Dados de Matrícula &amp; Perfil</h2>
@@ -1281,209 +1707,11 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                 </div>
               </div>
 
-              {/* COLUNA DIREITA (5 cols): Dados para Emissão de Certificado */}
-              <div className="lg:col-span-5 bg-surface-raised rounded-2xl border border-primary/30 p-6 sm:p-7 shadow-sm space-y-5 relative overflow-hidden">
-                <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-xl">workspace_premium</span>
-                      <h2 className="text-lg font-bold text-text-primary">Dados para Emissão de Certificado</h2>
-                    </div>
-                    <p className="text-xs text-text-tertiary mt-0.5">
-                      Configure como seu nome, documento e assinatura aparecerão no certificado
-                    </p>
-                  </div>
-                </div>
-
-                {/* Campo 1: Nome Completo Editável no Certificado */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-text-secondary flex items-center gap-1">
-                      <span>Nome Completo no Certificado</span>
-                      <span className="material-symbols-outlined text-xs text-primary" title="Editável">edit</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setCertFormData((prev) => ({ ...prev, customName: formData.name }))}
-                      className="text-[11px] text-primary hover:underline font-semibold cursor-pointer"
-                    >
-                      Copiar da Matrícula
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={certFormData.customName}
-                    onChange={(e) => setCertFormData({ ...certFormData, customName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary focus:outline-none focus:border-primary transition-colors font-medium"
-                    placeholder="Nome que você deseja no certificado"
-                  />
-                  <span className="text-[11px] text-text-tertiary mt-1 block">
-                    O aluno pode editar este nome para emissão (ex: inclusão de sobrenome ou nome social).
-                  </span>
-                </div>
-
-                {/* Campo 2: CPF Editável no Certificado */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-text-secondary flex items-center gap-1">
-                      <span>CPF no Certificado</span>
-                      <span className="material-symbols-outlined text-xs text-primary" title="Editável">edit</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setCertFormData((prev) => ({ ...prev, customCpf: formData.cpf }))}
-                      className="text-[11px] text-primary hover:underline font-semibold cursor-pointer"
-                    >
-                      Copiar da Matrícula
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={certFormData.customCpf}
-                    onChange={(e) => setCertFormData({ ...certFormData, customCpf: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary focus:outline-none focus:border-primary transition-colors font-mono"
-                    placeholder="000.000.000-00"
-                  />
-                  <span className="text-[11px] text-text-tertiary mt-1 block">
-                    Documento de CPF que constará no verso e validação de autenticidade do certificado.
-                  </span>
-                </div>
-
-                {/* Campo 3: Campo Assinatura com 3 Opções */}
-                <div className="p-4 rounded-xl bg-surface-container-low border border-border-subtle space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-base">draw</span>
-                      <span className="text-xs font-bold text-text-primary">Assinatura do Aluno</span>
-                    </div>
-                    <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/20">
-                      {certFormData.signatureType === 'upload'
-                        ? 'Arquivo Importado'
-                        : certFormData.signatureType === 'draw'
-                        ? 'Feita na Tela'
-                        : 'Pré-definida'}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-text-tertiary">
-                    Esta assinatura será estampada no seu certificado de conclusão.
-                  </p>
-
-                  {/* Pré-visualização da Assinatura Atual */}
-                  <div className="h-24 w-full bg-surface-raised rounded-xl border border-dashed border-border-subtle p-3 flex items-center justify-center relative overflow-hidden">
-                    {certFormData.signatureType === 'automatic' ? (
-                      <div className="text-center px-3">
-                        <span
-                          className={`text-xl text-primary font-bold select-none ${
-                            certFormData.fontStyle === 'font-handwriting'
-                              ? 'italic font-light tracking-wider'
-                              : certFormData.fontStyle === 'font-formal'
-                              ? 'font-serif tracking-wide italic'
-                              : certFormData.fontStyle === 'font-modern'
-                              ? 'font-mono tracking-widest uppercase text-sm'
-                              : 'font-serif italic'
-                          }`}
-                          style={{
-                            fontFamily:
-                              certFormData.fontStyle === 'font-handwriting'
-                                ? 'Brush Script MT, cursive, sans-serif'
-                                : certFormData.fontStyle === 'font-formal'
-                                ? 'Palatino, serif'
-                                : certFormData.fontStyle === 'font-modern'
-                                ? 'Courier New, monospace'
-                                : 'Georgia, serif',
-                          }}
-                        >
-                          {certFormData.customName || formData.name || 'Assinatura do Aluno'}
-                        </span>
-                        <div className="w-28 h-[1.5px] bg-primary/40 mx-auto mt-1"></div>
-                        <span className="text-[10px] text-text-tertiary block mt-0.5">Assinatura Automática</span>
-                      </div>
-                    ) : certFormData.signatureImage ? (
-                      <div className="flex flex-col items-center justify-center max-h-full">
-                        <img
-                          src={certFormData.signatureImage}
-                          alt="Assinatura"
-                          className="max-h-16 max-w-full object-contain filter drop-shadow-sm"
-                        />
-                        <div className="w-28 h-[1px] bg-border-subtle mx-auto mt-1"></div>
-                      </div>
-                    ) : (
-                      <div className="text-center text-text-tertiary text-xs flex flex-col items-center gap-1">
-                        <span className="material-symbols-outlined text-lg">stylus_note</span>
-                        <span>Nenhuma assinatura configurada</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Botão de Ação para Assinatura */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsSignatureModalOpen(true)}
-                      className="flex-1 py-2.5 px-3 bg-primary hover:bg-accent-emerald-bright text-on-primary rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:scale-[1.01]"
-                    >
-                      <span className="material-symbols-outlined text-base">signature</span>
-                      <span>Configurar Assinatura</span>
-                    </button>
-
-                    {certFormData.signatureType !== 'automatic' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCertFormData((prev) => ({
-                            ...prev,
-                            signatureType: 'automatic',
-                            signatureImage: '',
-                            fontStyle: 'font-script',
-                          }))
-                        }
-                        className="p-2.5 bg-surface-overlay hover:bg-surface-container text-text-tertiary hover:text-accent-crimson rounded-xl border border-border-subtle transition-colors cursor-pointer"
-                        title="Restaurar Automático Padrão"
-                      >
-                        <span className="material-symbols-outlined text-base">refresh</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-1 pt-1 text-[11px] text-text-tertiary">
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs text-primary">upload_file</span>
-                      <span>Opção 1: Exportar assinatura pronta do dispositivo</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs text-primary">gesture</span>
-                      <span>Opção 2: Assinar na tela com caneta ou mouse</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-xs text-primary">auto_fix_high</span>
-                      <span>Opção 3: Automática com opções de fontes estilizadas</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Preview Resumo */}
-                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-primary text-xs">
-                    <span className="material-symbols-outlined text-sm">preview</span>
-                    <span>Resumo da Emissão:</span>
-                  </div>
-                  <p className="text-[11px] text-text-secondary pl-5">
-                    <strong className="text-text-primary">Nome:</strong> {certFormData.customName || formData.name}
-                  </p>
-                  <p className="text-[11px] text-text-secondary pl-5">
-                    <strong className="text-text-primary">CPF:</strong> {certFormData.customCpf || formData.cpf}
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-            {/* BARRA INFERIOR UNIFICADA: Salvar Todos os Dados */}
+            {/* BARRA INFERIOR: Salvar Todos os Dados */}
             <div className="p-5 rounded-2xl bg-surface-raised border border-border-subtle flex items-center justify-between flex-wrap gap-4 shadow-sm">
               <p className="text-xs text-text-tertiary flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-sm text-primary">lock</span>
-                Dados cadastrais e dados de certificação protegidos pela LGPD e salvos na sua matrícula.
+                Dados cadastrais e endereço protegidos pela LGPD e salvos na sua matrícula oficial.
               </p>
 
               <button
@@ -1505,19 +1733,12 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                       city: formData.city,
                       state: formData.state,
                     },
-                    certificateData: {
-                      customName: certFormData.customName,
-                      customCpf: certFormData.customCpf,
-                      signatureType: certFormData.signatureType,
-                      signatureImage: certFormData.signatureImage,
-                      fontStyle: certFormData.fontStyle,
-                    },
                   };
                   if (onUpdateUser) {
                     onUpdateUser(updatedUser);
                   }
                   setAvatarLoadFailed(false);
-                  setSaveSuccessMsg('Dados da matrícula, endereço e dados de emissão de certificado salvos com sucesso!');
+                  setSaveSuccessMsg('Dados da matrícula e endereço atualizados com sucesso!');
                   setTimeout(() => setSaveSuccessMsg(null), 5000);
                 }}
                 className="px-6 py-2.5 bg-primary hover:bg-accent-emerald-bright text-on-primary text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
@@ -1556,24 +1777,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           onConfirmCancellation={handleConfirmCancellation}
         />
 
-        {/* Modal de Configuração de Assinatura (Exportar / Desenho / Automático) */}
-        <SignatureModal
-          isOpen={isSignatureModalOpen}
-          onClose={() => setIsSignatureModalOpen(false)}
-          currentSignature={certFormData.signatureImage}
-          currentSignatureType={certFormData.signatureType}
-          currentFontStyle={certFormData.fontStyle}
-          studentName={certFormData.customName || formData.name || 'Aluno'}
-          onSave={(sigImage, sigType, fontStyle) => {
-            setCertFormData((prev) => ({
-              ...prev,
-              signatureImage: sigImage,
-              signatureType: sigType,
-              fontStyle: fontStyle,
-            }));
-            setIsSignatureModalOpen(false);
-          }}
-        />
+
       </div>
     </div>
   );

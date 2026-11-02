@@ -73,6 +73,7 @@ export async function syncUpdateToBackend(
     | 'heroBanner'
     | 'middleBanner'
     | 'checkoutBanner'
+    | 'studentBanners'
     | 'instructors'
     | 'blogPosts'
     | 'announcements'
@@ -105,6 +106,7 @@ export async function syncUpdateToBackend(
         heroBanner: 'deds_hero_banner_config',
         middleBanner: 'deds_middle_banner_config',
         checkoutBanner: 'deds_checkout_banner_config',
+        studentBanners: 'deds_student_banners_config',
         instructors: 'deds_instructors_list',
         blogPosts: 'deds_blog_posts',
       };

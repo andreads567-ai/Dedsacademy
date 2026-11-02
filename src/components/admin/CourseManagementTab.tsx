@@ -241,7 +241,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
 
       {/* Quick Status Cards / Counters */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Publicado (Verde Escuro) */}
+        {/* Publicado */}
         <button
           onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'publicado' ? 'all' : 'publicado')}
           className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -253,7 +253,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              Publicados (Verde escuro)
+              Publicados
             </span>
             <span className="material-symbols-outlined text-emerald-400 text-sm">check_circle</span>
           </div>
@@ -263,7 +263,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           </div>
         </button>
 
-        {/* Rascunho (Azul Claro) */}
+        {/* Rascunho */}
         <button
           onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'rascunho' ? 'all' : 'rascunho')}
           className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -275,7 +275,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-sky-400" />
-              Rascunho (Azul claro)
+              Rascunho
             </span>
             <span className="material-symbols-outlined text-sky-400 text-sm">edit_note</span>
           </div>
@@ -285,7 +285,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           </div>
         </button>
 
-        {/* Inativo (Laranja) */}
+        {/* Inativo */}
         <button
           onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'inativo' ? 'all' : 'inativo')}
           className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -297,7 +297,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-orange-400" />
-              Inativo (Laranja)
+              Inativo
             </span>
             <span className="material-symbols-outlined text-orange-400 text-sm">pause_circle</span>
           </div>
@@ -307,7 +307,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           </div>
         </button>
 
-        {/* Previsto (Amarelo) */}
+        {/* Previsto */}
         <button
           onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'previsto' ? 'all' : 'previsto')}
           className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
@@ -319,7 +319,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-bold text-text-secondary flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-yellow-400" />
-              Previsto (Amarelo)
+              Previsto
             </span>
             <span className="material-symbols-outlined text-yellow-400 text-sm">schedule</span>
           </div>
@@ -367,10 +367,10 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
             className="w-full px-3 py-2 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary cursor-pointer font-medium"
           >
             <option value="all">Todos os Status ({courses.length})</option>
-            <option value="publicado">● Publicado (verde escuro)</option>
-            <option value="rascunho">● Rascunho (azul claro)</option>
-            <option value="inativo">● Inativo (laranja)</option>
-            <option value="previsto">● Previsto (amarelo)</option>
+            <option value="publicado">● Publicado</option>
+            <option value="rascunho">● Rascunho</option>
+            <option value="inativo">● Inativo</option>
+            <option value="previsto">● Previsto</option>
           </select>
         </div>
       </div>
@@ -551,7 +551,7 @@ export const CourseManagementTab: React.FC<CourseManagementTabProps> = ({
                             setOpenMenuCourseId(isMenuOpen ? null : c.id);
                           }}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs transition-all cursor-pointer hover:scale-105 ${statusInfo.badgeClass}`}
-                          title={`Clique para alterar o status. Atual: ${statusInfo.label} (${statusInfo.colorName})`}
+                          title={`Clique para alterar o status. Atual: ${statusInfo.label}`}
                         >
                           <span className={`w-2 h-2 rounded-full ${statusInfo.dotClass} animate-pulse`} />
                           <span>{statusInfo.label}</span>

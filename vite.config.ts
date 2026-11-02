@@ -10,6 +10,17 @@ export default defineConfig(({ mode }) => {
   const localApiPlugin: Plugin = {
     name: 'local-backend-api-plugin',
     configureServer(server) {
+      // 0. Redirecionar /certificate-generator para /certificate-generator/index.html mantendo query params
+      server.middlewares.use((req, res, next) => {
+        if (req.url) {
+          const urlObj = new URL(req.url, 'http://localhost');
+          if (urlObj.pathname === '/certificate-generator' || urlObj.pathname === '/certificate-generator/') {
+            req.url = '/certificate-generator/index.html' + (urlObj.search || '');
+          }
+        }
+        next();
+      });
+
       // 1. Criar sessão de checkout no servidor local
       server.middlewares.use('/api/create-checkout-session', async (req, res) => {
         if (req.method !== 'POST') {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, DragEvent } from 'react';
 import { LessonAttachment } from '../../types';
 
 interface WordLikeEditorProps {
@@ -8,6 +8,177 @@ interface WordLikeEditorProps {
   onAddAttachment: (att: LessonAttachment) => void;
   onRemoveAttachment: (attId: string) => void;
 }
+
+export interface NoticePreset {
+  id: string;
+  label: string;
+  icon: string;
+  title: string;
+  message: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  hasTimer: boolean;
+  timerSeconds: number;
+}
+
+const NOTICE_PRESETS: NoticePreset[] = [
+  {
+    id: 'aviso-geral',
+    label: 'Aviso Geral',
+    icon: '⚠️',
+    title: 'AVISO IMPORTANTE',
+    message: 'Atenção para as orientações essenciais desta aula antes de prosseguir.',
+    bgColor: '#1E293B',
+    textColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    hasTimer: false,
+    timerSeconds: 10,
+  },
+  {
+    id: 'popup-timer',
+    label: 'Pop-up Temporizado',
+    icon: '⏱️',
+    title: 'AVISO TEMPORIZADO (POP-UP)',
+    message: 'Esta caixa de aviso contém contagem regressiva para leitura recomendada da lição.',
+    bgColor: '#18181B',
+    textColor: '#FED7AA',
+    borderColor: '#F97316',
+    hasTimer: true,
+    timerSeconds: 15,
+  },
+  {
+    id: 'dica-pratica',
+    label: 'Dica do Instrutor',
+    icon: '💡',
+    title: 'DICA DO INSTRUTOR',
+    message: 'Boas práticas de mercado: aplique este padrão técnico em seus projetos profissionais.',
+    bgColor: '#064E3B',
+    textColor: '#D1FAE5',
+    borderColor: '#10B981',
+    hasTimer: false,
+    timerSeconds: 10,
+  },
+  {
+    id: 'atencao-critica',
+    label: 'Atenção Crítica',
+    icon: '🚨',
+    title: 'ATENÇÃO OBRIGATÓRIA',
+    message: 'Etapa fundamental: este módulo é pré-requisito obrigatório para a avaliação final.',
+    bgColor: '#450A0A',
+    textColor: '#FEE2E2',
+    borderColor: '#EF4444',
+    hasTimer: true,
+    timerSeconds: 10,
+  },
+  {
+    id: 'info-tecnica',
+    label: 'Nota Técnica',
+    icon: 'ℹ️',
+    title: 'INFORMAÇÃO COMPLEMENTAR',
+    message: 'Verifique se as bibliotecas e ferramentas do seu ambiente estão atualizadas.',
+    bgColor: '#082F49',
+    textColor: '#E0F2FE',
+    borderColor: '#0284C7',
+    hasTimer: false,
+    timerSeconds: 10,
+  },
+  {
+    id: 'conteudo-bonus',
+    label: 'Conteúdo Bônus',
+    icon: '⭐',
+    title: 'RECURSO BÔNUS EXCLUSIVO',
+    message: 'Template de código e material para download gratuito disponibilizado na aula.',
+    bgColor: '#3B0764',
+    textColor: '#F3E8FF',
+    borderColor: '#A855F7',
+    hasTimer: false,
+    timerSeconds: 10,
+  },
+];
+
+/**
+ * INTERACTIVE NOTICE BOX COMPONENT WITH LIVE COUNTDOWN TIMER
+ */
+export const InteractiveNoticeBox: React.FC<{
+  title: string;
+  message: string;
+  bgColor: string;
+  textColor: string;
+  borderColor: string;
+  timerSeconds?: number;
+  icon?: string;
+}> = ({ title, message, bgColor, textColor, borderColor, timerSeconds, icon }) => {
+  const [timeLeft, setTimeLeft] = useState<number>(timerSeconds || 0);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!timerSeconds || timerSeconds <= 0) return;
+    setTimeLeft(timerSeconds);
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerSeconds]);
+
+  if (isDismissed) return null;
+
+  return (
+    <div
+      style={{
+        backgroundColor: bgColor,
+        color: textColor,
+        borderLeft: `5px solid ${borderColor}`,
+      }}
+      className="p-4 my-4 rounded-xl shadow-lg relative border border-white/10 transition-all animate-in fade-in"
+    >
+      <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
+        <div className="flex items-center gap-2 font-bold text-sm">
+          <span className="text-base">{icon || '⚠️'}</span>
+          <span>{title}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {timerSeconds && timerSeconds > 0 ? (
+            <span className="px-2.5 py-0.5 rounded-full bg-black/40 font-mono font-bold flex items-center gap-1 border border-white/15">
+              <span>⏱️</span>
+              <span>{timeLeft > 0 ? `${timeLeft}s` : 'Temporizador concluído'}</span>
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setIsDismissed(true)}
+            className="opacity-70 hover:opacity-100 p-1 text-xs hover:bg-white/10 rounded transition-all cursor-pointer"
+            title="Fechar aviso"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {timerSeconds && timerSeconds > 0 && (
+        <div className="w-full bg-black/30 h-1.5 rounded-full mb-3 overflow-hidden">
+          <div
+            className="h-full transition-all duration-1000"
+            style={{
+              backgroundColor: borderColor,
+              width: `${Math.max(0, (timeLeft / timerSeconds) * 100)}%`,
+            }}
+          />
+        </div>
+      )}
+
+      <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+        {message}
+      </div>
+    </div>
+  );
+};
 
 export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   value,
@@ -25,6 +196,19 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   const [imageUrl, setImageUrl] = useState('');
   const [imageCaption, setImageCaption] = useState('');
 
+  // Notice & Pop-up with Timer Modal State
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [customNoticeTitle, setCustomNoticeTitle] = useState('AVISO IMPORTANTE');
+  const [customNoticeMessage, setCustomNoticeMessage] = useState(
+    'Digite aqui a orientação ou aviso que aparecerá para os alunos no documento da aula.'
+  );
+  const [customNoticeIcon, setCustomNoticeIcon] = useState('⚠️');
+  const [customNoticeBgColor, setCustomNoticeBgColor] = useState('#1E293B');
+  const [customNoticeTextColor, setCustomNoticeTextColor] = useState('#FEF3C7');
+  const [customNoticeBorderColor, setCustomNoticeBorderColor] = useState('#F59E0B');
+  const [customNoticeHasTimer, setCustomNoticeHasTimer] = useState(false);
+  const [customNoticeTimerSeconds, setCustomNoticeTimerSeconds] = useState(10);
+
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('left');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
@@ -36,6 +220,43 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   const showNotification = (msg: string) => {
     setUploadFeedback(msg);
     setTimeout(() => setUploadFeedback(null), 3500);
+  };
+
+  /**
+   * GENERATE HTML SNIPPET FOR NOTICE/POP-UP BOX
+   */
+  const generateNoticeHtml = (notice: {
+    title: string;
+    message: string;
+    bgColor: string;
+    textColor: string;
+    borderColor: string;
+    hasTimer: boolean;
+    timerSeconds: number;
+    icon: string;
+  }) => {
+    const timerAttr = notice.hasTimer ? notice.timerSeconds : 0;
+    return `\n<div class="deds-alert-box" data-title="${notice.title}" data-timer="${timerAttr}" data-bg="${notice.bgColor}" data-color="${notice.textColor}" data-border="${notice.borderColor}" data-icon="${notice.icon}" style="background-color: ${notice.bgColor}; color: ${notice.textColor}; border-left: 5px solid ${notice.borderColor}; padding: 14px 18px; border-radius: 12px; margin: 16px 0;">\n<strong>${notice.icon} ${notice.title}${notice.hasTimer ? ` (⏱️ Temporizador: ${notice.timerSeconds}s)` : ''}</strong>\n<p>${notice.message}</p>\n</div>\n`;
+  };
+
+  /**
+   * INSERT TEXT / SNIPPET AT CURRENT CURSOR OR DRAG POSITION
+   */
+  const insertSnippetAtCursor = (snippet: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newValue = value.substring(0, start) + snippet + value.substring(end);
+      onChange(newValue);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + snippet.length, start + snippet.length);
+      }, 0);
+    } else {
+      onChange(value + (value.endsWith('\n') ? '' : '\n') + snippet);
+    }
+    showNotification('Aviso adicionado ao documento com sucesso!');
   };
 
   /**
@@ -57,10 +278,8 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     setTimeout(() => {
       textarea.focus();
       if (isSelected) {
-        // Keep the formatted text selected
         textarea.setSelectionRange(start, start + replacement.length);
       } else {
-        // Select the placeholder so user can immediately type over it
         textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
       }
     }, 0);
@@ -79,7 +298,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     const selectedText = isSelected ? value.substring(start, end) : `Título H${level}`;
 
     const hashes = '#'.repeat(level);
-    // Inline markdown or html tag strictly wrapping the selected text
     const replacement = `${hashes} ${selectedText} ${hashes}`;
     const newValue = value.substring(0, start) + replacement + value.substring(end);
     onChange(newValue);
@@ -121,7 +339,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
         textarea.setSelectionRange(start, start + formatted.length);
       }, 0);
     } else {
-      // Find previous numbering sequence in the preceding text to keep sequential logic
       const textBefore = value.substring(0, start);
       const linesBefore = textBefore.split('\n');
       const lastLine = linesBefore[linesBefore.length - 1] || '';
@@ -212,8 +429,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     if (fileArray.length === 0) return;
 
     let appendedText = '';
-    let imageCount = 0;
-    let docCount = 0;
 
     fileArray.forEach((file) => {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
@@ -244,12 +459,8 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
         onAddAttachment(newAttachment);
 
         if (isImg) {
-          imageCount++;
-          // Embed image preview directly in text
           appendedText += `\n\n![${file.name}](${dataUrl})\n*Legenda: ${file.name}*\n`;
         } else {
-          docCount++;
-          // Insert downloadable attachment tag
           appendedText += `\n\n> 📥 **Material para Download anexado:** [${file.name}] (${sizeFormatted})\n`;
         }
 
@@ -284,6 +495,13 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingFiles(false);
+
+    // If text was dragged (e.g. from notice badges)
+    const draggedText = e.dataTransfer.getData('text/plain');
+    if (draggedText && draggedText.includes('deds-alert-box')) {
+      insertSnippetAtCursor(draggedText);
+      return;
+    }
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       processFilesBatch(e.dataTransfer.files);
@@ -360,8 +578,95 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       }
     };
 
+    let inAlertBlock = false;
+    let currentAlertProps: {
+      title: string;
+      timer: number;
+      bg: string;
+      color: string;
+      border: string;
+      icon: string;
+      lines: string[];
+    } | null = null;
+
     lines.forEach((line, idx) => {
       const trimmed = line.trim();
+
+      // Check if line starts an alert box
+      if (trimmed.includes('class="deds-alert-box"') || trimmed.includes("class='deds-alert-box'")) {
+        flushList();
+        const titleMatch = trimmed.match(/data-title="([^"]*)"/);
+        const timerMatch = trimmed.match(/data-timer="([^"]*)"/);
+        const bgMatch = trimmed.match(/data-bg="([^"]*)"/);
+        const colorMatch = trimmed.match(/data-color="([^"]*)"/);
+        const borderMatch = trimmed.match(/data-border="([^"]*)"/);
+        const iconMatch = trimmed.match(/data-icon="([^"]*)"/);
+
+        currentAlertProps = {
+          title: titleMatch ? titleMatch[1] : 'AVISO',
+          timer: timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0,
+          bg: bgMatch ? bgMatch[1] : '#1E293B',
+          color: colorMatch ? colorMatch[1] : '#FEF3C7',
+          border: borderMatch ? borderMatch[1] : '#F59E0B',
+          icon: iconMatch ? iconMatch[1] : '⚠️',
+          lines: [],
+        };
+
+        if (trimmed.endsWith('</div>')) {
+          // Single line alert box
+          const innerClean = trimmed
+            .replace(/^<div[^>]*>/, '')
+            .replace(/<\/div>$/, '')
+            .replace(/<strong>.*?<\/strong>/, '')
+            .replace(/<p>/g, '')
+            .replace(/<\/p>/g, '\n')
+            .trim();
+          elements.push(
+            <InteractiveNoticeBox
+              key={`alert-${idx}`}
+              title={currentAlertProps.title}
+              message={innerClean || 'Orientação acadêmica para a aula.'}
+              bgColor={currentAlertProps.bg}
+              textColor={currentAlertProps.color}
+              borderColor={currentAlertProps.border}
+              timerSeconds={currentAlertProps.timer}
+              icon={currentAlertProps.icon}
+            />
+          );
+          currentAlertProps = null;
+        } else {
+          inAlertBlock = true;
+        }
+        return;
+      }
+
+      if (inAlertBlock && currentAlertProps) {
+        if (trimmed.includes('</div>')) {
+          const cleanMessage = currentAlertProps.lines
+            .join('\n')
+            .replace(/<strong>.*?<\/strong>/g, '')
+            .replace(/<p>/g, '')
+            .replace(/<\/p>/g, '\n')
+            .trim();
+          elements.push(
+            <InteractiveNoticeBox
+              key={`alert-${idx}`}
+              title={currentAlertProps.title}
+              message={cleanMessage || 'Orientação acadêmica para a aula.'}
+              bgColor={currentAlertProps.bg}
+              textColor={currentAlertProps.color}
+              borderColor={currentAlertProps.border}
+              timerSeconds={currentAlertProps.timer}
+              icon={currentAlertProps.icon}
+            />
+          );
+          inAlertBlock = false;
+          currentAlertProps = null;
+        } else {
+          currentAlertProps.lines.push(line);
+        }
+        return;
+      }
 
       // Empty line
       if (!trimmed) {
@@ -467,7 +772,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       // Standard Paragraph
       flushList();
 
-      // Inline formatting parser: bold (**), italic (*), underline (<u>), strikethrough (~~), link ([text](url))
       let formattedHtml = trimmed
         .replace(/<u>(.*?)<\/u>/g, '<span class="underline underline-offset-2">$1</span>')
         .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-text-primary">$1</strong>')
@@ -699,7 +1003,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
 
           {/* Group 5: Insert Links, Multiple Images & Multiple Files */}
           <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-border-subtle">
-            {/* Insert Link */}
             <button
               type="button"
               onClick={() => setShowLinkModal(true)}
@@ -710,7 +1013,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               <span className="hidden sm:inline">Link</span>
             </button>
 
-            {/* Multiple Images Selector */}
             <input
               ref={multipleImageInputRef}
               type="file"
@@ -733,7 +1035,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               <span className="hidden sm:inline">+ Imagens</span>
             </button>
 
-            {/* Multiple Documents / Attachments Selector */}
             <input
               ref={fileInputRef}
               type="file"
@@ -756,6 +1057,59 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               <span>Anexar Arquivos</span>
             </button>
           </div>
+
+          {/* Group 6: Button to Open Custom Notice & Pop-up Modal */}
+          <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-amber-500/30">
+            <button
+              type="button"
+              onClick={() => setShowNoticeModal(true)}
+              className="px-2.5 h-7 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/40 flex items-center gap-1 text-xs font-bold cursor-pointer transition-all shadow-xs"
+              title="Adicionar Pop-up com Temporizador e Caixas de Cores Customizadas"
+            >
+              <span className="material-symbols-outlined text-base">notification_important</span>
+              <span>+ Criar Aviso / Pop-up</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Presets Ribbon: Click or Drag Notices into Document */}
+        <div className="flex items-center gap-2 pt-1 border-t border-border-subtle/50 overflow-x-auto pb-1 text-xs">
+          <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider shrink-0 flex items-center gap-1">
+            <span className="material-symbols-outlined text-xs">drag_indicator</span>
+            <span>Avisos Rápidos (Clique ou Arraste):</span>
+          </span>
+
+          <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
+            {NOTICE_PRESETS.map((preset) => {
+              const snippet = generateNoticeHtml(preset);
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', snippet);
+                  }}
+                  onClick={() => insertSnippetAtCursor(snippet)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-grab active:cursor-grabbing hover:scale-105 transition-all shadow-xs shrink-0 border"
+                  style={{
+                    backgroundColor: `${preset.bgColor}EE`,
+                    color: preset.textColor,
+                    borderColor: `${preset.borderColor}80`,
+                  }}
+                  title={`Clique para inserir ou arraste para dentro da aula (${preset.hasTimer ? `Temporizador ${preset.timerSeconds}s` : 'Aviso fixo'})`}
+                >
+                  <span>{preset.icon}</span>
+                  <span>{preset.label}</span>
+                  {preset.hasTimer && (
+                    <span className="px-1 py-0.2 rounded bg-black/40 text-[9px] font-mono border border-white/20">
+                      {preset.timerSeconds}s
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -773,7 +1127,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-base">cloud_upload</span>
             <span>
-              <strong>Upload Múltiplo &amp; Arraste e Solte:</strong> Arraste e solte múltiplas imagens ou arquivos aqui (PDF, Word, Excel, JPG, PNG) para inclusão simultânea.
+              <strong>Upload Múltiplo &amp; Arraste e Solte:</strong> Arraste e solte avisos, imagens ou arquivos (PDF, Word, Excel, JPG, PNG) diretamente aqui para inclusão instantânea.
             </span>
           </div>
           <button
@@ -787,7 +1141,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
 
         {/* Document "Sheet" Frame */}
         <div className="w-full max-w-4xl bg-[#0E131F] border border-[#222E46] rounded-xl shadow-xl p-6 sm:p-10 relative min-h-[320px]">
-          {/* Subtle document header bar mimicking a Word Page */}
           <div className="border-b border-[#222E46] pb-2.5 mb-6 flex items-center justify-between text-[10px] text-text-tertiary">
             <span className="font-semibold uppercase tracking-wider">DOCUMENTO DA AULA • FORMATO PADRÃO A4</span>
             <span>MARGENS ABNT (2.5 cm)</span>
@@ -799,7 +1152,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               rows={14}
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="Digite a descrição detalhada da aula com formatação estilo Word. Utilize títulos (H1, H2, H3), negrito, itálico, sublinhado, listas de passos, destaques, hiperlinks e tabelas..."
+              placeholder="Digite a descrição detalhada da aula com formatação estilo Word. Utilize títulos (H1, H2, H3), negrito, itálico, sublinhado, listas de passos, destaques, hiperlinks, tabelas e avisos com temporizador..."
               className={`w-full bg-transparent border-none outline-none resize-y text-sm text-text-primary leading-relaxed font-sans min-h-[240px] ${
                 textAlign === 'center'
                   ? 'text-center'
@@ -811,7 +1164,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               }`}
             />
           ) : (
-            /* VISUALIZAR FOLHA: Authentic Formatted Document Sheet */
             <div
               className={`text-sm text-text-primary leading-relaxed space-y-3 min-h-[240px] ${
                 textAlign === 'center'
@@ -827,7 +1179,6 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
             </div>
           )}
 
-          {/* Attached Files for Download section inside the Document Footer */}
           {attachments.length > 0 && (
             <div className="mt-8 pt-5 border-t border-[#222E46]">
               <div className="flex items-center justify-between mb-3">
@@ -920,7 +1271,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1 text-accent-emerald-bright font-medium">
             <span className="material-symbols-outlined text-xs">check_circle</span>
-            Folha A4 / Visualização Ativa
+            Folha A4 / Avisos &amp; Visualização Ativa
           </span>
           <span>100% Zoom</span>
         </div>
@@ -1052,6 +1403,273 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
               >
                 Inserir Imagem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CRIAR AVISO / POP-UP COM TEMPORIZADOR & CORES CUSTOMIZADAS */}
+      {showNoticeModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-surface-raised border border-border-subtle rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl animate-in fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-400">notification_important</span>
+                  Configurar Aviso &amp; Pop-up com Temporizador
+                </h4>
+                <p className="text-[11px] text-text-tertiary">
+                  Personalize a cor da caixa, cor do texto, ícone e temporizador regressivo
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNoticeModal(false)}
+                className="text-text-tertiary hover:text-text-primary cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {/* LIVE PREVIEW OF CUSTOMIZED ALERT BOX */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider">
+                Pré-visualização em Tempo Real:
+              </span>
+              <InteractiveNoticeBox
+                title={customNoticeTitle || 'TÍTULO DO AVISO'}
+                message={customNoticeMessage || 'Mensagem do aviso...'}
+                bgColor={customNoticeBgColor}
+                textColor={customNoticeTextColor}
+                borderColor={customNoticeBorderColor}
+                timerSeconds={customNoticeHasTimer ? customNoticeTimerSeconds : 0}
+                icon={customNoticeIcon}
+              />
+            </div>
+
+            <div className="space-y-3.5 pt-1 border-t border-border-subtle">
+              {/* Row 1: Title and Icon */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="block text-xs font-bold text-text-secondary mb-1">
+                    Ícone
+                  </label>
+                  <select
+                    value={customNoticeIcon}
+                    onChange={(e) => setCustomNoticeIcon(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
+                  >
+                    <option value="⚠️">⚠️ Aviso</option>
+                    <option value="⏱️">⏱️ Relógio</option>
+                    <option value="💡">💡 Dica</option>
+                    <option value="🚨">🚨 Alerta</option>
+                    <option value="ℹ️">ℹ️ Info</option>
+                    <option value="⭐">⭐ Estrela</option>
+                    <option value="📌">📌 Fixado</option>
+                    <option value="🔥">🔥 Fogo</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-bold text-text-secondary mb-1">
+                    Título do Aviso / Pop-up <span className="text-status-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customNoticeTitle}
+                    onChange={(e) => setCustomNoticeTitle(e.target.value)}
+                    placeholder="Ex: ATENÇÃO ALUNOS: LEITURA RECOMENDADA"
+                    className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Message Content */}
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">
+                  Mensagem / Texto do Aviso <span className="text-status-danger">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={customNoticeMessage}
+                  onChange={(e) => setCustomNoticeMessage(e.target.value)}
+                  placeholder="Escreva a descrição detalhada do aviso ou instrução para a aula..."
+                  className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary leading-relaxed"
+                />
+              </div>
+
+              {/* Row 3: Timer Controls */}
+              <div className="p-3 rounded-xl bg-surface-overlay border border-border-subtle space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-text-primary">
+                    <input
+                      type="checkbox"
+                      checked={customNoticeHasTimer}
+                      onChange={(e) => setCustomNoticeHasTimer(e.target.checked)}
+                      className="accent-primary w-4 h-4 rounded cursor-pointer"
+                    />
+                    <span>Ativar Temporizador Regressivo na Caixa de Aviso</span>
+                  </label>
+                  {customNoticeHasTimer && (
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-mono text-[11px] font-bold">
+                      {customNoticeTimerSeconds} segundos
+                    </span>
+                  )}
+                </div>
+
+                {customNoticeHasTimer && (
+                  <div className="pt-2 flex items-center gap-3">
+                    <span className="text-[11px] text-text-tertiary">Duração:</span>
+                    {[5, 10, 15, 30, 60].map((sec) => (
+                      <button
+                        key={sec}
+                        type="button"
+                        onClick={() => setCustomNoticeTimerSeconds(sec)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition-all ${
+                          customNoticeTimerSeconds === sec
+                            ? 'bg-amber-500 text-slate-950 shadow-xs'
+                            : 'bg-surface-raised text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Row 4: Colors (Background, Text & Border) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Background Color */}
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    Cor do Fundo da Caixa
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={customNoticeBgColor}
+                      onChange={(e) => setCustomNoticeBgColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                    />
+                    <input
+                      type="text"
+                      value={customNoticeBgColor}
+                      onChange={(e) => setCustomNoticeBgColor(e.target.value)}
+                      className="w-full px-2 py-1 bg-surface-overlay border border-border-subtle rounded-lg text-xs font-mono text-text-primary"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {['#1E293B', '#18181B', '#064E3B', '#450A0A', '#082F49', '#3B0764'].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setCustomNoticeBgColor(color)}
+                        className="w-5 h-5 rounded-md border border-white/20 cursor-pointer hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Text Color */}
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    Cor do Texto
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={customNoticeTextColor}
+                      onChange={(e) => setCustomNoticeTextColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                    />
+                    <input
+                      type="text"
+                      value={customNoticeTextColor}
+                      onChange={(e) => setCustomNoticeTextColor(e.target.value)}
+                      className="w-full px-2 py-1 bg-surface-overlay border border-border-subtle rounded-lg text-xs font-mono text-text-primary"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {['#FFFFFF', '#FEF3C7', '#D1FAE5', '#FEE2E2', '#E0F2FE', '#F3E8FF'].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setCustomNoticeTextColor(color)}
+                        className="w-5 h-5 rounded-md border border-white/20 cursor-pointer hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Border / Accent Color */}
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                    Cor da Borda de Destaque
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={customNoticeBorderColor}
+                      onChange={(e) => setCustomNoticeBorderColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                    />
+                    <input
+                      type="text"
+                      value={customNoticeBorderColor}
+                      onChange={(e) => setCustomNoticeBorderColor(e.target.value)}
+                      className="w-full px-2 py-1 bg-surface-overlay border border-border-subtle rounded-lg text-xs font-mono text-text-primary"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {['#F59E0B', '#F97316', '#10B981', '#EF4444', '#0284C7', '#A855F7'].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setCustomNoticeBorderColor(color)}
+                        className="w-5 h-5 rounded-md border border-white/20 cursor-pointer hover:scale-110 transition-transform"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+              <button
+                type="button"
+                onClick={() => setShowNoticeModal(false)}
+                className="px-3.5 py-2 rounded-xl bg-surface-overlay text-xs font-bold text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const html = generateNoticeHtml({
+                    title: customNoticeTitle.trim() || 'AVISO',
+                    message: customNoticeMessage.trim(),
+                    bgColor: customNoticeBgColor,
+                    textColor: customNoticeTextColor,
+                    borderColor: customNoticeBorderColor,
+                    hasTimer: customNoticeHasTimer,
+                    timerSeconds: customNoticeTimerSeconds,
+                    icon: customNoticeIcon,
+                  });
+                  insertSnippetAtCursor(html);
+                  setShowNoticeModal(false);
+                }}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold cursor-pointer flex items-center gap-1.5 shadow-md"
+              >
+                <span className="material-symbols-outlined text-sm">add_circle</span>
+                <span>Inserir Aviso no Documento</span>
               </button>
             </div>
           </div>

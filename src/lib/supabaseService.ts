@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 import type { UserAccount, Course, Category } from '../types';
-import { sanitizeCourse } from './cacheManager';
+import { sanitizeCourse, sanitizeCourseList } from './cacheManager';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -57,138 +57,182 @@ function rowToUser(row: Record<string, unknown>): UserAccount {
 // ─── Users ──────────────────────────────────────────────────────────────────
 
 export async function fetchUsers(): Promise<UserAccount[] | null> {
-  const { data, error } = await supabase.from('users').select('*');
-  if (error) {
-    console.error('[Supabase] fetchUsers error:', error.message);
-    return null;
-  }
-  return (data ?? []).map(rowToUser);
+  try {
+    const res = await fetch('/api/platform-sync', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.users) && data.users.length > 0) {
+        return data.users;
+      }
+    }
+  } catch {}
+
+  try {
+    const saved = localStorage.getItem('deds_users_list');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+
+  return null;
 }
 
 export async function upsertUser(user: UserAccount): Promise<boolean> {
-  const { error } = await supabase
-    .from('users')
-    .upsert(userToRow(user), { onConflict: 'id' });
-  if (error) {
-    console.error('[Supabase] upsertUser error:', error.message);
+  try {
+    const saved = localStorage.getItem('deds_users_list');
+    const list: UserAccount[] = saved ? JSON.parse(saved) : [];
+    const idx = list.findIndex((u) => u.id === user.id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...user };
+    } else {
+      list.push(user);
+    }
+    localStorage.setItem('deds_users_list', JSON.stringify(list));
+    fetch('/api/platform-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'users', data: list }),
+    }).catch(() => {});
+    return true;
+  } catch (err) {
+    console.error('[UserService] upsertUser error:', err);
     return false;
   }
-  return true;
 }
 
 export async function deleteUser(userId: string): Promise<boolean> {
-  const { error } = await supabase.from('users').delete().eq('id', userId);
-  if (error) {
-    console.error('[Supabase] deleteUser error:', error.message);
+  try {
+    const saved = localStorage.getItem('deds_users_list');
+    if (saved) {
+      const list: UserAccount[] = JSON.parse(saved);
+      const filtered = list.filter((u) => u.id !== userId);
+      localStorage.setItem('deds_users_list', JSON.stringify(filtered));
+      fetch('/api/platform-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'users', data: filtered }),
+      }).catch(() => {});
+    }
+    return true;
+  } catch (err) {
+    console.error('[UserService] deleteUser error:', err);
     return false;
   }
-  return true;
 }
 
 // ─── Courses ────────────────────────────────────────────────────────────────
 
 export async function fetchCourses(): Promise<Course[] | null> {
-  const { data, error } = await supabase.from('courses').select('*');
-  if (error) {
-    console.error('[Supabase] fetchCourses error:', error.message);
-    return null;
-  }
-  return (data ?? []).map((row) => sanitizeCourse(row.data as Course));
+  try {
+    const res = await fetch('/api/platform-sync', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.courses) && data.courses.length > 0) {
+        return sanitizeCourseList(data.courses);
+      }
+    }
+  } catch {}
+
+  try {
+    const saved = localStorage.getItem('deds_courses_list');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return sanitizeCourseList(parsed);
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 export async function upsertCourse(course: Course): Promise<boolean> {
-  const { error } = await supabase
-    .from('courses')
-    .upsert({ id: course.id, data: course }, { onConflict: 'id' });
-  if (error) {
-    console.error('[Supabase] upsertCourse error:', error.message);
+  try {
+    const saved = localStorage.getItem('deds_courses_list');
+    const list: Course[] = saved ? JSON.parse(saved) : [];
+    const idx = list.findIndex((c) => c.id === course.id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...course };
+    } else {
+      list.push(course);
+    }
+    localStorage.setItem('deds_courses_list', JSON.stringify(list));
+    fetch('/api/platform-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'courses', data: list }),
+    }).catch(() => {});
+    return true;
+  } catch (err) {
+    console.error('[CourseService] upsertCourse error:', err);
     return false;
   }
-  return true;
 }
 
 export async function deleteCourse(courseId: string): Promise<boolean> {
-  const { error } = await supabase.from('courses').delete().eq('id', courseId);
-  if (error) {
-    console.error('[Supabase] deleteCourse error:', error.message);
+  try {
+    const saved = localStorage.getItem('deds_courses_list');
+    if (saved) {
+      const list: Course[] = JSON.parse(saved);
+      const filtered = list.filter((c) => c.id !== courseId);
+      localStorage.setItem('deds_courses_list', JSON.stringify(filtered));
+      fetch('/api/platform-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'courses', data: filtered }),
+      }).catch(() => {});
+    }
+    return true;
+  } catch (err) {
+    console.error('[CourseService] deleteCourse error:', err);
     return false;
   }
-  return true;
 }
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 
 export async function fetchCategories(): Promise<Category[] | null> {
-  const { data, error } = await supabase.from('categories').select('*');
-  if (error) {
-    console.error('[Supabase] fetchCategories error:', error.message);
-    return null;
-  }
-  return (data ?? []).map((row) => row.data as Category);
+  try {
+    const res = await fetch('/api/platform-sync', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.categories) && data.categories.length > 0) {
+        return data.categories;
+      }
+    }
+  } catch {}
+
+  try {
+    const saved = localStorage.getItem('deds_categories_list');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+
+  return null;
 }
 
 export async function upsertCategories(categories: Category[]): Promise<boolean> {
-  const rows = categories.map((c) => ({ id: c.id, data: c }));
-  const { error } = await supabase
-    .from('categories')
-    .upsert(rows, { onConflict: 'id' });
-  if (error) {
-    console.error('[Supabase] upsertCategories error:', error.message);
+  try {
+    localStorage.setItem('deds_categories_list', JSON.stringify(categories));
+    fetch('/api/platform-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'categories', data: categories }),
+    }).catch(() => {});
+    return true;
+  } catch (err) {
+    console.error('[CategoryService] upsertCategories error:', err);
     return false;
   }
-  return true;
 }
 
 // ─── Seed ───────────────────────────────────────────────────────────────────
 
 /**
- * Seeds the database with initial data if tables are empty.
- * Called once on app startup.
+ * Verifica e sincroniza dados iniciais (servidor Hostinger já inicializa com platform-store.json)
  */
 export async function seedIfEmpty(
-  initialUsers: UserAccount[],
-  initialCourses: Course[],
-  initialCategories: Category[]
+  _initialUsers: UserAccount[],
+  _initialCourses: Course[],
+  _initialCategories: Category[]
 ): Promise<void> {
-  try {
-    // Check if users table has data
-    const { count: usersCount } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true });
-
-    if (usersCount === 0 || usersCount === null) {
-      console.log('[Supabase] Seeding users...');
-      const rows = initialUsers.map(userToRow);
-      const { error } = await supabase.from('users').upsert(rows, { onConflict: 'id' });
-      if (error) console.error('[Supabase] Seed users error:', error.message);
-    }
-
-    // Check if courses table has data
-    const { count: coursesCount } = await supabase
-      .from('courses')
-      .select('id', { count: 'exact', head: true });
-
-    if (coursesCount === 0 || coursesCount === null) {
-      console.log('[Supabase] Seeding courses...');
-      const rows = initialCourses.map((c) => ({ id: c.id, data: c }));
-      const { error } = await supabase.from('courses').upsert(rows, { onConflict: 'id' });
-      if (error) console.error('[Supabase] Seed courses error:', error.message);
-    }
-
-    // Check if categories table has data
-    const { count: categoriesCount } = await supabase
-      .from('categories')
-      .select('id', { count: 'exact', head: true });
-
-    if (categoriesCount === 0 || categoriesCount === null) {
-      console.log('[Supabase] Seeding categories...');
-      const rows = initialCategories.map((c) => ({ id: c.id, data: c }));
-      const { error } = await supabase.from('categories').upsert(rows, { onConflict: 'id' });
-      if (error) console.error('[Supabase] Seed categories error:', error.message);
-    }
-
-    console.log('[Supabase] Seed check complete.');
-  } catch (err) {
-    console.error('[Supabase] seedIfEmpty unexpected error:', err);
-  }
+  // O servidor Hostinger garante a persistência via data/platform-store.json
+  return Promise.resolve();
 }

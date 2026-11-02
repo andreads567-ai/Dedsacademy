@@ -11,6 +11,19 @@
   <!-- Bibliotecas Locais para Funcionamento 100% Offline -->
   <script src="qrcode.min.js"></script>
   <script src="html2pdf.bundle.min.js"></script>
+
+  <!-- Ocultação Imediata do Painel em modo Preview/Iframe antes da renderização da página -->
+  <script>
+    (function() {
+      try {
+        var p = new URLSearchParams(window.location.search);
+        var isPreview = p.get('preview') === '1' || p.get('preview') === 'true' || p.get('readonly') === '1' || (window.self !== window.top);
+        if (isPreview) {
+          document.documentElement.classList.add('modo-preview');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
 
@@ -60,7 +73,7 @@
     <div class="form-grid">
       <div class="form-group">
         <label for="input-nome">Nome do Aluno</label>
-        <input type="text" id="input-nome" placeholder="Ex: André de Souza">
+        <input type="text" id="input-nome" placeholder="Nome completo do aluno">
       </div>
 
       <div class="form-group">
@@ -95,7 +108,7 @@
 
       <div class="form-group">
         <label for="input-url">Link de Validação (QR Code)</label>
-        <input type="text" id="input-url" placeholder="https://www.dedsacademy.com/validar-certificado">
+        <input type="text" id="input-url" placeholder="https://www.dedsacademy.com.br/validar-certificado">
       </div>
 
       <div class="form-group">
@@ -118,7 +131,7 @@
   </header>
 
   <!-- =====================================================================
-       PALCO PRINCIPAL DO CERTIFICADO (Frente e Verso em 1024x724 / A4 Paisagem)
+       PALCO PRINCIPAL DO CERTIFICADO (Frente e Verso em A4 Paisagem Proporcional)
        ===================================================================== -->
   <main id="palco-certificados" class="palco-certificados">
 
@@ -127,58 +140,51 @@
          =================================================================== -->
     <div id="certificado-frente" class="certificado-pagina frente" data-pagina="1">
       
-      <!-- Campo 1: Nome do Aluno (Fonte Caligráfica Destaque) -->
-      <span id="campo-aluno" class="campo campo-aluno" title="Nome do Aluno">
-        André de Souza
-        <span class="dev-coords-badge">x:175 y:300</span>
-      </span>
-
-      <!-- Campo 1.1: CPF do Aluno (Abaixo da Linha do Nome) -->
-      <span id="campo-cpf-aluno" class="campo campo-cpf-aluno" title="CPF do Aluno">
-        CPF: 123.456.789-00
-        <span class="dev-coords-badge">x:175 y:388</span>
-      </span>
-
-      <!-- Campo 2: Coluna Curso -->
-      <span id="campo-curso" class="campo campo-curso" title="Curso">
-        Desenvolvimento Web Full Stack & IA
-        <span class="dev-coords-badge">x:82 y:521</span>
-      </span>
-
-      <!-- Campo 3: Coluna Carga Horária -->
-      <span id="campo-horas" class="campo campo-horas" title="Carga Horária">
-        120 horas
-        <span class="dev-coords-badge">x:295 y:521</span>
-      </span>
-
-      <!-- Campo 4: Coluna Data de Conclusão -->
-      <span id="campo-data" class="campo campo-data" title="Data de Conclusão">
-        27 de Maio de 2025
-        <span class="dev-coords-badge">x:478 y:521</span>
-      </span>
-
-      <!-- Campo 5: Coluna Código do Certificado -->
-      <span id="campo-codigo-frente" class="campo campo-codigo-frente" title="Código">
-        DA2025-0527-001
-        <span class="dev-coords-badge">x:677 y:521</span>
-      </span>
-
-      <!-- Campo 6: Assinatura Digital do Aluno -->
-      <div id="campo-assinatura-aluno" class="campo campo-assinatura-aluno" title="Assinatura">
-        <span class="assinatura-texto">André de Souza</span>
-        <span class="dev-coords-badge">x:140 y:566</span>
+      <!-- Campo 1: Nome do Aluno (Destaque Principal Centralizado e Limpo) -->
+      <div id="campo-aluno-container" class="campo-aluno-container campo-aluno" title="Nome do Aluno">
+        <span id="campo-aluno" class="campo-aluno-nome"></span>
+        <span class="dev-coords-badge">Top: 41.5% Left: 23%</span>
       </div>
 
-      <!-- Campo 6.1: CPF na Assinatura do Aluno -->
-      <span id="campo-cpf-assinatura" class="campo campo-cpf-assinatura" title="CPF do Aluno na Assinatura">
+      <!-- Campo 2: Coluna 1 - Nome do Curso -->
+      <div id="campo-curso" class="campo-coluna-info campo-curso" title="Curso">
+        Desenvolvimento Web Full Stack & IA
+        <span class="dev-coords-badge">Top: 72.3% Left: 8.5%</span>
+      </div>
+
+      <!-- Campo 3: Coluna 2 - Carga Horária -->
+      <div id="campo-horas" class="campo-coluna-info campo-horas" title="Carga Horária">
+        120 horas
+        <span class="dev-coords-badge">Top: 72.3% Left: 29.5%</span>
+      </div>
+
+      <!-- Campo 4: Coluna 3 - Data de Conclusão -->
+      <div id="campo-data" class="campo-coluna-info campo-data" title="Data de Conclusão">
+        27 de Maio de 2025
+        <span class="dev-coords-badge">Top: 72.3% Left: 48%</span>
+      </div>
+
+      <!-- Campo 5: Coluna 4 - Código do Certificado -->
+      <div id="campo-codigo-frente" class="campo-coluna-info campo-codigo-frente" title="Código">
+        DA2025-0527-001
+        <span class="dev-coords-badge">Top: 72.3% Left: 68.5%</span>
+      </div>
+
+      <!-- Campo 6: Assinatura Digital do Aluno -->
+      <div id="campo-assinatura-aluno" class="campo-assinatura-aluno" title="Assinatura">
+        <span class="assinatura-texto"></span>
+        <span class="dev-coords-badge">Top: 78.8% Left: 14.5%</span>
+      </div>
+
+      <!-- Campo 6.1: CPF na Assinatura do Aluno (Único CPF na Frente) -->
+      <span id="campo-cpf-assinatura" class="campo-cpf-assinatura" title="CPF na Assinatura">
         CPF: 123.456.789-00
-        <span class="dev-coords-badge">x:140 y:672</span>
+        <span class="dev-coords-badge">Top: 91.8% Left: 14%</span>
       </span>
 
       <!-- Campo 7: CNPJ da Deds Academy na Assinatura da Instituição -->
-      <span id="campo-cnpj-instituicao" class="campo campo-cnpj-instituicao" title="CNPJ Deds Academy">
-        CNPJ: 45.678.901/0001-23
-        <span class="dev-coords-badge">x:600 y:672</span>
+      <span id="campo-cnpj-instituicao" class="campo-cnpj-instituicao" title="CNPJ Deds Academy">
+        <span class="dev-coords-badge">Top: 94.4% Left: 60.5%</span>
       </span>
 
     </div>
@@ -189,34 +195,33 @@
     <div id="certificado-verso" class="certificado-pagina verso" data-pagina="2">
 
       <!-- Campo 1: QR Code Dinâmico com Link de Validação -->
-      <div id="campo-qrcode" class="campo campo-qrcode" title="QR Code Dinâmico">
+      <div id="campo-qrcode" class="campo-qrcode" title="QR Code Dinâmico">
         <!-- Renderizado dinamicamente via script.js -->
-        <span class="dev-coords-badge">x:646 y:346</span>
+        <span class="dev-coords-badge">Top: 48.3% Left: 62.5%</span>
       </div>
 
       <!-- Campo 2: Link de Validação abaixo do QR Code -->
-      <a id="campo-link-validar" class="campo campo-link-validar" href="https://www.dedsacademy.com/validar-certificado" target="_blank" title="Link de Validação">
-        www.dedsacademy.com/validar-certificado
-        <span class="dev-coords-badge">x:624 y:494</span>
+      <a id="campo-link-validar" class="campo-link-validar" href="https://www.dedsacademy.com.br/validar-certificado" target="_blank" title="Link de Validação">
+        www.dedsacademy.com.br/validar-certificado
+        <span class="dev-coords-badge">Top: 68.2% Left: 61%</span>
       </a>
 
       <!-- Campo 3: Código de Validação em Destaque na Pill Branca -->
-      <span id="campo-codigo-verso" class="campo campo-codigo-verso" title="Código de Validação">
+      <span id="campo-codigo-verso" class="campo-codigo-verso" title="Código de Validação">
         DA2025-0527-001
-        <span class="dev-coords-badge">x:360 y:556</span>
+        <span class="dev-coords-badge">Top: 76.5% Left: 35.5%</span>
       </span>
 
       <!-- Campo 4: CNPJ Institucional no Verso -->
-      <span id="campo-cnpj-verso" class="campo campo-cnpj-verso" title="CNPJ Deds Academy">
-        CNPJ: 45.678.901/0001-23
-        <span class="dev-coords-badge">x:106 y:486</span>
+      <span id="campo-cnpj-verso" class="campo-cnpj-verso" title="CNPJ Deds Academy">
+        <span class="dev-coords-badge">Top: 67% Left: 10.4%</span>
       </span>
 
       <!-- Campo 5: Hash e Autenticidade Digital Completa -->
       <div class="campo-autenticidade-digital" title="Registro de Autenticidade Digital">
-        <span>🔐 Deds Academy • CNPJ: <strong id="tag-cnpj-verso">45.678.901/0001-23</strong></span>
+        <span>🔐 Deds Academy • CNPJ: <strong id="tag-cnpj-verso"></strong></span>
         <span>•</span>
-        <span>Aluno: <strong id="tag-aluno-verso">André de Souza</strong> (CPF: <strong id="tag-cpf-verso">123.456.789-00</strong>)</span>
+        <span>Aluno: <strong id="tag-aluno-verso"></strong> (CPF: <strong id="tag-cpf-verso"></strong>)</span>
         <span>•</span>
         <span>Lei Federal 14.063/2020</span>
       </div>

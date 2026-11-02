@@ -7,7 +7,9 @@ interface ModuleQuizManagerProps {
   onChangeModules: (modules: CourseModule[]) => void;
   onBackToLessons: () => void;
   onSaveDraft: () => void;
-  onProceedToExam: () => void;
+  onPublishCourse?: () => void;
+  onProceedToExam?: () => void;
+  onProceedToFinalExam?: () => void;
 }
 
 export const ModuleQuizManager: React.FC<ModuleQuizManagerProps> = ({
@@ -16,8 +18,11 @@ export const ModuleQuizManager: React.FC<ModuleQuizManagerProps> = ({
   onChangeModules,
   onBackToLessons,
   onSaveDraft,
+  onPublishCourse,
   onProceedToExam,
+  onProceedToFinalExam,
 }) => {
+  const handleProceed = onProceedToFinalExam || onProceedToExam;
   const [selectedModuleId, setSelectedModuleId] = useState<string>(modules[0]?.id || '');
 
   const currentModule = modules.find((m) => m.id === selectedModuleId) || modules[0];
@@ -599,12 +604,24 @@ export const ModuleQuizManager: React.FC<ModuleQuizManagerProps> = ({
           <span>Voltar para Módulos &amp; Aulas</span>
         </button>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {onPublishCourse && (
+            <button
+              type="button"
+              onClick={onPublishCourse}
+              className="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-accent-emerald-bright hover:bg-emerald-400 active:bg-emerald-600 text-black text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Publicar Curso Imediatamente na Home e no Catálogo"
+            >
+              <span className="material-symbols-outlined text-base">rocket_launch</span>
+              <span>Publicar Curso Agora</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onSaveDraft}
             className="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            title="Salvar como Rascunho (azul claro)"
+            title="Salvar como Rascunho"
           >
             <span className="material-symbols-outlined text-base">draft</span>
             <span>Salvar Rascunho</span>
@@ -612,11 +629,11 @@ export const ModuleQuizManager: React.FC<ModuleQuizManagerProps> = ({
 
           <button
             type="button"
-            onClick={onProceedToExam}
-            className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+            onClick={handleProceed}
+            className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-text-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
             title="Prosseguir para a Prova Final Obrigatória de Certificação"
           >
-            <span>Prosseguir para Prova Final</span>
+            <span>Prova Final</span>
             <span className="material-symbols-outlined text-base">arrow_forward</span>
           </button>
         </div>

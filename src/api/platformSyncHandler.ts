@@ -3,23 +3,20 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { COURSES, CATEGORIES } from '../data/coursesData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
-import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS } from '../data/usersData';
+import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS, INITIAL_USERS, INITIAL_CERTIFICATES } from '../data/usersData';
 import {
   DEFAULT_HERO_BANNER,
   DEFAULT_MIDDLE_PROMO_BANNER,
   DEFAULT_CHECKOUT_PAYMENT_BANNER,
+  DEFAULT_STUDENT_BANNERS_CONFIG,
 } from '../types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const isVercel = Boolean(process.env.VERCEL);
 
 const projectRoot = process.cwd() || path.resolve(__dirname, '../..');
 const PRIMARY_DATA_DIR = path.join(projectRoot, 'data');
 const PRIMARY_STORE_FILE = path.join(PRIMARY_DATA_DIR, 'platform-store.json');
-
-const TMP_DATA_DIR = path.join('/tmp', 'data');
-const TMP_STORE_FILE = path.join(TMP_DATA_DIR, 'platform-store.json');
 
 const UPLOADS_DIR = path.join(projectRoot, 'public', 'uploads');
 const DIST_UPLOADS_DIR = path.join(projectRoot, 'dist', 'uploads');
@@ -34,9 +31,12 @@ export interface PlatformStore {
   heroBanner: any;
   middleBanner: any;
   checkoutBanner: any;
+  studentBanners?: any;
   instructors: any[];
   blogPosts: any[];
   announcements: any[];
+  users: any[];
+  certificates: any[];
 }
 
 let inMemoryStore: PlatformStore | null = null;
@@ -52,6 +52,7 @@ function getInitialStore(): PlatformStore {
     heroBanner: DEFAULT_HERO_BANNER,
     middleBanner: DEFAULT_MIDDLE_PROMO_BANNER,
     checkoutBanner: DEFAULT_CHECKOUT_PAYMENT_BANNER,
+    studentBanners: DEFAULT_STUDENT_BANNERS_CONFIG,
     instructors: INITIAL_INSTRUCTORS,
     blogPosts: INITIAL_BLOG_POSTS,
     announcements: [
@@ -63,6 +64,8 @@ function getInitialStore(): PlatformStore {
         priority: 'alta',
       },
     ],
+    users: INITIAL_USERS,
+    certificates: INITIAL_CERTIFICATES,
   };
 }
 
@@ -72,27 +75,37 @@ export function ensureStoreFile(): PlatformStore {
   }
 
   try {
-    // 1. Try reading from /tmp on Vercel if it exists
-    if (isVercel && fs.existsSync(TMP_STORE_FILE)) {
-      try {
-        const raw = fs.readFileSync(TMP_STORE_FILE, 'utf8');
-        const parsed = JSON.parse(raw);
-        inMemoryStore = parsed;
-        return parsed;
-      } catch {}
-    }
-
-    // 2. Try reading from project data/platform-store.json
+    // 1. Try reading from project data/platform-store.json
     if (fs.existsSync(PRIMARY_STORE_FILE)) {
       try {
         const raw = fs.readFileSync(PRIMARY_STORE_FILE, 'utf8');
-        const parsed = JSON.parse(raw);
+        const parsed: PlatformStore = JSON.parse(raw);
+
+        // Ensure users and certificates arrays exist
+        let modified = false;
+        if (!parsed.users || !Array.isArray(parsed.users)) {
+          parsed.users = INITIAL_USERS;
+          modified = true;
+        }
+        if (!parsed.certificates || !Array.isArray(parsed.certificates)) {
+          parsed.certificates = INITIAL_CERTIFICATES;
+          modified = true;
+        }
+
+        if (modified) {
+          try {
+            fs.writeFileSync(PRIMARY_STORE_FILE, JSON.stringify(parsed, null, 2), 'utf8');
+          } catch {}
+        }
+
         inMemoryStore = parsed;
         return parsed;
-      } catch {}
+      } catch (err) {
+        console.error('[PlatformSyncHandler] Error parsing primary store, recreating:', err);
+      }
     }
 
-    // 3. Fallback: create initial store and persist where writable
+    // 2. Fallback: create initial store and persist
     const initial = getInitialStore();
     inMemoryStore = initial;
 
@@ -101,13 +114,8 @@ export function ensureStoreFile(): PlatformStore {
         fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
       }
       fs.writeFileSync(PRIMARY_STORE_FILE, JSON.stringify(initial, null, 2), 'utf8');
-    } catch {
-      try {
-        if (!fs.existsSync(TMP_DATA_DIR)) {
-          fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
-        }
-        fs.writeFileSync(TMP_STORE_FILE, JSON.stringify(initial, null, 2), 'utf8');
-      } catch {}
+    } catch (writeErr) {
+      console.warn('[PlatformSyncHandler] Primary data write warning:', writeErr);
     }
 
     return initial;
@@ -142,26 +150,13 @@ export function savePlatformData(payload: {
 
     const json = JSON.stringify(store, null, 2);
 
-    // Try primary location first
-    let saved = false;
     try {
       if (!fs.existsSync(PRIMARY_DATA_DIR)) {
         fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
       }
       fs.writeFileSync(PRIMARY_STORE_FILE, json, 'utf8');
-      saved = true;
-    } catch {
-      // Primary was read-only (e.g. Vercel serverless)
-    }
-
-    // Try /tmp location as secondary persistence on serverless
-    if (!saved || isVercel) {
-      try {
-        if (!fs.existsSync(TMP_DATA_DIR)) {
-          fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
-        }
-        fs.writeFileSync(TMP_STORE_FILE, json, 'utf8');
-      } catch {}
+    } catch (fsErr) {
+      console.error('[PlatformSyncHandler] Error writing to data file:', fsErr);
     }
 
     return { success: true, version: newVersion };
@@ -169,6 +164,59 @@ export function savePlatformData(payload: {
     console.error('[PlatformSyncHandler] Error saving store file:', err);
     return { success: false, version: 0 };
   }
+}
+
+// ─── Helpers Específicos para Usuários e Certificados (Hostinger Database) ───
+
+export function getPlatformCertificates(): any[] {
+  const store = ensureStoreFile();
+  return store.certificates || [];
+}
+
+export function saveCertificate(cert: any): { success: boolean; certificate: any; version: number } {
+  const store = ensureStoreFile();
+  const certs = store.certificates || [];
+  const idx = certs.findIndex((c: any) => c.id === cert.id || (c.code && c.code.toUpperCase() === cert.code.toUpperCase()));
+  if (idx >= 0) {
+    certs[idx] = { ...certs[idx], ...cert };
+  } else {
+    certs.unshift(cert);
+  }
+  const result = savePlatformData({ type: 'certificates', data: certs });
+  return { success: result.success, certificate: cert, version: result.version };
+}
+
+export function findCertificateByCode(rawCode: string): any | null {
+  if (!rawCode) return null;
+  const store = ensureStoreFile();
+  const certs = store.certificates || [];
+  const cleanCode = rawCode.trim().toUpperCase().replace('#', '');
+  const alphaCode = cleanCode.replace(/[^A-Z0-9]/g, '');
+
+  return certs.find((c: any) => {
+    if (!c || !c.code) return false;
+    const cClean = c.code.trim().toUpperCase().replace('#', '');
+    const cAlpha = cClean.replace(/[^A-Z0-9]/g, '');
+    return cClean === cleanCode || (alphaCode.length >= 4 && cAlpha === alphaCode);
+  }) || null;
+}
+
+export function getPlatformUsers(): any[] {
+  const store = ensureStoreFile();
+  return store.users || [];
+}
+
+export function upsertPlatformUser(user: any): { success: boolean; user: any } {
+  const store = ensureStoreFile();
+  const users = store.users || [];
+  const idx = users.findIndex((u: any) => u.id === user.id || (user.email && u.email?.toLowerCase() === user.email?.toLowerCase()));
+  if (idx >= 0) {
+    users[idx] = { ...users[idx], ...user };
+  } else {
+    users.push(user);
+  }
+  savePlatformData({ type: 'users', data: users });
+  return { success: true, user: idx >= 0 ? users[idx] : user };
 }
 
 export function handleImageUpload(payload: {
@@ -180,13 +228,6 @@ export function handleImageUpload(payload: {
     const { dataUrl, filename, prefix = 'upload' } = payload;
     if (!dataUrl || !dataUrl.includes(',')) {
       return { success: false, error: 'DataURL de imagem inválido' };
-    }
-
-    // On Vercel, static files cannot be written to Vercel's global CDN at runtime.
-    // Returning the self-contained, already compressed Data URL ensures 100% availability
-    // across all browsers and devices without 404 errors.
-    if (isVercel) {
-      return { success: true, url: dataUrl };
     }
 
     const [header, base64Data] = dataUrl.split(',');

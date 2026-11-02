@@ -42,7 +42,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Apenas aplica anonymous em URLs externas absolutas para evitar falhas de CORS em rotas locais
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       imageCache.set(src, img);
       resolve(img);
@@ -51,7 +54,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
       // Tenta fallback sem barra inicial ou relativo
       const fallbackSrc = src.startsWith('/') ? src.slice(1) : '/' + src;
       const imgFallback = new Image();
-      imgFallback.crossOrigin = 'anonymous';
+      if (fallbackSrc.startsWith('http://') || fallbackSrc.startsWith('https://')) {
+        imgFallback.crossOrigin = 'anonymous';
+      }
       imgFallback.onload = () => {
         imageCache.set(src, imgFallback);
         resolve(imgFallback);
@@ -67,11 +72,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * Retorna o modelo salvo ou gera o modelo oficial nativo da Deds Academy
  */
 export function getSavedCertificateTemplate(): CertificateOfficialTemplate {
+  const savedCnpj = typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null;
   return {
     id: 'deds-official-template-v3',
     name: 'Modelo Oficial Deds Academy Frente e Verso (A4)',
     institutionName: 'Deds Academy Educação e Tecnologia Ltda.',
-    institutionCnpj: '45.678.901/0001-23',
+    institutionCnpj: (savedCnpj && savedCnpj.trim()) || '45.678.901/0001-23',
     institutionCity: 'São Paulo - SP',
     frontBgImage: OFFICIAL_FRONT_BG,
     backBgImage: OFFICIAL_BACK_BG,
@@ -94,6 +100,16 @@ export function replaceCertificatePlaceholders(
   template?: CertificateOfficialTemplate
 ): string {
   if (!rawText) return '';
+  const savedCnpj = typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null;
+  const currentCnpj =
+    (savedCnpj && savedCnpj.trim()) ||
+    (data.institutionCnpj && data.institutionCnpj.trim() && data.institutionCnpj !== '45.678.901/0001-23'
+      ? data.institutionCnpj.trim()
+      : null) ||
+    template?.institutionCnpj ||
+    data.institutionCnpj ||
+    '45.678.901/0001-23';
+
   return rawText
     .replace(/\{aluno\}/gi, data.studentName)
     .replace(/\{nome_aluno\}/gi, data.studentName)
@@ -110,7 +126,7 @@ export function replaceCertificatePlaceholders(
     .replace(/\{cpf_aluno\}/gi, data.studentCpf || '123.456.789-00')
     .replace(/\{instrutor\}/gi, data.instructor || 'Deds Academy')
     .replace(/\{instituicao\}/gi, template?.institutionName || 'Deds Academy Educação e Tecnologia Ltda.')
-    .replace(/\{cnpj\}/gi, template?.institutionCnpj || '45.678.901/0001-23');
+    .replace(/\{cnpj\}/gi, currentCnpj);
 }
 
 /**
@@ -178,6 +194,175 @@ export function resolveFieldValue(
 }
 
 /**
+ * Garante que todas as fontes necessárias para o certificado estejam baixadas e ativas no cache do Canvas.
+ * No navegador, fontes @import ou <link> são baixadas sob demanda apenas quando um elemento do DOM as utiliza.
+ * Para renderização direta em Canvas 2D, é obrigatório disparar document.fonts.load() explicitamente
+ * para evitar fallback para Comic Sans / Serif genérico que distorce todo o layout.
+ */
+export async function ensureCertificateFontsLoaded(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+
+  // Injeta link das fontes no <head> se não estiver presente
+  if (!document.querySelector('link[href*="Alex+Brush"]') && !document.querySelector('link[href*="Great+Vibes"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Alex+Brush&family=Great+Vibes&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap';
+    document.head.appendChild(link);
+  }
+
+  const fontDescriptors = [
+    '400 33px "Great Vibes"',
+    '400 48px "Great Vibes"',
+    '400 32px "Alex Brush"',
+    '400 26px "Alex Brush"',
+    '400 21px "Alex Brush"',
+    '400 18px "Alex Brush"',
+    '400 15px "Alex Brush"',
+    '700 13px "Montserrat"',
+    '700 12px "Montserrat"',
+    '700 10.5px "Montserrat"',
+    '600 10.5px "Montserrat"',
+    '600 9.5px "Montserrat"',
+    '600 8.5px "Montserrat"',
+    '800 26px "Montserrat"',
+    '500 8.5px "Montserrat"',
+  ];
+
+  await Promise.all(
+    fontDescriptors.map(async (fDesc) => {
+      try {
+        await document.fonts.load(fDesc);
+      } catch (err) {
+        console.warn(`[Certificado] Falha ao pré-carregar fonte ${fDesc}:`, err);
+      }
+    })
+  );
+
+  try {
+    await document.fonts.ready;
+  } catch {}
+}
+
+/**
+ * Renderiza e ajusta automaticamente o tamanho e a proporção da assinatura do aluno no Canvas.
+ * Se o nome for longo, reduz a fonte proporcionalmente e faz a quebra de texto centralizada,
+ * com line-height 1.05 e rotação suave (-2.5deg), respeitando a altura máxima de 62px
+ * para não encavalar com o campo de curso acima e manter a fidelidade com a versão web.
+ */
+function renderCanvasHandwrittenSignature(
+  ctx: CanvasRenderingContext2D,
+  rawName: string,
+  fx: (x: number) => number,
+  fy: (y: number) => number,
+  fsize: (s: number) => number
+): void {
+  const nomeLimpo = (rawName || '').trim().replace(/\s+/g, ' ');
+  const textoExibicao = nomeLimpo || 'Assinatura do Aluno';
+  const len = textoExibicao.length;
+
+  // Escala inicial de tamanho de fonte baseado na extensão do nome (idêntico ao script.js)
+  let fontSize: number;
+  if (len <= 15) {
+    fontSize = 32; // Ex: "André de Souza"
+  } else if (len <= 22) {
+    fontSize = 26; // Ex: "Carlos Eduardo Lima"
+  } else if (len <= 36) {
+    fontSize = 21; // Ex: "João Carlos da Silva Souza Conceição"
+  } else if (len <= 46) {
+    fontSize = 18; // Ex: "André de Souza antonio abreu junior santos"
+  } else {
+    fontSize = 15; // Nomes excepcionalmente longos
+  }
+
+  // Largura máxima e altura máxima seguras na resolução base (1024x724)
+  // Largura do container: 215px, com margem de segurança e padding -> 207px
+  const maxAllowedWidth = fx(207);
+  const maxAllowedHeight = fy(62);
+
+  const words = textoExibicao.split(' ').filter(Boolean);
+
+  let lines: string[] = [];
+  let lineHeight = 0;
+  let totalHeight = 0;
+
+  // Redução dinâmica progressiva caso a quebra resulte em altura superior ao espaço seguro (maxHeight: 62px)
+  while (fontSize >= 11) {
+    ctx.font = `400 ${fsize(fontSize)}px 'Alex Brush', 'Great Vibes', cursive`;
+    lines = [];
+    let currentLine = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = ctx.measureText(testLine).width;
+
+      if (testWidth > maxAllowedWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    lineHeight = fsize(fontSize) * 1.05;
+    totalHeight = lines.length * lineHeight;
+
+    const hasWordOverflow = lines.some((l) => ctx.measureText(l).width > maxAllowedWidth * 1.05);
+    if (totalHeight <= maxAllowedHeight && !hasWordOverflow) {
+      break;
+    }
+
+    fontSize -= 0.5;
+  }
+
+  if (fontSize < 11) {
+    fontSize = 11;
+    ctx.font = `400 ${fsize(fontSize)}px 'Alex Brush', 'Great Vibes', cursive`;
+    lines = [];
+    let currentLine = '';
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(testLine).width > maxAllowedWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    lineHeight = fsize(fontSize) * 1.05;
+    totalHeight = lines.length * lineHeight;
+  }
+
+  // Ponto de ancoragem: centro inferior do campo (x: 140 + 215/2 = 247.5, y: 566 + 66 = 632)
+  const centerX = fx(140 + 215 / 2);
+  const bottomY = fy(566 + 66); // exatamente sobre a linha desenhada da assinatura
+
+  ctx.save();
+  ctx.translate(centerX, bottomY);
+  ctx.rotate((-2.5 * Math.PI) / 180); // Rotação de -2.5deg com centro na base inferior
+
+  ctx.font = `400 ${fsize(fontSize)}px 'Alex Brush', 'Great Vibes', cursive`;
+  ctx.fillStyle = '#0b2230';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Renderiza cada linha centralizada, posicionadas de forma que o bloco encoste suavemente no traço de assinatura
+  const startY = -(totalHeight - lineHeight / 2);
+  for (let i = 0; i < lines.length; i++) {
+    const yPos = startY + i * lineHeight;
+    ctx.fillText(lines[i], 0, yPos);
+  }
+
+  ctx.restore();
+}
+
+/**
  * Renderiza o lado (Frente ou Verso) do certificado em alta resolução (2048 x 1448)
  * utilizando o grid pixel-perfect oficial desenhado pelo Antigravity.
  */
@@ -233,34 +418,48 @@ export async function renderCertificateCanvas(
   const hoursText = `${studentData.hours || 40} horas`;
   const issueDate = studentData.issueDate || new Date().toLocaleDateString('pt-BR');
   const certCode = studentData.code || 'DA2026-0001';
-  const institutionCnpj = studentData.institutionCnpj || '45.678.901/0001-23';
+  const savedCnpj = typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null;
+  const institutionCnpj =
+    (savedCnpj && savedCnpj.trim()) ||
+    (studentData.institutionCnpj && studentData.institutionCnpj.trim() && studentData.institutionCnpj !== '45.678.901/0001-23'
+      ? studentData.institutionCnpj.trim()
+      : null) ||
+    studentData.institutionCnpj?.trim() ||
+    '45.678.901/0001-23';
+
+  // Garante carregamento e ativação real das fontes antes de medir ou desenhar no Canvas
+  await ensureCertificateFontsLoaded();
 
   if (side === 'frente') {
     // -------------------------------------------------------------
-    // FRENTE DO CERTIFICADO (Pixel-Perfect)
+    // FRENTE DO CERTIFICADO (Pixel-Perfect Calibrado)
     // -------------------------------------------------------------
 
-    // 1. Nome do Aluno (Caligráfico Great Vibes, top: 300, left: 175, width: 674, height: 84)
-    ctx.font = `400 ${fsize(50)}px 'Great Vibes', 'Alex Brush', cursive`;
+    // 1. Nome do Aluno (Caligráfico Great Vibes, top: 310, left: 175, width: 674, height: 84)
+    let alunoFontSize = 33; // Padrão idêntico ao .campo-aluno-nome
+    ctx.font = `400 ${fsize(alunoFontSize)}px 'Great Vibes', 'Alex Brush', cursive`;
+    while (ctx.measureText(studentName).width > fx(650) && alunoFontSize > 20) {
+      alunoFontSize -= 0.5;
+      ctx.font = `400 ${fsize(alunoFontSize)}px 'Great Vibes', 'Alex Brush', cursive`;
+    }
     ctx.fillStyle = '#091e2b';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(studentName, fx(175 + 674 / 2), fy(300 + 84 / 2));
+    ctx.fillText(studentName, fx(175 + 674 / 2), fy(310 + 84 / 2));
 
-    // 2. CPF do Aluno (Montserrat 600, top: 388, left: 175, width: 674)
-    ctx.font = `600 ${fsize(10.5)}px 'Montserrat', sans-serif`;
-    ctx.fillStyle = '#4b5563';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`CPF: ${studentCpf}`, fx(175 + 674 / 2), fy(388 + 8));
-
-    // 3. Coluna Curso (Montserrat 700, top: 521, left: 82, width: 198, height: 38)
-    ctx.font = `700 ${fsize(12.5)}px 'Montserrat', sans-serif`;
+    // 2. Coluna Curso (Montserrat 700, top: 521, left: 82, width: 198, height: 38)
+    ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#1a2941';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Se o nome do curso for longo, abrevia ou desenha em 2 linhas se necessário
-    if (courseTitle.length > 24) {
+    const courseWidth = ctx.measureText(courseTitle).width;
+    if (courseWidth <= fx(190)) {
+      ctx.fillText(courseTitle, fx(82 + 198 / 2), fy(521 + 38 / 2));
+    } else if (courseWidth <= fx(215)) {
+      ctx.font = `700 ${fsize(11.5)}px 'Montserrat', sans-serif`;
+      ctx.fillText(courseTitle, fx(82 + 198 / 2), fy(521 + 38 / 2));
+    } else {
+      // Quebra harmoniosa em 2 linhas
       const parts = courseTitle.split(' ');
       const mid = Math.ceil(parts.length / 2);
       const line1 = parts.slice(0, mid).join(' ');
@@ -268,60 +467,49 @@ export async function renderCertificateCanvas(
       ctx.font = `700 ${fsize(10.5)}px 'Montserrat', sans-serif`;
       ctx.fillText(line1, fx(82 + 198 / 2), fy(521 + 12));
       ctx.fillText(line2, fx(82 + 198 / 2), fy(521 + 26));
-    } else {
-      ctx.fillText(courseTitle, fx(82 + 198 / 2), fy(521 + 38 / 2));
     }
 
-    // 4. Coluna Carga Horária (Montserrat 700, top: 521, left: 295, width: 162, height: 38)
+    // 3. Coluna Carga Horária (Montserrat 700, top: 521, left: 295, width: 162, height: 38)
     ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#1a2941';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(hoursText, fx(295 + 162 / 2), fy(521 + 38 / 2));
 
-    // 5. Coluna Data de Conclusão (Montserrat 700, top: 521, left: 478, width: 192, height: 38)
+    // 4. Coluna Data de Conclusão (Montserrat 700, top: 521, left: 478, width: 192, height: 38)
     ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#1a2941';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(issueDate, fx(478 + 192 / 2), fy(521 + 38 / 2));
 
-    // 6. Coluna Código do Certificado (Montserrat 700, top: 521, left: 677, width: 190, height: 38)
+    // 5. Coluna Código do Certificado (Montserrat 700, top: 521, left: 677, width: 190, height: 38)
     ctx.font = `700 ${fsize(13)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#1a2941';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(certCode, fx(677 + 190 / 2), fy(521 + 38 / 2));
 
-    // 7. Assinatura do Aluno (top: 566, left: 140, width: 215, height: 66)
+    // 6. Assinatura do Aluno com Auto-scaling Dinâmico (top: 566, left: 140, width: 215, height: 66)
     if (studentData.signatureImage) {
       try {
         const sigImg = await loadImage(studentData.signatureImage);
         ctx.drawImage(sigImg, fx(140 + 10), fy(566 + 4), fx(195), fy(58));
       } catch (sigErr) {
-        // Fallback para caligrafia
-        ctx.font = `400 ${fsize(34)}px 'Alex Brush', 'Great Vibes', cursive`;
-        ctx.fillStyle = '#0b2230';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(studentName, fx(140 + 215 / 2), fy(566 + 66 / 2));
+        renderCanvasHandwrittenSignature(ctx, studentName, fx, fy, fsize);
       }
     } else {
-      ctx.font = `400 ${fsize(34)}px 'Alex Brush', 'Great Vibes', cursive`;
-      ctx.fillStyle = '#0b2230';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(studentName, fx(140 + 215 / 2), fy(566 + 66 / 2));
+      renderCanvasHandwrittenSignature(ctx, studentName, fx, fy, fsize);
     }
 
-    // 8. CPF na Assinatura (top: 672, left: 140, width: 215)
+    // 7. CPF na Assinatura (top: 672, left: 140, width: 215, height: 18)
     ctx.font = `600 ${fsize(9.5)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#475569';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`CPF: ${studentCpf}`, fx(140 + 215 / 2), fy(672 + 9));
 
-    // 9. CNPJ Deds Academy na Assinatura da Instituição (top: 672, left: 600, width: 280)
+    // 8. CNPJ Deds Academy na Assinatura da Instituição (top: 672, left: 600, width: 280, height: 18)
     ctx.font = `600 ${fsize(9.5)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#475569';
     ctx.textAlign = 'center';
@@ -329,15 +517,15 @@ export async function renderCertificateCanvas(
     ctx.fillText(`CNPJ: ${institutionCnpj}`, fx(600 + 280 / 2), fy(672 + 9));
   } else {
     // -------------------------------------------------------------
-    // VERSO DO CERTIFICADO (Pixel-Perfect)
+    // VERSO DO CERTIFICADO (Pixel-Perfect Calibrado)
     // -------------------------------------------------------------
 
     // 1. QR Code Dinâmico (top: 346, left: 646, width: 140, height: 140)
     try {
-      const verifyUrl = `https://dedsacademy.vercel.app/validar?codigo=${encodeURIComponent(certCode)}`;
+      const verifyUrl = `https://www.dedsacademy.com.br/validar-certificado?codigo=${encodeURIComponent(certCode)}`;
       const qrCanvas = document.createElement('canvas');
       await QRCode.toCanvas(qrCanvas, verifyUrl, {
-        width: Math.round(140 * factorX),
+        width: Math.round(136 * factorX),
         margin: 1,
         color: {
           dark: '#0b2230',
@@ -345,9 +533,9 @@ export async function renderCertificateCanvas(
         },
       });
 
-      const qrLeft = fx(646);
-      const qrTop = fy(346);
-      const qrSize = fx(140);
+      const qrLeft = fx(648);
+      const qrTop = fy(348);
+      const qrSize = fx(136);
       ctx.drawImage(qrCanvas, qrLeft, qrTop, qrSize, qrSize);
     } catch (qrErr) {
       console.error('Erro ao gerar QR Code:', qrErr);
@@ -358,10 +546,10 @@ export async function renderCertificateCanvas(
     ctx.fillStyle = '#006756';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('www.dedsacademy.com/validar-certificado', fx(624 + 184 / 2), fy(494 + 6));
+    ctx.fillText('www.dedsacademy.com.br/validar-certificado', fx(624 + 184 / 2), fy(494 + 6));
 
     // 3. Código em Destaque na Pill Branca (top: 556, left: 360, width: 405, height: 44)
-    ctx.font = `800 ${fsize(25)}px 'Montserrat', sans-serif`;
+    ctx.font = `800 ${fsize(26)}px 'Montserrat', sans-serif`;
     ctx.fillStyle = '#082132';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -379,8 +567,8 @@ export async function renderCertificateCanvas(
     ctx.fillStyle = '#64748b';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const legalStamp = `🔐 Deds Academy • CNPJ: ${institutionCnpj} • Aluno: ${studentName} (CPF: ${studentCpf}) • Lei Federal 14.063/2020`;
-    ctx.fillText(legalStamp, outWidth / 2, fy(695));
+    const legalStamp = `🔐 Certificado Registrado sob nº ${certCode} • Titular: ${studentName} (CPF: ${studentCpf}) • CNPJ: ${institutionCnpj} • Lei Federal 14.063/2020`;
+    ctx.fillText(legalStamp, outWidth / 2, fy(700));
   }
 
   return canvas;

@@ -1,8 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { BlogPost, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig } from '../../types';
+import {
+  BlogPost,
+  HeroBannerConfig,
+  MiddlePromoBannerConfig,
+  CheckoutPaymentBannerConfig,
+  StudentBannersConfig,
+} from '../../types';
 import { CheckoutBannerManagerTab } from './CheckoutBannerManagerTab';
 import { HeroBannerManagerTab } from './HeroBannerManagerTab';
 import { MiddleBannerManagerTab } from './MiddleBannerManagerTab';
+import { StudentBannerManagerTab } from './StudentBannerManagerTab';
+import { getStoredStudentBanners, saveStoredStudentBanners } from '../../services/studentBannersService';
 import { optimizeImageFile } from '../../lib/imageOptimizer';
 import { uploadImageToServer } from '../../lib/platformSyncClient';
 
@@ -19,6 +27,8 @@ interface BlogTabProps {
   onUpdateMiddleBannerConfig?: (config: MiddlePromoBannerConfig) => void;
   checkoutBannerConfig?: CheckoutPaymentBannerConfig;
   onUpdateCheckoutBannerConfig?: (config: CheckoutPaymentBannerConfig) => void;
+  studentBannersConfig?: StudentBannersConfig;
+  onUpdateStudentBannersConfig?: (config: StudentBannersConfig) => void;
 }
 
 export const BlogTab: React.FC<BlogTabProps> = ({
@@ -34,8 +44,13 @@ export const BlogTab: React.FC<BlogTabProps> = ({
   onUpdateMiddleBannerConfig,
   checkoutBannerConfig,
   onUpdateCheckoutBannerConfig,
+  studentBannersConfig,
+  onUpdateStudentBannersConfig,
 }) => {
-  const [subTab, setSubTab] = useState<'artigos' | 'banner-home' | 'banner-faixa' | 'banner-pagamentos'>('artigos');
+  const [subTab, setSubTab] = useState<'artigos' | 'banner-home' | 'banner-faixa' | 'banner-pagamentos' | 'banner-aluno'>('artigos');
+  const [localStudentBanners, setLocalStudentBanners] = useState<StudentBannersConfig>(() =>
+    studentBannersConfig || getStoredStudentBanners()
+  );
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
@@ -256,6 +271,31 @@ export const BlogTab: React.FC<BlogTabProps> = ({
             {checkoutBannerConfig?.enabled !== false ? 'Ativo' : 'Oculto'}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTab('banner-aluno')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            subTab === 'banner-aluno'
+              ? 'bg-primary/15 text-primary border border-primary/30 shadow-sm'
+              : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
+          }`}
+        >
+          <span className="material-symbols-outlined text-base">view_carousel</span>
+          <span>5. Banner Painel do Aluno</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              localStudentBanners?.enabled !== false &&
+              localStudentBanners?.banners?.some((b) => b.enabled && b.imageUrl)
+                ? 'bg-accent-emerald-bright/20 text-accent-emerald-bright border-accent-emerald-bright/30'
+                : 'bg-surface-overlay text-text-tertiary border-border-subtle'
+            }`}
+          >
+            {localStudentBanners?.enabled !== false
+              ? `${localStudentBanners?.banners?.filter((b) => b.enabled && b.imageUrl).length || 0}/6 Ativos`
+              : 'Oculto'}
+          </span>
+        </button>
       </div>
 
       {/* Tab 2: Banner Principal da Home */}
@@ -271,6 +311,20 @@ export const BlogTab: React.FC<BlogTabProps> = ({
         <CheckoutBannerManagerTab
           currentConfig={checkoutBannerConfig}
           onSaveConfig={onUpdateCheckoutBannerConfig || (() => {})}
+        />
+      )}
+
+      {/* Tab 5: Banner Painel do Aluno */}
+      {subTab === 'banner-aluno' && (
+        <StudentBannerManagerTab
+          currentConfig={localStudentBanners}
+          onSaveConfig={(updated) => {
+            setLocalStudentBanners(updated);
+            saveStoredStudentBanners(updated);
+            if (onUpdateStudentBannersConfig) {
+              onUpdateStudentBannersConfig(updated);
+            }
+          }}
         />
       )}
 

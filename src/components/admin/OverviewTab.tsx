@@ -37,7 +37,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     return courses.filter((c) => c.status !== 'inativo' && c.status !== 'arquivado').length;
   }, [courses]);
 
-  // Calculate dynamic revenue based on real enrolled courses and sales transactions
+  // Calculate dynamic revenue strictly based on real approved sales transactions
   const { totalRevenue, averageTicket, totalAccesses } = useMemo(() => {
     let salesSum = 0;
     let enrollmentCount = 0;
@@ -55,29 +55,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       }
     } catch {}
 
-    // If no sales logged yet, compute from user enrollments
-    if (salesSum === 0) {
-      users.forEach((u) => {
-        if (u.enrolledCourseIds && u.enrolledCourseIds.length > 0) {
-          u.enrolledCourseIds.forEach((cId) => {
-            const courseObj = courses.find((c) => c.id === cId);
-            salesSum += courseObj ? courseObj.currentPrice : 179.9;
-            enrollmentCount++;
-          });
-        }
-      });
-      // Add baseline benchmark for historical institutional revenue
-      salesSum += 124800;
-      enrollmentCount += 750;
-    }
-
     const avg = enrollmentCount > 0 ? salesSum / enrollmentCount : 0;
-    const accesses = courses.reduce((acc, c) => acc + (c.studentsCount || 85), 0) + enrollmentCount;
+    const realEnrollments = users
+      .filter((u) => u.role === 'aluno')
+      .reduce((acc, u) => acc + (u.enrolledCourseIds?.length || 0), 0);
 
     return {
       totalRevenue: salesSum,
       averageTicket: avg,
-      totalAccesses: accesses,
+      totalAccesses: realEnrollments,
     };
   }, [users, courses]);
 
@@ -142,44 +128,61 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     },
   ];
 
-  const recentActivities = [
-    {
-      id: 'act-1',
-      type: 'matricula',
-      icon: 'how_to_reg',
-      color: 'text-accent-emerald-bright bg-accent-emerald-bright/10',
-      title: 'Nova matrícula confirmada via PIX',
-      description: 'Aluno André Silva matriculado em "Python do Zero ao Avançado"',
-      time: 'Há 12 minutos',
-    },
-    {
-      id: 'act-2',
-      type: 'certificado',
-      icon: 'workspace_premium',
-      color: 'text-accent-gold bg-accent-gold/10',
-      title: 'Certificado oficial emitido com QR Code',
-      description: 'Código DEDS-EXC-2026-9842 registrado com conformidade Lei 9.394/96',
-      time: 'Há 45 minutos',
-    },
-    {
-      id: 'act-3',
-      type: 'curso',
-      icon: 'published_with_changes',
-      color: 'text-primary bg-primary/10',
-      title: 'Catálogo atualizado',
-      description: 'Módulos de IA Generativa e FastAPI adicionados e publicados',
-      time: 'Há 2 horas',
-    },
-    {
-      id: 'act-4',
-      type: 'comunicado',
-      icon: 'campaign',
-      color: 'text-secondary bg-secondary/10',
-      title: 'Comunicado enviado aos alunos',
-      description: 'Notificação sobre novas turmas de mentoria aos sábados',
-      time: 'Hoje cedo',
-    },
-  ];
+  const recentActivities = useMemo(() => {
+    const acts: Array<{
+      id: string;
+      type: string;
+      icon: string;
+      color: string;
+      title: string;
+      description: string;
+      time: string;
+    }> = [];
+
+    // 1. Add recent sales
+    try {
+      const savedSales = localStorage.getItem('deds_sales_transactions');
+      if (savedSales) {
+        const sales = JSON.parse(savedSales);
+        if (Array.isArray(sales)) {
+          sales.slice(0, 3).forEach((s) => {
+            acts.push({
+              id: `act-sale-${s.id}`,
+              type: 'matricula',
+              icon: 'how_to_reg',
+              color: 'text-accent-emerald-bright bg-accent-emerald-bright/10',
+              title: `Nova matrícula confirmada via ${s.paymentMethod || 'PIX'}`,
+              description: `Aluno(a) ${s.studentName} matriculado(a) em "${s.courseTitle}"`,
+              time: `${s.date || 'Hoje'} às ${s.time || '10:00'}`,
+            });
+          });
+        }
+      }
+    } catch {}
+
+    // 2. Add recent certificates
+    try {
+      const savedCerts = localStorage.getItem('deds_certificates_list');
+      if (savedCerts) {
+        const certs = JSON.parse(savedCerts);
+        if (Array.isArray(certs)) {
+          certs.slice(0, 2).forEach((c) => {
+            acts.push({
+              id: `act-cert-${c.id}`,
+              type: 'certificado',
+              icon: 'workspace_premium',
+              color: 'text-accent-gold bg-accent-gold/10',
+              title: 'Certificado oficial emitido com QR Code',
+              description: `Código ${c.code} registrado para ${c.studentName} (${c.courseTitle})`,
+              time: c.issueDate || 'Recentemente',
+            });
+          });
+        }
+      }
+    } catch {}
+
+    return acts;
+  }, [lastRefreshed]);
 
   // Error Fallback View
   if (hasApiError) {
@@ -270,8 +273,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </span>
             <p className="text-3xl font-bold text-text-primary mt-1">{users.length}</p>
             <div className="flex items-center gap-1 text-[11px] text-accent-emerald-bright font-semibold mt-1">
-              <span className="material-symbols-outlined text-xs">trending_up</span>
-              <span>{studentsCount} alunos ativos (+14% no mês)</span>
+              <span className="material-symbols-outlined text-xs">group</span>
+              <span>{studentsCount} aluno{studentsCount === 1 ? '' : 's'} cadastrado{studentsCount === 1 ? '' : 's'}</span>
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -399,29 +402,37 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               </span>
             </div>
 
-            <div className="space-y-3.5">
-              {recentActivities.map((act) => (
-                <div
-                  key={act.id}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-surface-overlay/60 hover:bg-surface-overlay transition-colors border border-border-subtle/50"
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${act.color}`}>
-                    <span className="material-symbols-outlined text-base">{act.icon}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h5 className="text-xs font-bold text-text-primary truncate">{act.title}</h5>
-                      <span className="text-[10px] text-text-tertiary whitespace-nowrap">{act.time}</span>
+            {recentActivities.length === 0 ? (
+              <div className="py-10 text-center text-text-tertiary space-y-2">
+                <span className="material-symbols-outlined text-3xl opacity-40">pending_actions</span>
+                <p className="text-xs font-semibold">Nenhuma atividade recente registrada no momento.</p>
+                <p className="text-[11px] text-text-tertiary/70">Novas matrículas e certificados emitidos aparecerão aqui automaticamente.</p>
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {recentActivities.map((act) => (
+                  <div
+                    key={act.id}
+                    className="flex items-start gap-3 p-3 rounded-xl bg-surface-overlay/60 hover:bg-surface-overlay transition-colors border border-border-subtle/50"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${act.color}`}>
+                      <span className="material-symbols-outlined text-base">{act.icon}</span>
                     </div>
-                    <p className="text-[11px] text-text-secondary mt-0.5">{act.description}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h5 className="text-xs font-bold text-text-primary truncate">{act.title}</h5>
+                        <span className="text-[10px] text-text-tertiary whitespace-nowrap">{act.time}</span>
+                      </div>
+                      <p className="text-[11px] text-text-secondary mt-0.5">{act.description}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 pt-4 border-t border-border-subtle flex items-center justify-between text-xs text-text-tertiary">
-            <span>Volume de acessos estimados: <strong className="text-text-primary">{totalAccesses.toLocaleString('pt-BR')}</strong></span>
+            <span>Matrículas ativas na plataforma: <strong className="text-text-primary">{totalAccesses}</strong></span>
             <span className="text-accent-emerald-bright font-semibold">100% Operacional</span>
           </div>
         </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Course, Category, Instructor, CourseStatus, CourseModule } from '../../types';
+import { Course, Category, Instructor, CourseStatus, CourseModule, CourseFinalExam } from '../../types';
 import { ModuleLessonsManager } from './ModuleLessonsManager';
+import { ModuleQuizManager } from './ModuleQuizManager';
+import { CourseExamEditor } from './CourseExamEditor';
 import { INITIAL_INSTRUCTORS } from '../../data/usersData';
 import { uploadImageToServer } from '../../lib/platformSyncClient';
 
@@ -39,9 +41,52 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
 }) => {
   if (!isOpen || !course) return null;
 
-  // Step 1: Dados Gerais, Capa, Banner, Descrição & Ementa
-  // Step 2: Módulos & Gestão Completa de Aulas
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  // Step 1: Dados Gerais | Step 2: Módulos & Aulas | Step 3: Quizzes dos Módulos | Step 4: Prova Final Obrigatória
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Stepper drag-to-scroll refs and handlers
+  const stepperRef = useRef<HTMLDivElement>(null);
+  const isMouseDownRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const [isGrabbing, setIsGrabbing] = useState(false);
+
+  const handleStepperMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!stepperRef.current) return;
+    isMouseDownRef.current = true;
+    isDraggingRef.current = false;
+    startXRef.current = e.pageX - stepperRef.current.offsetLeft;
+    scrollLeftRef.current = stepperRef.current.scrollLeft;
+  };
+
+  const handleStepperMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isMouseDownRef.current || !stepperRef.current) return;
+    const x = e.pageX - stepperRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.5;
+    if (Math.abs(x - startXRef.current) > 4) {
+      isDraggingRef.current = true;
+      setIsGrabbing(true);
+    }
+    stepperRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const handleStepperMouseUpOrLeave = () => {
+    isMouseDownRef.current = false;
+    setIsGrabbing(false);
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 60);
+  };
+
+  const handleStepClick = (stepNum: 1 | 2 | 3 | 4, customAction?: () => void) => {
+    if (isDraggingRef.current) return;
+    if (customAction) {
+      customAction();
+    } else {
+      setCurrentStep(stepNum);
+    }
+  };
 
   // Instructors list with robust fallback and auto-inclusion of current instructor
   const instructorsList = useMemo(() => {
@@ -117,6 +162,8 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
 
   // Módulos estruturados com todas as aulas cadastradas
   const [courseModules, setCourseModules] = useState<CourseModule[]>([]);
+  // Prova Final Obrigatória para Certificação
+  const [courseExam, setCourseExam] = useState<CourseFinalExam | undefined>(course.finalExam);
 
   // Sincronizar dados quando o curso selecionado abrir
   useEffect(() => {
@@ -185,6 +232,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
       setLessonsCount(synthesized.reduce((sum, m) => sum + m.lessons.length, 0));
     }
 
+    setCourseExam(course.finalExam);
     setCurrentStep(1);
   }, [course]);
 
@@ -280,7 +328,11 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
   };
 
   // Save all modifications
-  const handleSave = (forcedStatus?: CourseStatus) => {
+  const handleSave = (
+    forcedStatus?: CourseStatus,
+    modulesData?: CourseModule[],
+    examData?: CourseFinalExam
+  ) => {
     if (!title.trim()) {
       alert('O título do curso é obrigatório.');
       return;
@@ -293,7 +345,9 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
       ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       : undefined;
 
-    const totalCalculatedLessons = courseModules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const activeModules = modulesData || courseModules;
+    const totalCalculatedLessons = activeModules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const activeExam = examData !== undefined ? examData : courseExam;
 
     const isLaunch =
       isAutoLaunch ||
@@ -331,11 +385,23 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
         variant: 'emerald',
         expiresAt: expiryIso,
       },
-      filterTags: isLaunch
+      filterTags: finalStatus === 'publicado'
+        ? Array.from(new Set([
+            ...(course.filterTags || []),
+            'Com Certificação',
+            'Em alta',
+            'Novos',
+            'Lançamentos',
+            ...(isLaunch ? ['Lançamento'] : []),
+            ...(finalBadgeText ? [finalBadgeText] : []),
+          ]))
+        : isLaunch
         ? ['Novos', 'Com Certificação', 'Lançamento', 'Lançamentos', 'Em alta']
         : ['Com Certificação', ...(finalBadgeText ? [finalBadgeText] : [])],
-      syllabus: courseModules.length > 0 ? courseModules.map((m) => m.title) : syllabusModules,
-      modules: courseModules,
+      publishedAt: finalStatus === 'publicado' ? (course.publishedAt || new Date().toISOString()) : course.publishedAt,
+      syllabus: activeModules.length > 0 ? activeModules.map((m) => m.title) : syllabusModules,
+      modules: activeModules,
+      finalExam: activeExam,
       isAutoLaunchBadge: isAutoLaunch,
       videoUrl: videoUrl || undefined,
       videoFileName: videoFileName || undefined,
@@ -382,12 +448,22 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
           </div>
         </div>
 
-        {/* Step Tabs Switcher */}
-        <div className="px-4 py-2 bg-surface-overlay/80 border-b border-border-subtle flex items-center gap-2">
+        {/* Step Tabs Switcher (Arraste com o mouse ou clique) */}
+        <div
+          ref={stepperRef}
+          onMouseDown={handleStepperMouseDown}
+          onMouseMove={handleStepperMouseMove}
+          onMouseUp={handleStepperMouseUpOrLeave}
+          onMouseLeave={handleStepperMouseUpOrLeave}
+          className={`px-4 py-3 bg-surface-overlay border-b border-border-subtle flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 select-none ${
+            isGrabbing ? 'cursor-grabbing' : 'cursor-grab'
+          }`}
+          title="Clique ou arraste com o mouse para navegar pelas etapas"
+        >
           <button
             type="button"
-            onClick={() => setCurrentStep(1)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            onClick={() => handleStepClick(1)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer ${
               currentStep === 1
                 ? 'bg-primary text-on-primary shadow-xs'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
@@ -397,12 +473,12 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
             <span>1. Informações Básicas, Capa &amp; Banner</span>
           </button>
 
-          <span className="material-symbols-outlined text-text-tertiary text-sm">arrow_forward</span>
+          <span className="material-symbols-outlined text-text-tertiary text-sm shrink-0 select-none">arrow_forward</span>
 
           <button
             type="button"
-            onClick={handleProceedToModules}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            onClick={() => handleStepClick(2, handleProceedToModules)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer ${
               currentStep === 2
                 ? 'bg-primary text-on-primary shadow-xs'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
@@ -411,11 +487,68 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
             <span className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center text-[10px]">2</span>
             <span>2. Módulos &amp; Gestão de Aulas ({courseModules.reduce((acc, m) => acc + m.lessons.length, 0)} aulas)</span>
           </button>
+
+          <span className="material-symbols-outlined text-text-tertiary text-sm shrink-0 select-none">arrow_forward</span>
+
+          <button
+            type="button"
+            onClick={() => handleStepClick(3)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer ${
+              currentStep === 3
+                ? 'bg-primary text-on-primary shadow-xs'
+                : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
+            }`}
+          >
+            <span className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center text-[10px]">3</span>
+            <span>3. Quizzes dos Módulos</span>
+          </button>
+
+          <span className="material-symbols-outlined text-text-tertiary text-sm shrink-0 select-none">arrow_forward</span>
+
+          <button
+            type="button"
+            onClick={() => handleStepClick(4)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 select-none cursor-pointer ${
+              currentStep === 4
+                ? 'bg-amber-500 text-black shadow-xs font-black'
+                : 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20'
+            }`}
+          >
+            <span className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center text-[10px] font-black">4</span>
+            <span>4. Prova Final Obrigatória (80% p/ Certificado)</span>
+          </button>
         </div>
 
         {/* Modal Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {currentStep === 2 ? (
+          {currentStep === 4 ? (
+            /* STEP 4: PROVA FINAL OBRIGATÓRIA */
+            <CourseExamEditor
+              courseTitle={title || course.title}
+              initialExam={courseExam}
+              onBackToQuizzes={() => setCurrentStep(3)}
+              onSaveDraft={(exam) => {
+                setCourseExam(exam);
+                handleSave('rascunho', courseModules, exam);
+              }}
+              onPublishExam={(exam) => {
+                setCourseExam(exam);
+                handleSave('publicado', courseModules, exam);
+              }}
+            />
+          ) : currentStep === 3 ? (
+            /* STEP 3: QUIZZES DOS MÓDULOS */
+            <ModuleQuizManager
+              courseTitle={title || course.title}
+              modules={courseModules}
+              onChangeModules={(mods) => setCourseModules(mods)}
+              onBackToLessons={() => setCurrentStep(2)}
+              onSaveDraft={() => handleSave('rascunho')}
+              onPublishCourse={() => handleSave('publicado')}
+              onProceedToExam={() => setCurrentStep(4)}
+              onProceedToFinalExam={() => setCurrentStep(4)}
+            />
+          ) : currentStep === 2 ? (
             /* STEP 2: GERENCIAMENTO DE MÓDULOS E AULAS */
             <ModuleLessonsManager
               courseTitle={title}
@@ -426,7 +559,8 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
               }}
               onBackToBasicInfo={() => setCurrentStep(1)}
               onSaveDraft={() => handleSave('rascunho')}
-              onProceedToQuizzes={() => handleSave('publicado')}
+              onPublishCourse={() => handleSave('publicado')}
+              onProceedToQuizzes={() => setCurrentStep(3)}
             />
           ) : (
             /* STEP 1: DADOS GERAIS, CAPA, BANNER, DESCRIÇÃO */

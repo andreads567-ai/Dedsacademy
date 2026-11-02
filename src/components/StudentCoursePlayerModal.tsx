@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Course, CourseModule, Lesson, LessonAttachment, LessonQuiz, CourseReview, StudentProgress, UserAccount } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
+import { InteractiveNoticeBox } from './admin/WordLikeEditor';
 
 interface StudentCoursePlayerModalProps {
   course: Course | null;
@@ -10,7 +11,7 @@ interface StudentCoursePlayerModalProps {
   progress?: StudentProgress;
   currentUser?: UserAccount | null;
   onSubmitReview?: (review: CourseReview) => void;
-  onOpenCertificateModal?: () => void;
+  onOpenCertificateModal?: (code?: string) => void;
 }
 
 export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> = ({
@@ -144,8 +145,20 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
   const [reviewSubmittedSuccess, setReviewSubmittedSuccess] = useState(false);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
 
-  // Check if current lesson has a real video
-  const hasVideo = Boolean(currentLesson?.videoUrl && currentLesson.videoUrl.trim() !== '');
+  const [activeModalVideoIndex, setActiveModalVideoIndex] = useState(0);
+
+  // Check if current lesson has real video(s)
+  const modalVideoUrls = useMemo(() => {
+    if (currentLesson?.videoUrls && currentLesson.videoUrls.length > 0) {
+      return currentLesson.videoUrls.filter((u) => u && u.trim());
+    }
+    return currentLesson?.videoUrl && currentLesson.videoUrl.trim() !== ''
+      ? [currentLesson.videoUrl]
+      : [];
+  }, [currentLesson]);
+
+  const hasVideo = modalVideoUrls.length > 0;
+  const currentModalVideoUrl = modalVideoUrls[activeModalVideoIndex] || modalVideoUrls[0] || '';
   const isCurrentLessonCompleted = currentLesson ? completedLessonIds.includes(currentLesson.id) : false;
 
   // Reset states when switching lessons
@@ -153,6 +166,7 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizResult(null);
+    setActiveModalVideoIndex(0);
 
     // If already completed or has video, scroll requirement is waived
     if (isCurrentLessonCompleted || hasVideo) {
@@ -624,33 +638,59 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
            ======================================================================= */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 flex flex-col justify-between bg-[#0B0F19]">
           <div className="space-y-6 max-w-5xl mx-auto w-full">
-            {/* REPRODUTOR DE VÍDEO (Exibido APENAS se houver videoUrl preenchida) */}
+            {/* REPRODUTOR DE VÍDEO (Exibido APENAS se houver vídeo cadastrado) */}
             {hasVideo ? (
-              <div className="relative bg-black rounded-2xl overflow-hidden border border-white/10 aspect-video flex items-center justify-center shadow-2xl">
-                {currentLesson?.videoUrl?.includes('youtube.com') || currentLesson?.videoUrl?.includes('youtu.be') ? (
-                  <iframe
-                    src={
-                      currentLesson.videoUrl.includes('watch?v=')
-                        ? currentLesson.videoUrl.replace('watch?v=', 'embed/')
-                        : currentLesson.videoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                    }
-                    title={currentLesson.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <video
-                    key={currentLesson?.videoUrl}
-                    src={currentLesson?.videoUrl}
-                    controls
-                    autoPlay={false}
-                    poster={currentLesson?.imageUrl || course.image}
-                    className="w-full h-full object-contain"
-                  >
-                    Seu navegador não suporta a reprodução deste vídeo.
-                  </video>
+              <div className="space-y-2">
+                {modalVideoUrls.length > 1 && (
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">video_library</span>
+                      <span>Vídeos Disponíveis:</span>
+                    </span>
+                    {modalVideoUrls.map((_, vIdx) => (
+                      <button
+                        key={vIdx}
+                        type="button"
+                        onClick={() => setActiveModalVideoIndex(vIdx)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeModalVideoIndex === vIdx
+                            ? 'bg-primary text-black font-extrabold shadow-xs'
+                            : 'bg-white/10 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        {vIdx === 0 ? 'Vídeo 1: Principal' : `Vídeo ${vIdx + 1}`}
+                      </button>
+                    ))}
+                  </div>
                 )}
+
+                <div className="relative bg-black rounded-2xl overflow-hidden border border-white/10 aspect-video flex items-center justify-center shadow-2xl">
+                  {currentModalVideoUrl?.includes('youtube.com') || currentModalVideoUrl?.includes('youtu.be') ? (
+                    <iframe
+                      key={currentModalVideoUrl}
+                      src={
+                        currentModalVideoUrl.includes('watch?v=')
+                          ? currentModalVideoUrl.replace('watch?v=', 'embed/')
+                          : currentModalVideoUrl.replace('youtu.be/', 'youtube.com/embed/')
+                      }
+                      title={currentLesson?.title}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      key={currentModalVideoUrl}
+                      src={currentModalVideoUrl}
+                      controls
+                      autoPlay={false}
+                      poster={currentLesson?.imageUrl || course.image}
+                      className="w-full h-full object-contain"
+                    >
+                      Seu navegador não suporta a reprodução deste vídeo.
+                    </video>
+                  )}
+                </div>
               </div>
             ) : null}
 
@@ -706,9 +746,56 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
                     </span>
                   </div>
 
-                  <div className="prose prose-invert max-w-none space-y-4 whitespace-pre-line text-slate-300">
-                    {currentLesson?.description ||
-                      `Bem-vindo(a) à aula teórica "${currentLesson?.title}".\n\nNeste tópico fundamental, exploramos conceitos teóricos consolidados, arquitetura de soluções, padrões de projeto e diretrizes práticas recomendadas para o mercado profissional contemporâneo.\n\nDedique atenção especial aos tópicos aprofundados, pois os conhecimentos abordados aqui formam a base para as próximas etapas sequenciais da formação.`}
+                  <div className="prose prose-invert max-w-none text-slate-300">
+                    {(() => {
+                      const desc = currentLesson?.description ||
+                        `Bem-vindo(a) à aula teórica "${currentLesson?.title}".\n\nNeste tópico fundamental, exploramos conceitos teóricos consolidados, arquitetura de soluções, padrões de projeto e diretrizes práticas recomendadas para o mercado profissional contemporâneo.\n\nDedique atenção especial aos tópicos aprofundados, pois os conhecimentos abordados aqui formam a base para as próximas etapas sequenciais da formação.`;
+
+                      if (!desc.includes('deds-alert-box')) {
+                        return <div className="whitespace-pre-line">{desc}</div>;
+                      }
+
+                      const parts = desc.split(/(<div class="deds-alert-box"[\s\S]*?<\/div>)/gi);
+                      return (
+                        <div className="space-y-4 not-prose">
+                          {parts.map((part, pIdx) => {
+                            if (part.includes('class="deds-alert-box"')) {
+                              const titleMatch = part.match(/data-title="([^"]*)"/);
+                              const timerMatch = part.match(/data-timer="([^"]*)"/);
+                              const bgMatch = part.match(/data-bg="([^"]*)"/);
+                              const colorMatch = part.match(/data-color="([^"]*)"/);
+                              const borderMatch = part.match(/data-border="([^"]*)"/);
+                              const iconMatch = part.match(/data-icon="([^"]*)"/);
+                              const cleanMessage = part
+                                .replace(/^<div[^>]*>/, '')
+                                .replace(/<\/div>$/, '')
+                                .replace(/<strong>.*?<\/strong>/, '')
+                                .replace(/<p>/g, '')
+                                .replace(/<\/p>/g, '\n')
+                                .trim();
+
+                              return (
+                                <InteractiveNoticeBox
+                                  key={pIdx}
+                                  title={titleMatch ? titleMatch[1] : 'AVISO'}
+                                  message={cleanMessage}
+                                  bgColor={bgMatch ? bgMatch[1] : '#1E293B'}
+                                  textColor={colorMatch ? colorMatch[1] : '#FEF3C7'}
+                                  borderColor={borderMatch ? borderMatch[1] : '#F59E0B'}
+                                  timerSeconds={timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0}
+                                  icon={iconMatch ? iconMatch[1] : '⚠️'}
+                                />
+                              );
+                            }
+                            return part.trim() ? (
+                              <div key={pIdx} className="whitespace-pre-line leading-relaxed text-slate-300">
+                                {part}
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Destaque / Conclusão da Leitura */}
@@ -1126,6 +1213,7 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
                     onClick={async () => {
                       setIsGeneratingCertificate(true);
                       try {
+                        const activeCnpj = (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null) || '45.678.901/0001-23';
                         await downloadCertificatePdf({
                           studentName: currentUser?.certificateData?.customName || currentUser?.name || 'Aluno Deds Academy',
                           studentCpf: currentUser?.certificateData?.customCpf || currentUser?.cpf || '384.920.118-04',
@@ -1136,6 +1224,7 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
                           issueDate: new Date().toLocaleDateString('pt-BR'),
                           code: `DA-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
                           instructor: course.instructor,
+                          institutionCnpj: activeCnpj,
                         });
                       } catch (err) {
                         console.error('Erro ao baixar certificado PDF:', err);

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { getPlatformUsers, upsertPlatformUser } from './platformSyncHandler';
 
 export interface StripeWebhookResult {
   success: boolean;
@@ -10,7 +10,7 @@ export interface StripeWebhookResult {
 
 /**
  * Processes incoming Stripe webhook events (checkout.session.completed, charge.succeeded, etc.)
- * Automatically enrolls the student and updates database records.
+ * Automatically enrolls the student and updates database records in Hostinger local store.
  */
 export async function processStripeWebhook(eventPayload: any): Promise<StripeWebhookResult> {
   const eventType = eventPayload?.type;
@@ -54,48 +54,41 @@ export async function processStripeWebhook(eventPayload: any): Promise<StripeWeb
 
     const normalizedEmail = customerEmail.trim().toLowerCase();
 
-    // Persist to Supabase if database connection is active
+    // Persiste no armazenamento central do servidor Hostinger (platform-store.json)
     try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', normalizedEmail)
-        .maybeSingle();
+      const users = getPlatformUsers();
+      const existingUser = users.find((u: any) => u.email?.trim().toLowerCase() === normalizedEmail);
 
       if (existingUser) {
-        const currentEnrolled = (existingUser.enrolled_course_ids as string[]) || [];
+        const currentEnrolled = (existingUser.enrolledCourseIds as string[]) || (existingUser.enrolled_course_ids as string[]) || [];
         const updatedEnrolled = Array.from(new Set([...currentEnrolled, ...courseIds]));
 
-        await supabase
-          .from('users')
-          .update({
-            enrolled_course_ids: updatedEnrolled,
-            status: 'ativo',
-            name: existingUser.name || customerName,
-            cpf: existingUser.cpf || studentCpf || null,
-          })
-          .eq('id', existingUser.id);
+        existingUser.enrolledCourseIds = updatedEnrolled;
+        existingUser.status = 'ativo';
+        if (!existingUser.name && customerName) existingUser.name = customerName;
+        if (!existingUser.cpf && studentCpf) existingUser.cpf = studentCpf;
 
+        upsertPlatformUser(existingUser);
         console.log(`[Stripe Webhook] Aluno existente ${normalizedEmail} matriculado nos cursos:`, courseIds);
       } else {
         const newUserId = `user-aluno-${Date.now()}`;
-        await supabase.from('users').insert({
+        const newUser = {
           id: newUserId,
           email: normalizedEmail,
           name: customerName,
           role: 'aluno',
           status: 'ativo',
           cpf: studentCpf || null,
-          student_code: `ALU-${Math.floor(1000 + Math.random() * 9000)}`,
-          registered_at: new Date().toISOString().split('T')[0],
-          enrolled_course_ids: courseIds,
-          completed_course_ids: [],
-        });
-
-        console.log(`[Stripe Webhook] Novo aluno cadastrado e matriculado com sucesso: ${normalizedEmail}`);
+          studentCode: `ALU-${Math.floor(1000 + Math.random() * 9000)}`,
+          registeredAt: new Date().toISOString().split('T')[0],
+          enrolledCourseIds: courseIds,
+          completedCourseIds: [],
+        };
+        upsertPlatformUser(newUser);
+        console.log(`[Stripe Webhook] Novo aluno cadastrado e matriculado com sucesso no Hostinger: ${normalizedEmail}`);
       }
-    } catch (dbErr) {
-      console.warn('[Stripe Webhook] Supabase indisponível, processamento concluído:', dbErr);
+    } catch (storeErr) {
+      console.warn('[Stripe Webhook] Erro ao sincronizar aluno no Hostinger store:', storeErr);
     }
 
     return {

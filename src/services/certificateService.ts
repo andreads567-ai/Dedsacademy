@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabaseClient';
 import type { CertificateItem, UserAccount } from '../types';
 
 export const DEDS_CERTIFICATES_STORAGE_KEY = 'deds_certificates_list';
@@ -48,6 +47,92 @@ export function generateSequentialCertificateCode(
 }
 
 /**
+ * Gera um código alfanumérico aleatório único e sem duplicidade.
+ * Padrão do gerador oficial: DA{ANO}-{LETRA}{2_DIGITOS}-{3_DIGITOS} (ex: DA2026-C65-728)
+ */
+export function generateUniqueRandomCertificateCode(
+  existingCertificates: CertificateItem[] = [],
+  customYear?: number
+): string {
+  const currentYear = customYear || new Date().getFullYear();
+  const existingSet = new Set<string>();
+
+  // Coleta códigos existentes passados por parâmetro
+  existingCertificates.forEach((cert) => {
+    if (cert?.code) {
+      existingSet.add(cert.code.trim().toUpperCase());
+    }
+  });
+
+  // Coleta também códigos salvos em cache local no navegador
+  try {
+    const saved = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
+    if (saved) {
+      const parsed: CertificateItem[] = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((c) => {
+          if (c?.code) {
+            existingSet.add(c.code.trim().toUpperCase());
+          }
+        });
+      }
+    }
+  } catch (e) {
+    // Ignora restrições de localStorage
+  }
+
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let candidate = '';
+  let attempts = 0;
+
+  do {
+    const letter = chars.charAt(Math.floor(Math.random() * chars.length));
+    const mid = String(Math.floor(Math.random() * 90 + 10)); // 2 dígitos (10 a 99)
+    const end = String(Math.floor(Math.random() * 900 + 100)); // 3 dígitos (100 a 999)
+    candidate = `DA${currentYear}-${letter}${mid}-${end}`;
+    attempts++;
+  } while (existingSet.has(candidate) && attempts < 1000);
+
+  return candidate;
+}
+
+/**
+ * Verifica se um código de certificado já existe na lista ou no cache local,
+ * desconsiderando o próprio certificado caso fornecido seu ID.
+ */
+export function isCertificateCodeDuplicate(
+  code: string,
+  existingCertificates: CertificateItem[] = [],
+  currentCertId?: string
+): boolean {
+  if (!code || !code.trim()) return false;
+  const clean = code.trim().toUpperCase();
+
+  const inExisting = existingCertificates.some((cert) => {
+    if (!cert || !cert.code) return false;
+    if (currentCertId && cert.id === currentCertId) return false;
+    return cert.code.trim().toUpperCase() === clean;
+  });
+  if (inExisting) return true;
+
+  try {
+    const saved = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
+    if (saved) {
+      const parsed: CertificateItem[] = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.some((cert) => {
+          if (!cert || !cert.code) return false;
+          if (currentCertId && cert.id === currentCertId) return false;
+          return cert.code.trim().toUpperCase() === clean;
+        });
+      }
+    }
+  } catch (e) {}
+
+  return false;
+}
+
+/**
  * Converte CertificateItem para formato de linha do Supabase
  */
 export function certificateToRow(cert: CertificateItem) {
@@ -68,6 +153,7 @@ export function certificateToRow(cert: CertificateItem) {
     cancellation_reason: cert.cancellationReason ?? null,
     metadata: {
       cancelledAt: cert.cancelledAt ?? null,
+      institutionCnpj: cert.institutionCnpj ?? null,
     },
   };
 }
@@ -76,6 +162,8 @@ export function certificateToRow(cert: CertificateItem) {
  * Converte linha do banco para CertificateItem
  */
 export function rowToCertificate(row: Record<string, any>): CertificateItem {
+  const rowCnpj = row.institution_cnpj ?? row.metadata?.institutionCnpj ?? undefined;
+  const activeSavedCnpj = typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : undefined;
   return {
     id: row.id,
     code: row.code,
@@ -92,99 +180,104 @@ export function rowToCertificate(row: Record<string, any>): CertificateItem {
     status: (row.status as 'valido' | 'cancelado') ?? 'valido',
     cancellationReason: row.cancellation_reason ?? undefined,
     cancelledAt: row.metadata?.cancelledAt ?? undefined,
+    institutionCnpj:
+      (activeSavedCnpj && activeSavedCnpj.trim()) ||
+      (rowCnpj && rowCnpj !== '45.678.901/0001-23' ? rowCnpj : undefined) ||
+      rowCnpj ||
+      undefined,
   };
 }
 
 /**
- * Busca todos os certificados persistidos no Supabase
+ * Busca todos os certificados persistidos no servidor Hostinger e cache local
  */
 export async function fetchCertificatesFromDB(): Promise<CertificateItem[] | null> {
   try {
-    const { data, error } = await supabase
-      .from('certificates')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      // Se tabela ainda não foi criada, registra aviso discreto
-      console.warn('[Supabase] fetchCertificates avisou:', error.message);
-      return null;
+    const res = await fetch('/api/platform-sync', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.certificates)) {
+        return data.certificates;
+      }
     }
-
-    if (!data) return null;
-    return data.map(rowToCertificate);
   } catch (err) {
-    console.warn('[Supabase] Erro ao consultar certificados:', err);
-    return null;
+    console.info('[CertificateService] Servidor offline ou inicializando, usando cache local:', err);
   }
+
+  // Fallback cache local
+  try {
+    const localSaved = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
+    if (localSaved) {
+      return JSON.parse(localSaved);
+    }
+  } catch {}
+
+  return null;
 }
 
 /**
- * Salva ou atualiza um certificado no Supabase e sincroniza no localStorage
+ * Salva ou atualiza um certificado no Servidor Hostinger e sincroniza no localStorage
  */
 export async function saveCertificateToDB(
   certificate: CertificateItem,
   studentUser?: UserAccount
 ): Promise<{ success: boolean; certificate: CertificateItem; error?: string }> {
   try {
-    // 1. Tenta salvar na tabela dedicada 'certificates'
-    const row = certificateToRow(certificate);
-    const { error: certError } = await supabase
-      .from('certificates')
-      .upsert(row, { onConflict: 'id' });
-
-    if (certError) {
-      console.warn('[Supabase] Aviso ao gravar na tabela certificates (usando fallback seguro):', certError.message);
-    }
-
-    // 2. Se o aluno foi fornecido ou temos seu ID, atualiza cursos concluídos no perfil do usuário
-    if (studentUser || certificate.studentId) {
-      const studentId = studentUser?.id || certificate.studentId;
-      try {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', studentId)
-          .maybeSingle();
-
-        if (userData) {
-          const currentCompleted: string[] = userData.completed_course_ids || [];
-          if (!currentCompleted.includes(certificate.courseId)) {
-            await supabase
-              .from('users')
-              .update({
-                completed_course_ids: [...currentCompleted, certificate.courseId],
-              })
-              .eq('id', studentId);
-          }
-        }
-      } catch (userSyncErr) {
-        console.warn('[Supabase] Sincronização de usuário concluído avisou:', userSyncErr);
-      }
-    }
-
-    // 3. Persistência de redundância no localStorage para resiliência offline
+    // 1. Persistência imediata no localStorage para resiliência instantânea
+    let updatedList: CertificateItem[] = [];
     try {
       const localSaved = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
       const list: CertificateItem[] = localSaved ? JSON.parse(localSaved) : [];
-      const updatedList = [
+      updatedList = [
         certificate,
         ...list.filter((c) => c.id !== certificate.id && c.code !== certificate.code),
       ];
       localStorage.setItem(DEDS_CERTIFICATES_STORAGE_KEY, JSON.stringify(updatedList));
+      if (certificate.institutionCnpj && certificate.institutionCnpj.trim()) {
+        localStorage.setItem('deds_institution_cnpj', certificate.institutionCnpj.trim());
+      }
     } catch (e) {
-      console.error('Falha ao salvar no localStorage:', e);
+      console.warn('Falha ao salvar no localStorage:', e);
+    }
+
+    // 2. Se studentUser fornecido, atualiza lista de cursos concluídos no localStorage
+    if (studentUser && certificate.courseId) {
+      try {
+        const usersRaw = localStorage.getItem('deds_users_list');
+        if (usersRaw) {
+          const users: UserAccount[] = JSON.parse(usersRaw);
+          const uIdx = users.findIndex((u) => u.id === studentUser.id);
+          if (uIdx >= 0) {
+            const completed = users[uIdx].completedCourseIds || [];
+            if (!completed.includes(certificate.courseId)) {
+              users[uIdx].completedCourseIds = [...completed, certificate.courseId];
+              localStorage.setItem('deds_users_list', JSON.stringify(users));
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Sincroniza com o servidor Hostinger
+    try {
+      await fetch('/api/platform-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'certificates', data: updatedList }),
+      });
+    } catch (netErr) {
+      console.info('[CertificateService] Sincronização em background continuará via offline cache.');
     }
 
     return { success: true, certificate };
   } catch (error: any) {
-    console.error('[Supabase saveCertificateToDB Error]', error);
+    console.error('[saveCertificateToDB Error]', error);
     return { success: false, certificate, error: error.message || 'Erro ao salvar certificado' };
   }
 }
 
 /**
- * Consulta a autenticidade de um código no banco de dados
+ * Consulta a autenticidade de um código no banco de dados com tolerância a formatação
  */
 export async function validateCertificateInDB(
   code: string,
@@ -196,43 +289,78 @@ export async function validateCertificateInDB(
   reason?: string;
 }> {
   const cleanCode = code.trim().toUpperCase().replace('#', '');
+  const alphaCode = cleanCode.replace(/[^A-Z0-9]/g, '');
 
-  // 1. Consulta no Supabase
+  // 1. Consulta no endpoint de validação oficial do servidor Hostinger
   try {
-    const { data, error } = await supabase
-      .from('certificates')
-      .select('*')
-      .ilike('code', cleanCode)
-      .maybeSingle();
-
-    if (!error && data) {
-      const cert = rowToCertificate(data);
-      if (cert.status === 'cancelado') {
-        return {
-          valid: false,
-          status: 'cancelled',
-          certificate: cert,
-          reason: cert.cancellationReason || 'Certificado revogado pela administração acadêmica.',
-        };
+    const res = await fetch(`/api/validate-certificate?code=${encodeURIComponent(cleanCode)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.certificate) {
+        const cert = data.certificate;
+        if (cert.status === 'cancelado') {
+          return {
+            valid: false,
+            status: 'cancelled',
+            certificate: cert,
+            reason: cert.cancellationReason || 'Certificado revogado pela administração acadêmica.',
+          };
+        }
+        return { valid: true, status: 'valid', certificate: cert };
       }
-      return { valid: true, status: 'valid', certificate: cert };
     }
-  } catch (dbErr) {
-    console.warn('[Supabase] Falha ao consultar código online, buscando em cache local:', dbErr);
+  } catch (apiErr) {
+    console.info('[CertificateService] Servidor offline ou indisponível, validando via cache local:', apiErr);
   }
 
-  // 2. Consulta no cache local de certificados
-  const found = localList.find((c) => c.code.trim().toUpperCase().replace('#', '') === cleanCode);
+  // 2. Consulta no cache local e sempre verifica o localStorage atualizado (onde o ADM salva)
+  let allLocal: CertificateItem[] = [];
+  try {
+    const saved = localStorage.getItem(DEDS_CERTIFICATES_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) allLocal.push(...parsed);
+    }
+  } catch {}
+
+  localList.forEach((c) => {
+    if (!allLocal.some((exist) => exist.id === c.id || exist.code.toUpperCase() === c.code.toUpperCase())) {
+      allLocal.push(c);
+    }
+  });
+
+  const searchDigits = code.replace(/\D/g, '');
+
+  const found = allLocal.find((c) => {
+    const cClean = c.code.trim().toUpperCase().replace('#', '');
+    const cAlpha = cClean.replace(/[^A-Z0-9]/g, '');
+    const cCpfDigits = (c.studentCpf || '').replace(/\D/g, '');
+    return (
+      cClean === cleanCode ||
+      (alphaCode.length >= 4 && cAlpha === alphaCode) ||
+      (searchDigits.length >= 8 && cCpfDigits === searchDigits)
+    );
+  });
+
   if (found) {
+    const activeSavedCnpj = typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : undefined;
+    const finalFound: CertificateItem = {
+      ...found,
+      institutionCnpj:
+        (activeSavedCnpj && activeSavedCnpj.trim()) ||
+        (found.institutionCnpj && found.institutionCnpj !== '45.678.901/0001-23' ? found.institutionCnpj : undefined) ||
+        found.institutionCnpj ||
+        '45.678.901/0001-23',
+    };
     if (found.status === 'cancelado') {
       return {
         valid: false,
         status: 'cancelled',
-        certificate: found,
+        certificate: finalFound,
         reason: found.cancellationReason || 'Certificado revogado pela administração acadêmica.',
       };
     }
-    return { valid: true, status: 'valid', certificate: found };
+    return { valid: true, status: 'valid', certificate: finalFound };
   }
 
   return { valid: false, status: 'invalid', reason: 'Código de certificado não encontrado nos registros oficiais.' };

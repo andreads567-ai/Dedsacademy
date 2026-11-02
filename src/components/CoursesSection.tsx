@@ -22,7 +22,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
   addedCourseIds,
   onOpenCatalog,
 }) => {
-  const filterOptions = ['Em alta', 'Mais vendidos', 'Lançamentos', 'Com Certificação'];
+  const filterOptions = ['Todos', 'Em alta', 'Mais vendidos', 'Lançamentos', 'Com Certificação'];
 
   const filteredCourses = activeFilter === 'Todos'
     ? courses
@@ -53,7 +53,11 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
           return (
             c.filterTags?.includes('Em alta') ||
             c.filterTags?.includes('Destaque') ||
-            c.rating >= 4.8
+            c.filterTags?.includes('Lançamento') ||
+            c.filterTags?.includes('Novos') ||
+            Boolean(c.isAutoLaunchBadge) ||
+            c.rating >= 4.8 ||
+            Boolean(c.publishedAt)
           );
         }
 
@@ -97,7 +101,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
               return (
                 <button
                   key={filter}
-                  onClick={() => setActiveFilter(isActive ? 'Todos' : filter)}
+                  onClick={() => setActiveFilter(isActive && filter !== 'Todos' ? 'Todos' : filter)}
                   className={`px-4 py-2 rounded-full font-label-md text-label-md font-semibold transition-all whitespace-nowrap cursor-pointer ${
                     isActive
                       ? 'bg-primary-container text-on-primary shadow-[0_0_15px_-3px_rgba(0,176,116,0.4)]'

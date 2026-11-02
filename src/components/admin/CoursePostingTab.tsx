@@ -10,6 +10,7 @@ interface CoursePostingTabProps {
   instructors: Instructor[];
   onAddCourse: (course: Course) => void;
   onNavigateToCourses: () => void;
+  onNavigateHome?: () => void;
 }
 
 const PRESET_COVERS = [
@@ -32,6 +33,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
   instructors,
   onAddCourse,
   onNavigateToCourses,
+  onNavigateHome,
 }) => {
   // Step 1: Dados Gerais & Nível | Step 2: Módulos & Gestão de Aulas (Word + Mídia) | Step 3: Quizzes dos Módulos | Step 4: Prova Final Obrigatória
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -270,9 +272,15 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
         variant: 'emerald',
         expiresAt: expiryIso,
       },
-      filterTags: (isAutoLaunch || category.toLowerCase().includes('lançamento') || finalBadgeText.toLowerCase().includes('lançamento'))
-        ? ['Novos', 'Com Certificação', 'Lançamento', 'Lançamentos', 'Em alta']
-        : ['Com Certificação', ...(finalBadgeText ? [finalBadgeText] : [])],
+      filterTags: Array.from(new Set([
+        'Com Certificação',
+        'Em alta',
+        'Novos',
+        'Lançamentos',
+        'Lançamento',
+        ...(finalBadgeText ? [finalBadgeText] : []),
+        ...(category ? [category] : []),
+      ])),
       description: description.trim(),
       syllabus: activeModules && activeModules.length > 0
         ? activeModules.map((m) => m.title)
@@ -356,7 +364,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
           <p className="text-xs text-text-secondary leading-relaxed">
             {lastSavedStatus === 'rascunho' ? (
               <>
-                O curso <strong className="text-text-primary">"{title}"</strong> foi salvo com status <span className="font-bold text-sky-400">Rascunho (azul claro)</span>. Ele está disponível na gestão de cursos para edições antes de ir à vitrine.
+                O curso <strong className="text-text-primary">"{title}"</strong> foi salvo com status <span className="font-bold text-sky-400">Rascunho</span>. Ele está disponível na gestão de cursos para edições antes de ir à vitrine.
               </>
             ) : (
               <>
@@ -364,7 +372,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
               </>
             )}
           </p>
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button
               onClick={handleResetForm}
               className="px-4 py-2.5 rounded-xl bg-surface-overlay text-text-secondary hover:text-text-primary text-xs font-bold cursor-pointer"
@@ -381,11 +389,21 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
             >
               Ver na Gestão de Cursos
             </button>
+            {lastSavedStatus === 'publicado' && onNavigateHome && (
+              <button
+                type="button"
+                onClick={onNavigateHome}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-accent-emerald-bright hover:bg-emerald-400 text-black shadow-md cursor-pointer transition-all flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm font-bold">home</span>
+                <span>Ver na Home (Vitrine)</span>
+              </button>
+            )}
           </div>
         </div>
       ) : currentStep === 4 ? (
         <div className="space-y-6">
-          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto">
+          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
@@ -441,7 +459,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
         </div>
       ) : currentStep === 3 ? (
         <div className="space-y-6">
-          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto">
+          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
@@ -491,6 +509,11 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onSaveDraft={() => handleSubmit(undefined, 'rascunho', courseModules)}
+            onPublishCourse={() => handleSubmit(undefined, 'publicado', courseModules)}
+            onProceedToExam={() => {
+              setCurrentStep(4);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             onProceedToFinalExam={() => {
               setCurrentStep(4);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -500,7 +523,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
       ) : currentStep === 2 ? (
         <div className="space-y-6">
           {/* Stepper Navigation Indicator */}
-          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto">
+          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
@@ -558,6 +581,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
             onChangeModules={(mods) => setCourseModules(mods)}
             onBackToBasicInfo={() => setCurrentStep(1)}
             onSaveDraft={() => handleSubmit(undefined, 'rascunho', courseModules)}
+            onPublishCourse={() => handleSubmit(undefined, 'publicado', courseModules)}
             onProceedToQuizzes={() => {
               setCurrentStep(3);
               window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -567,7 +591,7 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
       ) : (
         <div className="space-y-6">
           {/* Stepper Navigation Indicator */}
-          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto">
+          <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-surface-raised border border-border-subtle rounded-2xl overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setCurrentStep(1)}
@@ -1368,34 +1392,44 @@ export const CoursePostingTab: React.FC<CoursePostingTabProps> = ({
                     onChange={(e) => setStatus(e.target.value as CourseStatus)}
                     className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-sm text-text-primary outline-none focus:border-primary cursor-pointer"
                   >
-                    <option value="publicado">● Publicado (verde escuro)</option>
-                    <option value="rascunho">● Rascunho (azul claro)</option>
-                    <option value="inativo">● Inativo (laranja)</option>
-                    <option value="previsto">● Previsto (amarelo)</option>
+                    <option value="publicado">● Publicado</option>
+                    <option value="rascunho">● Rascunho</option>
+                    <option value="inativo">● Inativo</option>
+                    <option value="previsto">● Previsto</option>
                   </select>
                 </div>
 
-                {/* Action Buttons: Rascunho (Light Blue) and Prosseguir (Green) side-by-side */}
+                {/* Action Buttons: Publicar Agora (destaque), Rascunho, and Configurar Aulas */}
                 <div className="pt-3 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e, status || 'publicado')}
+                    className="w-full py-3.5 px-4 mb-2.5 rounded-xl bg-accent-emerald-bright hover:bg-emerald-400 active:bg-emerald-600 text-black text-sm font-black shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    title="Publicar Curso Imediatamente na Home e no Catálogo"
+                  >
+                    <span className="material-symbols-outlined text-xl font-bold">rocket_launch</span>
+                    <span>Salvar &amp; Publicar Curso Agora</span>
+                  </button>
+
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={(e) => handleSubmit(e, 'rascunho')}
-                      className="py-3.5 px-3 rounded-xl bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      title="Salvar como Rascunho (azul claro)"
+                      className="py-3 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 border border-sky-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Salvar como Rascunho (não visível publicamente na Home)"
                     >
-                      <span className="material-symbols-outlined text-lg">draft</span>
-                      <span>Rascunho</span>
+                      <span className="material-symbols-outlined text-base">draft</span>
+                      <span>Salvar Rascunho</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={handleProceedToModules}
-                      className="py-3.5 px-3 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      title="Prosseguir para listar módulos programáticos e cadastrar aulas"
+                      className="py-3 px-3 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-text-primary text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Prosseguir para detalhamento de módulos programáticos e aulas"
                     >
-                      <span className="material-symbols-outlined text-lg">arrow_forward</span>
-                      <span>Prosseguir</span>
+                      <span>Configurar Aulas</span>
+                      <span className="material-symbols-outlined text-base">arrow_forward</span>
                     </button>
                   </div>
                 </div>

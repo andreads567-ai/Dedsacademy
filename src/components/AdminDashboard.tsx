@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig, StudentProgress } from '../types';
+import { Course, UserAccount, Category, Instructor, BlogPost, CertificateItem, AdminTab, CourseStatus, CourseReview, SupportTicket, Coupon, PromotionalCampaign, HeroBannerConfig, MiddlePromoBannerConfig, CheckoutPaymentBannerConfig, StudentBannersConfig, StudentProgress } from '../types';
 import { CATEGORIES } from '../data/coursesData';
 import { INITIAL_INSTRUCTORS, INITIAL_BLOG_POSTS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_SUPPORT_TICKETS } from '../data/usersData';
 import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from '../data/promotionsData';
@@ -48,6 +48,8 @@ interface AdminDashboardProps {
   onUpdateMiddleBannerConfig?: (config: MiddlePromoBannerConfig) => void;
   checkoutBannerConfig?: CheckoutPaymentBannerConfig;
   onUpdateCheckoutBannerConfig?: (config: CheckoutPaymentBannerConfig) => void;
+  studentBannersConfig?: StudentBannersConfig;
+  onUpdateStudentBannersConfig?: (config: StudentBannersConfig) => void;
   onAddCourse: (course: Course) => void;
   onUpdateCourse: (course: Course) => void;
   onDeleteCourse: (courseId: string) => void;
@@ -58,6 +60,7 @@ interface AdminDashboardProps {
   onIssueCertificate?: (certificate: CertificateItem) => void;
   onCancelCertificate?: (certId: string, reason?: string) => void;
   onLogout: () => void;
+  onNavigateHome?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -86,6 +89,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   checkoutBannerConfig,
   onUpdateInstructors,
   onUpdateCheckoutBannerConfig,
+  studentBannersConfig,
+  onUpdateStudentBannersConfig,
   onAddCourse,
   onUpdateCourse,
   onDeleteCourse,
@@ -95,6 +100,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onIssueCertificate,
   onCancelCertificate,
   onLogout,
+  onNavigateHome,
 }) => {
   // Navigation: 10 options strictly requested by the user
   const [activeTab, setActiveTab] = useState<AdminTab>('visao-geral');
@@ -124,6 +130,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setCertificatesList(initialCertificates);
     }
   }, [initialCertificates]);
+  const [quickIssueStudent, setQuickIssueStudent] = useState<UserAccount | null>(null);
   const [reviewsList, setReviewsList] = useState<CourseReview[]>(() => {
     if (reviews && reviews.length > 0) return reviews;
     try {
@@ -244,15 +251,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [announcements, setAnnouncements] = useState([
     {
       id: 'ann-1',
-      title: 'Módulo de Inteligência Artificial Generativa liberado em Python',
-      author: 'Coordenação Pedagógica',
+      title: 'MÃ³dulo de InteligÃªncia Artificial Generativa liberado em Python',
+      author: 'CoordenaÃ§Ã£o PedagÃ³gica',
       date: '14/09/2026',
       priority: 'alta',
     },
     {
       id: 'ann-2',
       title: 'Novos modelos de certificados digitais com QR Code da Lei Federal 9.394/96',
-      author: 'Gestão Acadêmica',
+      author: 'GestÃ£o AcadÃªmica',
       date: '10/09/2026',
       priority: 'normal',
     },
@@ -272,7 +279,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     image: '',
     status: 'publicado' as CourseStatus,
     description: '',
-    badgeText: 'Lançamento',
+    badgeText: 'LanÃ§amento',
   });
 
   // Category Handlers
@@ -350,7 +357,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {
         id: `ann-${Date.now()}`,
         title,
-        author: 'Coordenação Pedagógica',
+        author: 'CoordenaÃ§Ã£o PedagÃ³gica',
         date: new Date().toLocaleDateString('pt-BR'),
         priority: 'alta',
       },
@@ -360,7 +367,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Certificate Handlers
   const handleIssueCertificate = (cert: CertificateItem) => {
-    setCertificatesList((prev) => [cert, ...prev]);
+    setCertificatesList((prev) => {
+      const filtered = prev.filter((c) => c.id !== cert.id && c.code !== cert.code);
+      return [cert, ...filtered];
+    });
     if (onIssueCertificate) onIssueCertificate(cert);
   };
 
@@ -372,7 +382,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               ...c,
               status: 'cancelado',
               cancelledAt: new Date().toLocaleDateString('pt-BR'),
-              cancellationReason: reason || 'Cancelado pela administração',
+              cancellationReason: reason || 'Cancelado pela administraÃ§Ã£o',
             }
           : c
       )
@@ -380,12 +390,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (onCancelCertificate) onCancelCertificate(certId, reason);
   };
 
-  // Review Handlers (Botão 11: Avaliação de Curso)
+  // Review Handlers (BotÃ£o 11: AvaliaÃ§Ã£o de Curso)
   const handleDeleteReview = (reviewId: string) => {
     setReviewsList((prev) => prev.filter((r) => r.id !== reviewId));
   };
 
-  // Ticket Handlers (Botão 12: Tickets)
+  // Ticket Handlers (BotÃ£o 12: Tickets)
   const handleUpdateTicket = (updatedTicket: SupportTicket) => {
     setTicketsList((prev) => {
       const next = prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t));
@@ -418,22 +428,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // The 12 items as requested in precise order
   const navigationItems: { id: AdminTab; label: string; icon: string; count?: number }[] = [
-    { id: 'visao-geral', label: '1. Visão geral', icon: 'dashboard' },
-    { id: 'analise', label: '2. Análise', icon: 'insights' },
-    { id: 'postagem-cursos', label: '3. Postagem de cursos', icon: 'add_box' },
-    { id: 'gestao-curso', label: '4. Gestão de curso', icon: 'auto_stories', count: courses.length },
-    { id: 'categoria', label: '5. Categoria', icon: 'category', count: categoriesList.length },
-    { id: 'instrutores', label: '6. Instrutores', icon: 'co_present', count: instructorsList.length },
-    { id: 'gestao-aluno', label: '7. Gestão de aluno', icon: 'person_search', count: users.filter(u => u.role === 'aluno').length },
-    { id: 'usuarios', label: '8. Usuários', icon: 'manage_accounts', count: users.filter(u => u.role !== 'aluno').length },
-    { id: 'blog', label: '9. Blog & Banner Home', icon: 'article', count: blogPostsList.length },
-    { id: 'certificado', label: '10. Certificado', icon: 'verified', count: certificatesList.length },
-    { id: 'avaliacao-curso', label: '11. Avaliação de curso', icon: 'reviews', count: reviewsList.length },
-    { id: 'tickets', label: '12. Tickets', icon: 'contact_support', count: ticketsList.filter(t => t.status !== 'finalizado').length },
-    { id: 'configuracoes', label: '13. Configurações & APIs', icon: 'settings_input_composite' },
+    { id: 'visao-geral', label: 'Visão geral', icon: 'dashboard' },
+    { id: 'analise', label: 'Análise', icon: 'insights' },
+    { id: 'postagem-cursos', label: 'Postagem de cursos', icon: 'add_box' },
+    { id: 'gestao-curso', label: 'Gestão de curso', icon: 'auto_stories', count: courses.length },
+    { id: 'categoria', label: 'Categoria', icon: 'category', count: categoriesList.length },
+    { id: 'instrutores', label: 'Instrutores', icon: 'co_present', count: instructorsList.length },
+    { id: 'gestao-aluno', label: 'Gestão de aluno', icon: 'person_search', count: users.filter(u => u.role === 'aluno').length },
+    { id: 'usuarios', label: 'Usuários', icon: 'manage_accounts', count: users.filter(u => u.role !== 'aluno').length },
+    { id: 'blog', label: 'Blog & Banner Home', icon: 'article', count: blogPostsList.length },
+    { id: 'certificado', label: 'Certificado', icon: 'verified', count: certificatesList.length },
+    { id: 'avaliacao-curso', label: 'Avaliação de curso', icon: 'reviews', count: reviewsList.length },
+    { id: 'tickets', label: 'Tickets', icon: 'contact_support', count: ticketsList.filter(t => t.status !== 'finalizado').length },
+    { id: 'configuracoes', label: 'Configurações & APIs', icon: 'settings_input_composite' },
     {
       id: 'promocoes',
-      label: '14. Promoções & Cupons de Desconto',
+      label: 'Promoções & Cupons de Desconto',
       icon: 'local_offer',
       count: couponsList.filter((c) => c.status === 'ativo').length,
     },
@@ -452,12 +462,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             className="w-8 h-8 object-contain rounded-full shadow-[0_0_10px_rgba(0,192,160,0.3)] shrink-0"
           />
           <div>
-            <span className="font-bold text-sm text-text-primary block">Deds Gestão</span>
+            <span className="font-bold text-sm text-text-primary block">Deds GestÃ£o</span>
             <span className="text-[10px] text-text-tertiary">Painel Administrativo</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {onNavigateHome && (
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="p-2 rounded-xl bg-primary/10 text-primary border border-primary/25 cursor-pointer hover:bg-primary/20 transition-colors"
+              title="Ver Home Pública"
+            >
+              <span className="material-symbols-outlined text-xl">home</span>
+            </button>
+          )}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-xl bg-surface-raised border border-border-subtle text-text-secondary hover:text-text-primary cursor-pointer"
@@ -496,7 +516,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h1 className="font-bold text-sm text-text-primary tracking-tight">Deds Academy</h1>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald-bright" />
-                    <span className="text-[11px] text-text-tertiary font-medium">Gestão &amp; Controle</span>
+                    <span className="text-[11px] text-text-tertiary font-medium">GestÃ£o &amp; Controle</span>
                   </div>
                 </div>
               </div>
@@ -505,7 +525,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Navigation Menu (10 Ordered Items) */}
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-3 py-1 block">
-                Menu de Administração
+                Menu de AdministraÃ§Ã£o
               </span>
 
               {navigationItems.map((item) => {
@@ -567,7 +587,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 onClick={onLogout}
                 className="p-1.5 rounded-lg text-text-tertiary hover:text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer"
-                title="Encerrar Sessão"
+                title="Encerrar SessÃ£o"
               >
                 <span className="material-symbols-outlined text-lg">logout</span>
               </button>
@@ -592,12 +612,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-text-tertiary hidden sm:block">
-                Ambiente restrito de gestão acadêmica e operacional
+                Ambiente restrito de gestÃ£o acadÃªmica e operacional
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {onNavigateHome && (
+              <button
+                type="button"
+                onClick={onNavigateHome}
+                className="px-3.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all flex items-center gap-1.5 border border-primary/25 cursor-pointer"
+                title="Visualizar a Home pública da Deds Academy"
+              >
+                <span className="material-symbols-outlined text-base">home</span>
+                <span>Ver Site / Home</span>
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="px-3.5 py-1.5 rounded-xl bg-surface-raised hover:bg-status-danger/15 text-text-tertiary hover:text-status-danger text-xs font-bold transition-all flex items-center gap-1.5 border border-border-subtle cursor-pointer"
@@ -610,7 +641,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Content Container based on Active Tab */}
         <div className="p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">
-          {/* 1. Visão geral */}
+          {/* 1. VisÃ£o geral */}
           {activeTab === 'visao-geral' && (
             <OverviewTab
               courses={courses}
@@ -625,7 +656,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 2. Análise */}
+          {/* 2. AnÃ¡lise */}
           {activeTab === 'analise' && <AnalyticsTab courses={courses} users={users} />}
 
           {/* 3. Postagem de cursos */}
@@ -637,6 +668,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onAddCourse(c);
               }}
               onNavigateToCourses={() => setActiveTab('gestao-curso')}
+              onNavigateHome={onNavigateHome}
             />
           )}
 
@@ -652,7 +684,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onUpdateCourseStatus={(courseId, newStatus) => {
                 const targetCourse = courses.find((c) => c.id === courseId);
                 if (targetCourse) {
-                  onUpdateCourse({ ...targetCourse, status: newStatus });
+                  const updatedFilterTags = newStatus === 'publicado'
+                    ? Array.from(new Set([...(targetCourse.filterTags || []), 'Em alta', 'Lançamentos', 'Novos', 'Com Certificação']))
+                    : targetCourse.filterTags;
+                  onUpdateCourse({
+                    ...targetCourse,
+                    status: newStatus,
+                    publishedAt: newStatus === 'publicado' ? (targetCourse.publishedAt || new Date().toISOString()) : targetCourse.publishedAt,
+                    filterTags: updatedFilterTags,
+                  });
                 }
               }}
               onNavigateToPostCourse={() => setActiveTab('postagem-cursos')}
@@ -681,7 +721,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 7. Gestão de aluno */}
+          {/* 7. GestÃ£o de aluno */}
           {activeTab === 'gestao-aluno' && (
             <StudentsTab
               users={users}
@@ -689,6 +729,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onUpdateUser={onUpdateUser}
               onAddUser={onAddUser}
               onQuickIssueCertificate={(student) => {
+                setQuickIssueStudent(student);
                 setActiveTab('certificado');
               }}
               reviews={reviewsList}
@@ -696,7 +737,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 8. Usuários */}
+          {/* 8. UsuÃ¡rios */}
           {activeTab === 'usuarios' && (
             <UsersTab
               users={users}
@@ -720,6 +761,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onUpdateMiddleBannerConfig={onUpdateMiddleBannerConfig}
               checkoutBannerConfig={checkoutBannerConfig}
               onUpdateCheckoutBannerConfig={onUpdateCheckoutBannerConfig}
+              studentBannersConfig={studentBannersConfig}
+              onUpdateStudentBannersConfig={onUpdateStudentBannersConfig}
             />
           )}
 
@@ -731,10 +774,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               courses={courses}
               onIssueCertificate={handleIssueCertificate}
               onCancelCertificate={handleCancelCertificate}
+              quickIssueStudent={quickIssueStudent}
+              onClearQuickIssue={() => setQuickIssueStudent(null)}
             />
           )}
 
-          {/* 11. Avaliação de curso */}
+          {/* 11. AvaliaÃ§Ã£o de curso */}
           {activeTab === 'avaliacao-curso' && (
             <CourseReviewsTab
               reviews={reviewsList}
@@ -756,12 +801,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 13. Configurações & APIs */}
+          {/* 13. ConfiguraÃ§Ãµes & APIs */}
           {activeTab === 'configuracoes' && (
             <SettingsApiTab />
           )}
 
-          {/* 14. Promoções & Cupons de Desconto */}
+          {/* 14. PromoÃ§Ãµes & Cupons de Desconto */}
           {activeTab === 'promocoes' && (
             <PromotionsTab
               courses={courses}

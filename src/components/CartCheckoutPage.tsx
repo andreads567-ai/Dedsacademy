@@ -3,6 +3,7 @@ import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PA
 import { INITIAL_COUPONS } from '../data/promotionsData';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
 import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
+import { getStoredSupportChannels, buildWhatsAppUrl } from '../services/contactChannelsService';
 
 export interface CheckoutData {
   studentName: string;
@@ -20,6 +21,7 @@ interface CartCheckoutPageProps {
   onCheckoutSuccess: (data: CheckoutData) => void;
   currentUser: UserAccount | null;
   onOpenAuth: () => void;
+  onOpenRegister?: (initialCpf?: string) => void;
   usersList?: UserAccount[];
   checkoutBannerConfig?: CheckoutPaymentBannerConfig;
   coupons?: Coupon[];
@@ -33,6 +35,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   onCheckoutSuccess,
   currentUser,
   onOpenAuth,
+  onOpenRegister,
   usersList = [],
   checkoutBannerConfig = DEFAULT_CHECKOUT_PAYMENT_BANNER,
   coupons,
@@ -47,36 +50,65 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponDiscount, setCouponDiscount] = useState(0);
 
-  // Mandatory student form state - prefill from logged-in user if active
+  // Mandatory student form state - CPF is the only editable field, Name and Email are auto-filled
+  const [studentCpf, setStudentCpf] = useState(currentUser?.cpf || '');
   const [studentName, setStudentName] = useState(currentUser?.name || '');
   const [studentEmail, setStudentEmail] = useState(currentUser?.email || '');
-  const [studentCpf, setStudentCpf] = useState(currentUser?.cpf || '');
   const [formErrors, setFormErrors] = useState<{
     studentName?: string;
     studentEmail?: string;
     studentCpf?: string;
   }>({});
-  const [cpfNoticeMessage, setCpfNoticeMessage] = useState<string | null>(null);
-  const [isExistingAccount, setIsExistingAccount] = useState<boolean>(false);
+  const [isExistingAccount, setIsExistingAccount] = useState<boolean>(Boolean(currentUser && currentUser.status !== 'inativo'));
+
+  // Helper to locate user by 11-digit CPF (searching currentUser, props usersList, and deds_users_list fallback)
+  const findUserByCpf = (digits: string): UserAccount | null => {
+    const cleanDigits = (digits || '').replace(/\D/g, '');
+    if (cleanDigits.length < 11) return null;
+    if (currentUser && (currentUser.cpf || '').replace(/\D/g, '') === cleanDigits) {
+      return currentUser;
+    }
+    const found = usersList.find((u) => (u.cpf || '').replace(/\D/g, '') === cleanDigits);
+    if (found) return found;
+
+    try {
+      const stored = localStorage.getItem('deds_users_list');
+      if (stored) {
+        const parsed: UserAccount[] = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const storedFound = parsed.find((u) => (u.cpf || '').replace(/\D/g, '') === cleanDigits);
+          if (storedFound) return storedFound;
+        }
+      }
+    } catch {}
+
+    return null;
+  };
+
+  const cleanCpfDigits = studentCpf.replace(/\D/g, '');
 
   // Real-time check if student already has an account
   const matchedUser = useMemo(() => {
     if (currentUser) return currentUser;
-    const trimmedEmail = studentEmail.trim().toLowerCase();
-    const cleanCpfDigits = studentCpf.replace(/\D/g, '');
-    if (!trimmedEmail && cleanCpfDigits.length < 11) return null;
+    if (cleanCpfDigits.length === 11) {
+      return findUserByCpf(cleanCpfDigits);
+    }
+    return null;
+  }, [cleanCpfDigits, currentUser, usersList]);
 
-    return (
-      usersList.find((u) => {
-        const userEmail = (u.email || '').trim().toLowerCase();
-        const userCpf = (u.cpf || '').replace(/\D/g, '');
-        return (
-          (trimmedEmail && userEmail === trimmedEmail) ||
-          (cleanCpfDigits.length >= 11 && userCpf === cleanCpfDigits)
-        );
-      }) || null
-    );
-  }, [currentUser, studentEmail, studentCpf, usersList]);
+  // Derived account status flags
+  const isAccountFound = Boolean(currentUser || matchedUser);
+  const isAccountInactive = Boolean(
+    (currentUser && currentUser.status === 'inativo') ||
+    (matchedUser && matchedUser.status === 'inativo')
+  );
+  const isAccountActive = isAccountFound && !isAccountInactive;
+  const isAccountNotFound = !isAccountFound && cleanCpfDigits.length === 11;
+  const isCpfIncomplete = !currentUser && cleanCpfDigits.length < 11;
+
+  // Can the student proceed to payment?
+  // MUST have an active and registered account, cart not empty, not processing
+  const canProceed = isAccountActive && items.length > 0 && !isProcessingStripe;
 
   // Calculations
   const originalSubtotal = items.reduce(
@@ -96,7 +128,32 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   const finalTotal = Math.max(0, baseTotal - pixDiscount);
   const totalSavings = comboDiscount + activeCouponDiscount + pixDiscount;
 
-    const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Synchronize student data in real-time
+  React.useEffect(() => {
+    if (currentUser) {
+      setStudentCpf(currentUser.cpf || '');
+      setStudentName(currentUser.name || '');
+      setStudentEmail(currentUser.email || '');
+      setIsExistingAccount(currentUser.status !== 'inativo');
+    } else if (cleanCpfDigits.length === 11) {
+      const found = findUserByCpf(cleanCpfDigits);
+      if (found) {
+        setStudentName(found.name || '');
+        setStudentEmail(found.email || '');
+        setIsExistingAccount(found.status !== 'inativo');
+      } else {
+        setStudentName('');
+        setStudentEmail('');
+        setIsExistingAccount(false);
+      }
+    } else {
+      setStudentName('');
+      setStudentEmail('');
+      setIsExistingAccount(false);
+    }
+  }, [cleanCpfDigits, currentUser, usersList]);
+
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '');
     if (v.length > 11) v = v.slice(0, 11);
     const rawDigits = v;
@@ -110,35 +167,27 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     }
 
     if (rawDigits.length === 11) {
-      const foundUser = usersList.find((u) => u.cpf?.replace(/\D/g, '') === rawDigits);
+      const foundUser = findUserByCpf(rawDigits);
       if (foundUser) {
-        setIsExistingAccount(true);
-        const nameDiffers = studentName.trim() && studentName.trim().toLowerCase() !== foundUser.name.trim().toLowerCase();
-        const emailDiffers = studentEmail.trim() && studentEmail.trim().toLowerCase() !== foundUser.email.trim().toLowerCase();
-
-        // Auto-fill existing student name and email
+        setIsExistingAccount(foundUser.status !== 'inativo');
         setStudentName(foundUser.name);
         setStudentEmail(foundUser.email);
         setFormErrors({});
-
-        if (nameDiffers || emailDiffers) {
-          setCpfNoticeMessage(
-            `Identificamos um cadastro existente para este CPF. O Nome Completo e E-mail foram alterados e preenchidos automaticamente com os dados oficiais cadastrados no sistema (${foundUser.name} • ${foundUser.email}).`
-          );
-        } else {
-          setCpfNoticeMessage(
-            `Cadastro oficial localizado com sucesso! Dados de ${foundUser.name} preenchidos automaticamente.`
-          );
-        }
       } else {
         setIsExistingAccount(false);
-        setCpfNoticeMessage(
-          'CPF não cadastrado na plataforma. Para novos alunos, o preenchimento do Nome Completo e E-mail de Envio é obrigatório.'
-        );
+        setStudentName('');
+        setStudentEmail('');
       }
     } else {
-      setCpfNoticeMessage(null);
-      setIsExistingAccount(false);
+      if (currentUser && currentUser.cpf && currentUser.cpf.replace(/\D/g, '') === rawDigits) {
+        setIsExistingAccount(currentUser.status !== 'inativo');
+      } else {
+        setIsExistingAccount(false);
+        if (!currentUser) {
+          setStudentName('');
+          setStudentEmail('');
+        }
+      }
     }
   };
 
@@ -210,44 +259,50 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
   };
 
     const validateForm = (): boolean => {
+    if (currentUser) {
+      if (currentUser.status === 'inativo') {
+        alert('Sua conta está desativada na Deds Academy. Para realizar novas compras, entre em contato com nosso suporte.');
+        return false;
+      }
+      setStudentName(currentUser.name || '');
+      setStudentEmail(currentUser.email || '');
+      setStudentCpf(currentUser.cpf || '');
+      setIsExistingAccount(true);
+      setFormErrors({});
+      return true;
+    }
     const errors: { studentName?: string; studentEmail?: string; studentCpf?: string } = {};
-    const cleanCpfDigits = studentCpf.replace(/\D/g, '');
+    const digits = studentCpf.replace(/\D/g, '');
 
     // 1. CPF is always mandatory for identification
-    if (!cleanCpfDigits || cleanCpfDigits.length < 11) {
+    if (!digits || digits.length < 11) {
       errors.studentCpf = 'O CPF do Aluno é obrigatório (11 dígitos) para identificar seu cadastro.';
       setFormErrors(errors);
       return false;
     }
 
-    const foundUser = usersList.find((u) => u.cpf?.replace(/\D/g, '') === cleanCpfDigits);
-
-    if (foundUser) {
-      // User exists in system: guarantee their registered name and email are used
-      if (!studentName.trim()) setStudentName(foundUser.name);
-      if (!studentEmail.trim()) setStudentEmail(foundUser.email);
-    } else {
-      // New user: Name and Email are strictly mandatory
-      if (!studentName.trim() || studentName.trim().length < 3) {
-        errors.studentName = 'O Nome Completo é obrigatório para cadastrar o novo aluno e emitir certificados.';
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!studentEmail.trim() || !emailRegex.test(studentEmail.trim())) {
-        errors.studentEmail = 'O E-mail de Envio é obrigatório e deve ser válido para envio do acesso.';
-      } else {
-        // Strict duplicate check: e-mail cannot belong to another CPF
-        const emailOwner = usersList.find(
-          (u) => u.email?.trim().toLowerCase() === studentEmail.trim().toLowerCase() && u.cpf?.replace(/\D/g, '') !== cleanCpfDigits
-        );
-        if (emailOwner) {
-          errors.studentEmail = `Este e-mail já pertence a outro aluno cadastrado (${emailOwner.name}). Use seu próprio e-mail ou faça login.`;
-        }
-      }
+    // 2. Student MUST possess registered account in system
+    const foundUser = findUserByCpf(digits);
+    if (!foundUser) {
+      errors.studentCpf = 'CPF não cadastrado. É obrigatório possuir cadastro ativo na plataforma para prosseguir para o pagamento.';
+      setFormErrors(errors);
+      return false;
     }
 
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    // 3. Account must NOT be inactive
+    if (foundUser.status === 'inativo') {
+      errors.studentCpf = 'Esta conta encontra-se desativada. Entre em contato com o suporte para reativar seu cadastro.';
+      setFormErrors(errors);
+      alert('Esta conta encontra-se desativada na Deds Academy. Para realizar novas compras, entre em contato com nosso suporte.');
+      return false;
+    }
+
+    // Guarantee studentName and studentEmail are populated from official user record
+    setStudentName(foundUser.name);
+    setStudentEmail(foundUser.email);
+    setIsExistingAccount(true);
+    setFormErrors({});
+    return true;
   };
 
   const handlePayWithStripe = async () => {
@@ -479,7 +534,9 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                     <span className="material-symbols-outlined text-primary text-headline-sm">badge</span>
                     <div>
                       <h2 className="font-headline-sm text-headline-sm text-text-primary font-bold">Dados do Aluno &amp; Faturamento</h2>
-                      <p className="font-body-sm text-body-sm text-text-tertiary">Preenchimento obrigatório para liberação do acesso e emissão do certificado oficial.</p>
+                      <p className="font-body-sm text-body-sm text-text-tertiary">
+                        Preenchimento obrigatório apenas do CPF. Nome e E-mail são preenchidos automaticamente.
+                      </p>
                     </div>
                   </div>
                   <span className="px-2.5 py-1 bg-surface-overlay text-primary font-label-sm text-label-sm rounded-lg flex items-center gap-1">
@@ -488,121 +545,299 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* Nome Completo */}
+                  {/* Nome Completo (Bloqueado / Cinza) */}
                   <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
                     <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
-                      <span>Nome Completo <span className="text-status-danger">*</span></span>
+                      <span className="flex items-center gap-1">
+                        Nome Completo
+                        <span className="material-symbols-outlined text-[13px] text-text-tertiary">lock</span>
+                      </span>
                       <span className="text-[11px] text-text-tertiary">(p/ Certificado)</span>
                     </label>
-                    <input
-                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
-                        formErrors.studentName ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
-                      }`}
-                      placeholder="Ex: André Silva"
-                      type="text"
-                      value={studentName}
-                      onChange={(e) => {
-                        setStudentName(e.target.value);
-                        if (formErrors.studentName) setFormErrors((prev) => ({ ...prev, studentName: undefined }));
-                      }}
-                    />
-                    {formErrors.studentName && (
-                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
-                        <span className="material-symbols-outlined text-[13px]">error</span>
-                        {formErrors.studentName}
+                    <div className="relative">
+                      <input
+                        className="w-full bg-surface-container-high/60 text-text-secondary font-body-md text-body-md px-3 pr-9 h-11 rounded-lg border border-border-subtle cursor-not-allowed select-none opacity-85 transition-all outline-none"
+                        placeholder={
+                          isAccountInactive
+                            ? "Conta Desativada (Suporte)"
+                            : isAccountNotFound
+                            ? "Não localizado (Requer cadastro)"
+                            : studentName || "Automático via CPF..."
+                        }
+                        type="text"
+                        value={studentName}
+                        readOnly
+                        tabIndex={-1}
+                      />
+                      <span className="material-symbols-outlined absolute right-3 top-3 text-[17px] text-text-tertiary pointer-events-none">
+                        lock
                       </span>
-                    )}
+                    </div>
+                    <span className="text-[10px] text-text-tertiary flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      Alteração apenas dentro do Painel do Aluno
+                    </span>
                   </div>
 
-                  {/* E-mail de Envio */}
+                  {/* E-mail de Envio (Bloqueado / Cinza) */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
-                      <span>E-mail de Envio <span className="text-status-danger">*</span></span>
+                      <span className="flex items-center gap-1">
+                        E-mail de Envio
+                        <span className="material-symbols-outlined text-[13px] text-text-tertiary">lock</span>
+                      </span>
                       <span className="text-[11px] text-text-tertiary">(Acesso e Recibo)</span>
                     </label>
-                    <input
-                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
-                        formErrors.studentEmail ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
-                      }`}
-                      placeholder="seu@email.com"
-                      type="email"
-                      value={studentEmail}
-                      onChange={(e) => {
-                        setStudentEmail(e.target.value);
-                        if (formErrors.studentEmail) setFormErrors((prev) => ({ ...prev, studentEmail: undefined }));
-                      }}
-                    />
-                    {formErrors.studentEmail && (
-                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
-                        <span className="material-symbols-outlined text-[13px]">error</span>
-                        {formErrors.studentEmail}
+                    <div className="relative">
+                      <input
+                        className="w-full bg-surface-container-high/60 text-text-secondary font-body-md text-body-md px-3 pr-9 h-11 rounded-lg border border-border-subtle cursor-not-allowed select-none opacity-85 transition-all outline-none"
+                        placeholder={
+                          isAccountInactive
+                            ? "Conta Desativada (Suporte)"
+                            : isAccountNotFound
+                            ? "Não localizado (Requer cadastro)"
+                            : studentEmail || "Automático via CPF..."
+                        }
+                        type="email"
+                        value={studentEmail}
+                        readOnly
+                        tabIndex={-1}
+                      />
+                      <span className="material-symbols-outlined absolute right-3 top-3 text-[17px] text-text-tertiary pointer-events-none">
+                        lock
                       </span>
-                    )}
+                    </div>
+                    <span className="text-[10px] text-text-tertiary flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      Alteração apenas dentro do Painel do Aluno
+                    </span>
                   </div>
 
-                  {/* CPF / CNPJ */}
+                  {/* CPF do Aluno (ÚNICO OBRIGATÓRIO E EDITÁVEL) */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-label-md text-label-md text-text-secondary flex items-center justify-between">
+                    <label className="font-label-md text-label-md text-text-primary flex items-center justify-between font-semibold">
                       <span>CPF do Aluno <span className="text-status-danger">*</span></span>
-                      <span className="text-[11px] text-text-tertiary">(Identificação)</span>
+                      {currentUser ? (
+                        <span className="text-[11px] text-accent-emerald-bright font-bold flex items-center gap-1">
+                          <span className="material-symbols-outlined text-xs">verified</span>
+                          Preenchido Automaticamente
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-primary font-medium">(Obrigatório)</span>
+                      )}
                     </label>
-                    <input
-                      className={`bg-surface-container-low text-text-primary font-body-md text-body-md px-3 h-11 rounded-lg outline-none focus:bg-surface-overlay border transition-all ${
-                        formErrors.studentCpf ? 'border-status-danger bg-status-danger/5' : 'border-border-subtle focus:border-primary'
-                      }`}
-                      placeholder="000.000.000-00"
-                      type="text"
-                      value={studentCpf}
-                      onChange={handleCpfChange}
-                    />
-                    {formErrors.studentCpf && (
+                    <div className="relative">
+                      <input
+                        className={`w-full font-body-md text-body-md px-3 pr-10 h-11 rounded-lg outline-none border transition-all ${
+                          currentUser
+                            ? 'bg-surface-container-high/60 text-text-secondary border-accent-emerald-bright/50 cursor-not-allowed select-none opacity-90'
+                            : formErrors.studentCpf
+                            ? 'border-status-danger bg-status-danger/5 text-status-danger'
+                            : isAccountInactive
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                            : isAccountActive
+                            ? 'border-accent-emerald-bright/80 focus:border-accent-emerald-bright bg-accent-emerald-bright/5 text-text-primary'
+                            : cleanCpfDigits.length === 11
+                            ? 'border-status-danger bg-status-danger/5 text-text-primary'
+                            : 'bg-surface-container-low text-text-primary border-border-subtle focus:border-primary'
+                        }`}
+                        placeholder="000.000.000-00"
+                        type="text"
+                        value={studentCpf}
+                        onChange={handleCpfChange}
+                        readOnly={Boolean(currentUser)}
+                      />
+                      <span className="absolute right-3 top-2.5 pointer-events-none">
+                        {currentUser ? (
+                          <span className="material-symbols-outlined text-accent-emerald-bright text-[20px]" title="Aluno Autenticado no Painel">
+                            lock
+                          </span>
+                        ) : isAccountInactive ? (
+                          <span className="material-symbols-outlined text-amber-400 text-[20px]" title="Conta Desativada">
+                            warning
+                          </span>
+                        ) : isAccountActive ? (
+                          <span className="material-symbols-outlined text-accent-emerald-bright text-[20px]" title="Cadastro Localizado e Ativo">
+                            check_circle
+                          </span>
+                        ) : cleanCpfDigits.length === 11 ? (
+                          <span className="material-symbols-outlined text-status-danger text-[20px]" title="CPF não cadastrado">
+                            error
+                          </span>
+                        ) : (
+                          <span className="material-symbols-outlined text-text-tertiary text-[20px]">
+                            badge
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {currentUser ? (
+                      <span className="text-[10px] text-accent-emerald-bright flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">lock</span>
+                        Identificação vinculada à sua sessão ativa da Área do Aluno
+                      </span>
+                    ) : formErrors.studentCpf ? (
                       <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[13px]">error</span>
                         {formErrors.studentCpf}
+                      </span>
+                    ) : isAccountInactive ? (
+                      <span className="text-[11px] text-amber-400 flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[13px]">warning</span>
+                        Conta desativada • Entre em contato com o suporte para reativação
+                      </span>
+                    ) : isAccountActive ? (
+                      <span className="text-[10px] text-accent-emerald-bright flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">verified</span>
+                        Cadastro localizado e ativo com sucesso
+                      </span>
+                    ) : cleanCpfDigits.length === 11 ? (
+                      <span className="text-[11px] text-status-danger flex items-center gap-1 mt-0.5">
+                        <span className="material-symbols-outlined text-[13px]">error</span>
+                        CPF não cadastrado na plataforma
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-text-tertiary flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px] text-primary">pin</span>
+                        Apenas CPF é obrigatório para identificação
                       </span>
                     )}
                   </div>
                 </div>
 
-                {cpfNoticeMessage && (
-                  <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 transition-all mt-3 ${
-                    isExistingAccount
-                      ? 'bg-accent-emerald-bright/10 border-accent-emerald-bright/30 text-accent-emerald-bright'
-                      : 'bg-primary/10 border-primary/25 text-primary'
-                  }`}>
-                    <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">
-                      {isExistingAccount ? 'how_to_reg' : 'info'}
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-bold leading-relaxed">{cpfNoticeMessage}</p>
-                      {isExistingAccount && (
-                        <p className="text-text-secondary text-[11px] mt-1">
-                          Seu cadastro existente foi sincronizado com este pedido. Ao concluir o pagamento, os cursos serão liberados imediatamente para você.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Account Status Real-Time Indicator */}
                 <div className="mt-4 pt-3 border-t border-border-subtle/50">
-                  {matchedUser ? (
-                    <div className="p-3 rounded-lg bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 text-accent-emerald-bright text-body-sm flex items-start gap-2.5">
-                      <span className="material-symbols-outlined text-body-lg flex-shrink-0">check_circle</span>
-                      <div className="flex flex-col">
-                        <span className="font-bold">Conta existente identificada ({matchedUser.name})</span>
-                        <p className="text-text-secondary text-xs mt-0.5">
-                          Após o pagamento na Stripe, os novos cursos comprados serão vinculados diretamente à sua conta existente!
+                  {currentUser && !isAccountInactive ? (
+                    <div className="p-3.5 rounded-xl bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 text-accent-emerald-bright text-body-sm flex items-start gap-3">
+                      <span className="material-symbols-outlined text-body-lg flex-shrink-0 text-accent-emerald-bright mt-0.5">
+                        verified_user
+                      </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-text-primary text-[14px]">
+                            Aluno Autenticado: {currentUser.name}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-accent-emerald-bright/20 text-accent-emerald-bright text-[10px] font-bold">
+                            Matrícula: #{currentUser.id.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-text-secondary text-xs mt-1">
+                          CPF: <strong className="text-text-primary font-mono">{currentUser.cpf || studentCpf}</strong> • E-mail: <strong className="text-text-primary">{currentUser.email}</strong>
                         </p>
+                        <p className="text-accent-emerald-bright text-xs mt-1.5 font-medium flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">check</span>
+                          Seus dados já foram preenchidos automaticamente. Prossiga diretamente para o pagamento e o curso será liberado instantaneamente na sua Área do Aluno!
+                        </p>
+                      </div>
+                    </div>
+                  ) : isAccountInactive ? (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-body-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <span className="material-symbols-outlined text-2xl shrink-0 mt-0.5 text-amber-400">
+                          warning
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-text-primary">
+                              Conta Desativada na Deds Academy
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase">
+                              Status: Inativo
+                            </span>
+                          </div>
+                          <p className="text-text-secondary text-xs mt-1 leading-relaxed">
+                            Identificamos que o CPF <strong className="text-text-primary font-mono">{studentCpf}</strong> pertence a uma conta que se encontra <strong>desativada</strong>. Para regularizar seu acesso e concluir sua compra com segurança, entre em contato com nosso suporte via WhatsApp.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <a
+                          href={buildWhatsAppUrl(
+                            getStoredSupportChannels().whatsappNumber,
+                            `Olá, equipe Deds Academy! Meu CPF é ${studentCpf} e minha conta está com status inativo no carrinho de compras. Gostaria de reativá-la.`
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <span className="material-symbols-outlined text-sm">support_agent</span>
+                          Contatar Suporte
+                        </a>
+                      </div>
+                    </div>
+                  ) : isAccountActive && matchedUser ? (
+                    <div className="p-4 rounded-xl bg-accent-emerald-bright/10 border border-accent-emerald-bright/30 text-accent-emerald-bright text-body-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <span className="material-symbols-outlined text-2xl shrink-0 mt-0.5 text-accent-emerald-bright">
+                          verified
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-text-primary">
+                              CPF cadastrado no nosso sistema
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-accent-emerald-bright/20 text-accent-emerald-bright text-[10px] font-bold">
+                              Matrícula: #{matchedUser.id.toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="text-text-secondary text-xs mt-1 leading-relaxed">
+                            Olá, <strong className="text-text-primary">{matchedUser.name}</strong>! Você está cadastrado(a) na Deds Academy e é muito bom ter você aqui! Seus dados foram validados e o curso será vinculado diretamente ao seu painel assim que o pagamento for concluído.
+                          </p>
+                          <p className="text-accent-emerald-bright text-xs mt-1 font-medium flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">check</span>
+                            E-mail vinculado: <strong className="text-text-primary">{matchedUser.email}</strong>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : isAccountNotFound ? (
+                    <div className="p-4 rounded-xl bg-status-danger/10 border border-status-danger/30 text-status-danger text-body-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <span className="material-symbols-outlined text-2xl shrink-0 mt-0.5 text-status-danger">
+                          warning
+                        </span>
+                        <div>
+                          <span className="font-bold text-sm text-text-primary block">
+                            CPF não cadastrado na Deds Academy
+                          </span>
+                          <p className="text-text-secondary text-xs mt-1 leading-relaxed">
+                            Você <strong>não possui cadastro</strong> na plataforma. É obrigatório realizar o cadastro para prosseguir para o pagamento, pois com o cadastro ativo e pagamento realizado o sistema integra o curso diretamente dentro do painel do aluno de acordo com sua matrícula que realizou o pagamento.
+                          </p>
+                          <div className="mt-2 flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={onOpenAuth}
+                              className="text-text-primary hover:text-primary text-xs underline cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <span>Já tem cadastro com outro CPF? Fazer login</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onOpenRegister) {
+                              onOpenRegister(studentCpf);
+                            } else if (onOpenAuth) {
+                              onOpenAuth();
+                            }
+                          }}
+                          className="px-4 py-2.5 bg-primary hover:bg-accent-emerald-bright text-on-primary font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <span className="material-symbols-outlined text-sm">person_add</span>
+                          Criar Cadastro Agora
+                        </button>
                       </div>
                     </div>
                   ) : (
                     <div className="p-3 rounded-lg bg-surface-container-low border border-border-subtle text-text-secondary text-body-sm flex items-start gap-2.5">
-                      <span className="material-symbols-outlined text-primary text-body-lg flex-shrink-0">person_add</span>
+                      <span className="material-symbols-outlined text-primary text-body-lg flex-shrink-0">pin</span>
                       <div className="flex flex-col">
-                        <span className="font-bold text-text-primary">Novo aluno na Deds Academy</span>
+                        <span className="font-bold text-text-primary">Identificação Obrigatória por CPF</span>
                         <p className="text-text-secondary text-xs mt-0.5">
-                          Após a conclusão do pagamento, você será direcionado para criar sua senha de acesso e enviamos a confirmação para seu e-mail.
+                          Informe o CPF do aluno acima (11 dígitos). Nome Completo e E-mail serão carregados automaticamente a partir do cadastro para vincular sua matrícula e liberar o pagamento.
                         </p>
                       </div>
                     </div>
@@ -803,12 +1038,82 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                 {/* Primary Button: Pagamento Checkout */}
                 <button
                   onClick={() => handleFinishOrder(false)}
-                  disabled={isProcessingStripe || items.length === 0}
-                  className="w-full mt-4 py-3.5 px-6 bg-primary-container hover:bg-accent-emerald-bright disabled:opacity-60 disabled:cursor-not-allowed text-on-primary font-headline-sm text-headline-sm font-bold rounded-xl shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                  disabled={!canProceed}
+                  className={`w-full mt-4 py-3.5 px-6 font-headline-sm text-headline-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 group ${
+                    canProceed
+                      ? 'bg-primary-container hover:bg-accent-emerald-bright text-on-primary shadow-[0_0_24px_-3px_rgba(0,176,116,0.45)] hover:shadow-[0_0_30px_0_rgba(0,208,132,0.6)] active:scale-[0.98] cursor-pointer'
+                      : isAccountInactive
+                      ? 'bg-amber-600/20 text-amber-400 border border-amber-500/40 cursor-not-allowed opacity-90'
+                      : isAccountNotFound
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 cursor-not-allowed opacity-85'
+                      : 'bg-surface-container-high text-text-tertiary cursor-not-allowed border border-border-subtle opacity-75'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-headline-md group-hover:scale-110 transition-transform">lock</span>
-                  {isProcessingStripe ? 'Conectando ao Checkout Seguro...' : 'Prosseguir para o pagamento'}
+                  <span className="material-symbols-outlined text-headline-md group-hover:scale-110 transition-transform">
+                    {canProceed ? 'lock_open' : isAccountInactive ? 'warning' : 'lock'}
+                  </span>
+                  {isProcessingStripe
+                    ? 'Conectando ao Checkout Seguro...'
+                    : isAccountInactive
+                    ? 'Conta desativada • Contate o suporte'
+                    : isAccountNotFound
+                    ? 'Cadastro obrigatório para pagar'
+                    : isCpfIncomplete
+                    ? 'Informe o CPF para prosseguir'
+                    : items.length === 0
+                    ? 'Carrinho vazio'
+                    : 'Prosseguir para o pagamento'}
                 </button>
+
+                {/* Aviso e atalho para suporte se conta estiver desativada */}
+                {isAccountInactive && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex flex-col gap-2">
+                    <div className="flex items-start gap-1.5">
+                      <span className="material-symbols-outlined text-sm shrink-0 mt-0.5 text-amber-400">warning</span>
+                      <span className="leading-snug text-text-primary">
+                        Sua conta está desativada. Para reativá-la e liberar a compra deste curso, entre em contato com nosso atendimento via WhatsApp.
+                      </span>
+                    </div>
+                    <a
+                      href={buildWhatsAppUrl(
+                        getStoredSupportChannels().whatsappNumber,
+                        `Olá! Meu CPF é ${studentCpf} e minha conta está inativa na Deds Academy. Gostaria de regularizar meu cadastro.`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-sm">support_agent</span>
+                      Falar com Suporte no WhatsApp
+                    </a>
+                  </div>
+                )}
+
+                {/* Aviso e atalho para cadastro se CPF não for encontrado */}
+                {isAccountNotFound && (
+                  <div className="mt-3 p-3 rounded-lg bg-status-danger/10 border border-status-danger/30 text-status-danger text-xs flex flex-col gap-2">
+                    <div className="flex items-start gap-1.5">
+                      <span className="material-symbols-outlined text-sm shrink-0 mt-0.5 text-status-danger">warning</span>
+                      <span className="leading-snug text-text-primary">
+                        Para liberar o pagamento, realize seu cadastro primeiro para gerar sua matrícula.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenRegister) {
+                          onOpenRegister(studentCpf);
+                        } else if (onOpenAuth) {
+                          onOpenAuth();
+                        }
+                      }}
+                      className="w-full py-2 bg-primary hover:bg-accent-emerald-bright text-on-primary font-bold rounded-lg text-xs transition-colors cursor-pointer text-center flex items-center justify-center gap-1.5"
+                    >
+                      <span className="material-symbols-outlined text-sm">person_add</span>
+                      Cadastre-se na Plataforma Agora
+                    </button>
+                  </div>
+                )}
 
                 {/* Security Badges */}
                 <div className="mt-4 pt-2 flex flex-col items-center gap-1 text-center text-text-tertiary font-body-sm text-body-sm">
@@ -831,11 +1136,11 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   <p className="font-body-sm text-body-sm text-text-tertiary">Chame nossa equipe via WhatsApp</p>
                   <a
                     className="text-primary font-label-md text-label-md hover:underline inline-flex items-center gap-1 mt-0.5"
-                    href="https://wa.me/5511999999999"
+                    href={buildWhatsAppUrl(getStoredSupportChannels().whatsappNumber, 'Olá, estou finalizando a matrícula e tenho dúvidas sobre o pagamento.')}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    (11) 99999-9999 <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                    {getStoredSupportChannels().whatsappNumber || '(11) 99999-9999'} <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                   </a>
                 </div>
               </div>

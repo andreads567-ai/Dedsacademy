@@ -6,130 +6,7 @@ interface AnalyticsTabProps {
   users: UserAccount[];
 }
 
-const INITIAL_SALES: SaleTransaction[] = [
-  {
-    id: 'sale-001',
-    orderNumber: 'ORD-2026-9841',
-    studentName: 'André da Silva',
-    studentEmail: 'andre.silva@exemplo.com.br',
-    studentCpf: '384.920.118-04',
-    courseId: 'curso-1',
-    courseTitle: 'Inteligência Artificial & Engenharia de Prompts',
-    courseCategory: 'Tecnologia & IA',
-    amount: 189.9,
-    paymentMethod: 'PIX',
-    date: '2026-10-24',
-    time: '14:32',
-    status: 'aprovada',
-  },
-  {
-    id: 'sale-002',
-    orderNumber: 'ORD-2026-9842',
-    studentName: 'Mariana Costa Rios',
-    studentEmail: 'mariana.costa@empresa.com.br',
-    studentCpf: '492.103.882-15',
-    courseId: 'curso-2',
-    courseTitle: 'Formação em Python do Zero ao Avançado',
-    courseCategory: 'Tecnologia & IA',
-    amount: 179.9,
-    paymentMethod: 'Cartão de Crédito',
-    date: '2026-10-22',
-    time: '11:15',
-    status: 'aprovada',
-  },
-  {
-    id: 'sale-003',
-    orderNumber: 'ORD-2026-9843',
-    studentName: 'Carlos Eduardo Nogueira',
-    studentEmail: 'carlos.edu@techmail.com',
-    studentCpf: '201.884.912-70',
-    courseId: 'curso-3',
-    courseTitle: 'Finanças Corporativas, Valuation & M&A',
-    courseCategory: 'Finanças & Negócios',
-    amount: 229.0,
-    paymentMethod: 'PIX',
-    date: '2026-09-18',
-    time: '16:45',
-    status: 'aprovada',
-  },
-  {
-    id: 'sale-004',
-    orderNumber: 'ORD-2026-9844',
-    studentName: 'Fernanda Albuquerque',
-    studentEmail: 'fernanda.alb@agencia.com',
-    studentCpf: '118.492.301-88',
-    courseId: 'curso-4',
-    courseTitle: 'Growth Hacking & Marketing de Performance',
-    courseCategory: 'Marketing Digital',
-    amount: 149.0,
-    paymentMethod: 'Cartão de Crédito',
-    date: '2026-09-05',
-    time: '09:20',
-    status: 'cancelada',
-    cancelledAt: '2026-09-07',
-    cancellationReason: 'Direito de arrependimento (7 dias) - Solicitado pelo aluno',
-  },
-  {
-    id: 'sale-005',
-    orderNumber: 'ORD-2026-9845',
-    studentName: 'Rodrigo Medeiros',
-    studentEmail: 'rodrigo.m@startup.io',
-    studentCpf: '732.190.441-29',
-    courseId: 'curso-1',
-    courseTitle: 'Inteligência Artificial & Engenharia de Prompts',
-    courseCategory: 'Tecnologia & IA',
-    amount: 189.9,
-    paymentMethod: 'PIX',
-    date: '2026-08-14',
-    time: '18:10',
-    status: 'aprovada',
-  },
-  {
-    id: 'sale-006',
-    orderNumber: 'ORD-2026-9846',
-    studentName: 'Beatriz Vasconcelos',
-    studentEmail: 'beatriz.v@designstudio.com',
-    studentCpf: '551.902.314-99',
-    courseId: 'curso-5',
-    courseTitle: 'Design System & UI/UX Avançado no Figma',
-    courseCategory: 'Design & UI/UX',
-    amount: 169.9,
-    paymentMethod: 'Boleto Bancário',
-    date: '2026-07-29',
-    time: '10:05',
-    status: 'pendente',
-  },
-  {
-    id: 'sale-007',
-    orderNumber: 'ORD-2025-8710',
-    studentName: 'Lucas Barreto',
-    studentEmail: 'lucas.barreto@gmail.com',
-    studentCpf: '319.402.198-50',
-    courseId: 'curso-2',
-    courseTitle: 'Formação em Python do Zero ao Avançado',
-    courseCategory: 'Tecnologia & IA',
-    amount: 159.0,
-    paymentMethod: 'PIX',
-    date: '2025-11-20',
-    time: '20:14',
-    status: 'aprovada',
-  },
-  {
-    id: 'sale-008',
-    orderNumber: 'ORD-2025-8711',
-    studentName: 'Juliana Pires',
-    studentEmail: 'juliana.pires@consultoria.com.br',
-    studentCpf: '601.892.441-33',
-    courseId: 'curso-3',
-    courseTitle: 'Finanças Corporativas, Valuation & M&A',
-    courseCategory: 'Finanças & Negócios',
-    amount: 219.0,
-    paymentMethod: 'Cartão de Crédito',
-    date: '2025-10-15',
-    time: '15:40',
-    status: 'aprovada',
-  },
-];
+const INITIAL_SALES: SaleTransaction[] = [];
 
 export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) => {
   const [period, setPeriod] = useState<'30d' | '90d' | 'ano' | 'todos'>('30d');
@@ -140,7 +17,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) =>
       const saved = localStorage.getItem('deds_sales_transactions');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return INITIAL_SALES;
@@ -313,32 +190,95 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) =>
     showToast('Relatório de vendas exportado com sucesso em CSV!');
   };
 
-  const monthlyRevenue = [
-    { month: 'Jan', revenue: 14200, height: '65%' },
-    { month: 'Fev', revenue: 16800, height: '72%' },
-    { month: 'Mar', revenue: 19400, height: '80%' },
-    { month: 'Abr', revenue: 18100, height: '76%' },
-    { month: 'Mai', revenue: 21500, height: '88%' },
-    { month: 'Jun', revenue: 24300, height: '94%' },
-    { month: 'Jul', revenue: 26900, height: '98%' },
-    { month: 'Ago', revenue: 25400, height: '92%' },
-    { month: 'Set', revenue: 28900, height: '100%' },
-    { month: 'Out', revenue: 31200, height: '100%' },
-  ];
+  // Dynamic 2026 monthly revenue from real approved sales
+  const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthlyRevenue = useMemo(() => {
+    const approvedSales = salesList.filter((s) => s.status === 'aprovada');
+    const monthlySums = monthNames.map((month, index) => {
+      const monthNum = String(index + 1).padStart(2, '0');
+      const sum = approvedSales
+        .filter((s) => s.date && s.date.startsWith(`2026-${monthNum}`))
+        .reduce((acc, s) => acc + s.amount, 0);
+      return { month, revenue: sum };
+    });
+    const maxRev = Math.max(...monthlySums.map((m) => m.revenue), 1);
+    return monthlySums.map((m) => ({
+      month: m.month,
+      revenue: m.revenue,
+      height: m.revenue > 0 ? `${Math.max(12, Math.round((m.revenue / maxRev) * 100))}%` : '4px',
+    }));
+  }, [salesList]);
 
-  const categoryDistribution = [
-    { name: 'Tecnologia & IA', share: 38, count: '3.120 alunos', color: 'bg-primary' },
-    { name: 'Finanças & Negócios', share: 24, count: '1.980 alunos', color: 'bg-secondary' },
-    { name: 'Marketing Digital', share: 18, count: '1.450 alunos', color: 'bg-accent-emerald-bright' },
-    { name: 'Design & UI/UX', share: 12, count: '980 alunos', color: 'bg-accent-gold' },
-    { name: 'Recursos Humanos & Outros', share: 8, count: '640 alunos', color: 'bg-purple-400' },
-  ];
+  // Dynamic distribution of student enrollments by course category
+  const categoryDistribution = useMemo(() => {
+    const catColors = ['bg-primary', 'bg-secondary', 'bg-accent-emerald-bright', 'bg-accent-gold', 'bg-purple-400', 'bg-pink-400'];
+    const counts: Record<string, number> = {};
+    const studentsList = users.filter((u) => u.role === 'aluno');
 
-  const paymentMethods = [
-    { method: 'PIX Instantâneo', share: '62%', count: 'R$ 92.330', icon: 'qr_code_2', color: 'text-accent-emerald-bright' },
-    { method: 'Cartão de Crédito (até 12x)', share: '31%', count: 'R$ 46.165', icon: 'credit_card', color: 'text-primary' },
-    { method: 'Boleto Bancário', share: '7%', count: 'R$ 10.425', icon: 'receipt_long', color: 'text-text-tertiary' },
-  ];
+    studentsList.forEach((u) => {
+      (u.enrolledCourseIds || []).forEach((cId) => {
+        const course = courses.find((c) => c.id === cId);
+        const catName = course?.category || 'Geral';
+        counts[catName] = (counts[catName] || 0) + 1;
+      });
+    });
+
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const entries = Object.entries(counts);
+
+    if (entries.length === 0) {
+      const uniqueCats = Array.from(new Set(courses.map((c) => c.category))).slice(0, 5);
+      return uniqueCats.map((cat, i) => ({
+        name: cat,
+        share: 0,
+        count: '0 alunos',
+        color: catColors[i % catColors.length],
+      }));
+    }
+
+    return entries.map(([name, count], i) => ({
+      name,
+      share: total > 0 ? Math.round((count / total) * 100) : 0,
+      count: `${count} matrícula${count === 1 ? '' : 's'}`,
+      color: catColors[i % catColors.length],
+    }));
+  }, [users, courses]);
+
+  // Dynamic payment methods from real sales
+  const paymentMethods = useMemo(() => {
+    const approved = salesList.filter((s) => s.status === 'aprovada');
+    const totalApprovedAmount = approved.reduce((acc, s) => acc + s.amount, 0);
+
+    const pixSales = approved.filter((s) => s.paymentMethod === 'PIX' || (s.paymentMethod || '').toLowerCase().includes('pix'));
+    const pixAmount = pixSales.reduce((acc, s) => acc + s.amount, 0);
+    const pixShare = totalApprovedAmount > 0 ? Math.round((pixAmount / totalApprovedAmount) * 100) : 0;
+
+    const cardSales = approved.filter((s) => s.paymentMethod === 'Cartão de Crédito' || (s.paymentMethod || '').toLowerCase().includes('cart'));
+    const cardAmount = cardSales.reduce((acc, s) => acc + s.amount, 0);
+    const cardShare = totalApprovedAmount > 0 ? Math.round((cardAmount / totalApprovedAmount) * 100) : 0;
+
+    const boletoSales = approved.filter((s) => s.paymentMethod === 'Boleto Bancário' || (s.paymentMethod || '').toLowerCase().includes('boleto'));
+    const boletoAmount = boletoSales.reduce((acc, s) => acc + s.amount, 0);
+    const boletoShare = totalApprovedAmount > 0 ? Math.round((boletoAmount / totalApprovedAmount) * 100) : 0;
+
+    return [
+      { method: 'PIX Instantâneo', share: `${pixShare}%`, count: `R$ ${pixAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: 'qr_code_2', color: 'text-accent-emerald-bright' },
+      { method: 'Cartão de Crédito (até 12x)', share: `${cardShare}%`, count: `R$ ${cardAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: 'credit_card', color: 'text-primary' },
+      { method: 'Boleto Bancário', share: `${boletoShare}%`, count: `R$ ${boletoAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: 'receipt_long', color: 'text-text-tertiary' },
+    ];
+  }, [salesList]);
+
+  // Dynamic KPI Metrics
+  const activeStudentsCount = users.filter((u) => u.role === 'aluno').length;
+  const conversionRate = activeStudentsCount > 0 ? ((salesSummary.approvedCount / activeStudentsCount) * 100).toFixed(1) : '0.0';
+
+  const totalEnrolled = users.reduce((acc, u) => acc + (u.enrolledCourseIds?.length || 0), 0);
+  const totalCompleted = users.reduce((acc, u) => acc + (u.completedCourseIds?.length || 0), 0);
+  const completionRate = totalEnrolled > 0 ? ((totalCompleted / totalEnrolled) * 100).toFixed(1) : '0.0';
+
+  const catalogSatisfaction = courses.length > 0
+    ? (courses.reduce((acc, c) => acc + (c.rating || 5), 0) / courses.length).toFixed(2)
+    : '5.00';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -414,9 +354,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) =>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-surface-raised border border-border-subtle shadow-sm">
           <span className="text-xs font-bold text-text-tertiary uppercase">Taxa de Conversão</span>
-          <p className="text-3xl font-bold text-text-primary mt-1">4.2%</p>
+          <p className="text-3xl font-bold text-text-primary mt-1">{conversionRate}%</p>
           <span className="text-[11px] text-accent-emerald-bright font-semibold flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined text-xs">arrow_upward</span> +0.8% acima da média educacional
+            <span className="material-symbols-outlined text-xs">trending_up</span>
+            {salesSummary.approvedCount > 0 ? `${salesSummary.approvedCount} conversão(ões) em ${activeStudentsCount} aluno(s)` : 'Calculado em tempo real sobre matrículas'}
           </span>
         </div>
 
@@ -426,25 +367,28 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) =>
             R$ {salesSummary.averageTicket.toFixed(2).replace('.', ',')}
           </p>
           <span className="text-[11px] text-accent-emerald-bright font-semibold flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined text-xs">trending_up</span> Crescimento consistente
+            <span className="material-symbols-outlined text-xs">payments</span>
+            {salesSummary.approvedCount > 0 ? 'Média ponderada de vendas aprovadas' : 'Aguardando primeiras vendas'}
           </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-surface-raised border border-border-subtle shadow-sm">
           <span className="text-xs font-bold text-text-tertiary uppercase">Taxa de Conclusão</span>
-          <p className="text-3xl font-bold text-text-primary mt-1">78.4%</p>
+          <p className="text-3xl font-bold text-text-primary mt-1">{completionRate}%</p>
           <span className="text-[11px] text-primary font-semibold flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined text-xs">check_circle</span> Alunos concluem e emitem certificado
+            <span className="material-symbols-outlined text-xs">check_circle</span>
+            {totalCompleted > 0 ? `${totalCompleted} de ${totalEnrolled} cursos concluídos` : 'Baseado na conclusão real das aulas'}
           </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-surface-raised border border-border-subtle shadow-sm">
           <span className="text-xs font-bold text-text-tertiary uppercase">Satisfação dos Alunos</span>
           <p className="text-3xl font-bold text-text-primary mt-1">
-            4.89 <span className="text-base text-accent-gold">★</span>
+            {catalogSatisfaction} <span className="text-base text-accent-gold">★</span>
           </p>
           <span className="text-[11px] text-accent-gold font-semibold flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined text-xs">sentiment_very_satisfied</span> 98.4% de aprovação declarada
+            <span className="material-symbols-outlined text-xs">sentiment_very_satisfied</span>
+            Média avaliada do catálogo ativo
           </span>
         </div>
       </div>
@@ -759,8 +703,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ courses, users }) =>
         </div>
 
         <div className="flex items-center justify-between text-xs text-text-tertiary mt-3">
-          <span>Meta atingida em 100% dos meses do período</span>
-          <span>Crescimento consolidado de +119% de Jan a Outubro</span>
+          <span>Receita anual consolidada: <strong className="text-text-primary">R$ {monthlyRevenue.reduce((acc, m) => acc + m.revenue, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></span>
+          <span>Total de <strong className="text-emerald-400">{salesSummary.approvedCount}</strong> venda{salesSummary.approvedCount === 1 ? '' : 's'} aprovada{salesSummary.approvedCount === 1 ? '' : 's'}</span>
         </div>
       </div>
 

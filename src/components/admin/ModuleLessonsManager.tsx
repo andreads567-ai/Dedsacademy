@@ -8,6 +8,7 @@ interface ModuleLessonsManagerProps {
   onChangeModules: (modules: CourseModule[]) => void;
   onBackToBasicInfo: () => void;
   onSaveDraft: () => void;
+  onPublishCourse?: () => void;
   onProceedToQuizzes: () => void;
 }
 
@@ -17,6 +18,7 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
   onChangeModules,
   onBackToBasicInfo,
   onSaveDraft,
+  onPublishCourse,
   onProceedToQuizzes,
 }) => {
   // Selected module in the list
@@ -40,9 +42,11 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
   const [lessonIsFreePreview, setLessonIsFreePreview] = useState(false);
   const [lessonDescription, setLessonDescription] = useState('');
 
-  // Lesson Media: Video upload or URL
+  // Lesson Media: Video upload or URL (supports multiple URLs)
   const [lessonVideoType, setLessonVideoType] = useState<'upload' | 'url'>('url');
   const [lessonVideoUrl, setLessonVideoUrl] = useState('');
+  const [lessonVideoUrls, setLessonVideoUrls] = useState<string[]>(['']);
+  const [selectedPreviewVideoIndex, setSelectedPreviewVideoIndex] = useState(0);
   const [lessonVideoFileName, setLessonVideoFileName] = useState('');
   const [lessonVideoFileSize, setLessonVideoFileSize] = useState('');
   const videoFileInputRef = useRef<HTMLInputElement>(null);
@@ -167,7 +171,12 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
       setLessonDuration(lessonToEdit.duration || '20 min');
       setLessonIsFreePreview(Boolean(lessonToEdit.isFreePreview));
       setLessonVideoType(lessonToEdit.videoType || (lessonToEdit.videoFileName ? 'upload' : 'url'));
-      setLessonVideoUrl(lessonToEdit.videoUrl || '');
+      const initialUrls = lessonToEdit.videoUrls && lessonToEdit.videoUrls.length > 0
+        ? [...lessonToEdit.videoUrls]
+        : (lessonToEdit.videoUrl ? [lessonToEdit.videoUrl] : ['']);
+      setLessonVideoUrls(initialUrls);
+      setLessonVideoUrl(initialUrls[0] || '');
+      setSelectedPreviewVideoIndex(0);
       setLessonVideoFileName(lessonToEdit.videoFileName || '');
       setLessonVideoFileSize('');
       setAttachments(lessonToEdit.attachments || []);
@@ -182,7 +191,9 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
       setLessonDuration('20 min');
       setLessonIsFreePreview(false);
       setLessonVideoType('url');
+      setLessonVideoUrls(['https://www.youtube.com/watch?v=dQw4w9WgXcQ']);
       setLessonVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      setSelectedPreviewVideoIndex(0);
       setLessonVideoFileName('');
       setLessonVideoFileSize('');
       setAttachments([]);
@@ -217,15 +228,19 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
       return;
     }
 
+    const cleanUrls = lessonVideoUrls.map((u) => u.trim()).filter(Boolean);
+    const primaryUrl = cleanUrls[0] || lessonVideoUrl.trim() || undefined;
+
     const savedLesson: Lesson = {
       id: editingLessonId || `lesson-${Date.now()}`,
       title: lessonTitle.trim(),
       description: lessonDescription.trim(),
       order: Number(lessonOrder) || 1,
       duration: lessonDuration.trim() || '20 min',
-      videoUrl: lessonVideoUrl.trim() || undefined,
+      videoUrl: primaryUrl,
+      videoUrls: cleanUrls.length > 0 ? cleanUrls : undefined,
       videoFileName: lessonVideoFileName || undefined,
-      videoType: lessonVideoUrl ? lessonVideoType : undefined,
+      videoType: primaryUrl ? lessonVideoType : undefined,
       attachments: attachments,
       isFreePreview: lessonIsFreePreview,
     };
@@ -667,33 +682,119 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Video URL Input */}
+                  {/* Video URL Input(s) - Supports Multiple Video Links */}
                   {lessonVideoType === 'url' && (
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-text-secondary">
-                        URL do Vídeo (YouTube, Vimeo, Panda, Loom)
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          value={lessonVideoUrl}
-                          onChange={(e) => {
-                            setLessonVideoUrl(e.target.value);
-                            setLessonVideoFileName('');
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-text-secondary">
+                          Links de Mídia / Vídeo da Aula ({lessonVideoUrls.length})
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLessonVideoUrls((prev) => [...prev, '']);
+                            setSelectedPreviewVideoIndex(lessonVideoUrls.length);
                           }}
-                          placeholder="https://www.youtube.com/watch?v=..."
-                          className="flex-1 px-3.5 py-2.5 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
-                        />
-                        {lessonVideoUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setLessonVideoUrl('')}
-                            className="px-3 py-1 text-xs font-bold text-status-danger hover:bg-status-danger/10 border border-status-danger/20 rounded-xl cursor-pointer"
-                          >
-                            Limpar
-                          </button>
-                        )}
+                          className="px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/10 rounded-lg border border-primary/30 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Adicionar mais um link de vídeo para visualização"
+                        >
+                          <span className="material-symbols-outlined text-xs">add</span>
+                          <span>+ Adicionar outro link</span>
+                        </button>
                       </div>
+
+                      <div className="space-y-2.5">
+                        {lessonVideoUrls.map((url, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-2.5 rounded-xl border transition-all ${
+                              selectedPreviewVideoIndex === idx
+                                ? 'bg-surface-raised border-primary/50 shadow-xs'
+                                : 'bg-surface-overlay border-border-subtle'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-bold text-primary uppercase flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">
+                                  {idx === 0 ? 'play_circle' : 'queue_play_next'}
+                                </span>
+                                <span>{idx === 0 ? 'Vídeo 1 (Principal)' : `Vídeo ${idx + 1} (Alternativo / Complementar)`}</span>
+                              </span>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPreviewVideoIndex(idx)}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors ${
+                                    selectedPreviewVideoIndex === idx
+                                      ? 'bg-primary text-black'
+                                      : 'bg-surface-container text-text-tertiary hover:text-text-primary'
+                                  }`}
+                                  title="Visualizar este vídeo no player abaixo"
+                                >
+                                  Prévia
+                                </button>
+                                {lessonVideoUrls.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLessonVideoUrls((prev) => prev.filter((_, i) => i !== idx));
+                                      if (selectedPreviewVideoIndex >= lessonVideoUrls.length - 1) {
+                                        setSelectedPreviewVideoIndex(Math.max(0, lessonVideoUrls.length - 2));
+                                      }
+                                      if (idx === 0 && lessonVideoUrls[1]) {
+                                        setLessonVideoUrl(lessonVideoUrls[1]);
+                                      }
+                                    }}
+                                    className="p-1 rounded text-status-danger hover:bg-status-danger/10 text-xs cursor-pointer"
+                                    title="Remover este link"
+                                  >
+                                    <span className="material-symbols-outlined text-xs">delete</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <input
+                                type="url"
+                                value={url}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setLessonVideoUrls((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = val;
+                                    return next;
+                                  });
+                                  if (idx === 0) {
+                                    setLessonVideoUrl(val);
+                                    setLessonVideoFileName('');
+                                  }
+                                }}
+                                placeholder="https://www.youtube.com/watch?v=... (YouTube, Vimeo, Panda, Loom, MP4)"
+                                className="flex-1 px-3 py-2 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary font-mono"
+                              />
+                              {url && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setLessonVideoUrls((prev) => {
+                                      const next = [...prev];
+                                      next[idx] = '';
+                                      return next;
+                                    });
+                                    if (idx === 0) setLessonVideoUrl('');
+                                  }}
+                                  className="px-2.5 py-1 text-xs font-bold text-status-danger hover:bg-status-danger/10 border border-status-danger/20 rounded-lg cursor-pointer"
+                                >
+                                  Limpar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
                       <div className="flex items-center gap-2 text-[10px] text-text-tertiary pt-1">
                         <span className="px-1.5 py-0.5 rounded bg-surface-overlay border border-border-subtle font-mono">
                           YouTube
@@ -745,41 +846,72 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
                   )}
 
                   {/* High Quality 16:9 Video Player Preview */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center justify-between text-[10px] font-bold text-text-tertiary uppercase">
-                      <span>Visualização Prévia do Player (16:9)</span>
-                      {lessonVideoUrl && <span className="text-accent-emerald-bright">Pronto para reprodução</span>}
-                    </div>
+                  {(() => {
+                    const validUrls = lessonVideoUrls.filter((u) => u && u.trim());
+                    const currentActivePreviewUrl =
+                      validUrls[selectedPreviewVideoIndex] || validUrls[0] || lessonVideoUrl;
 
-                    {lessonVideoUrl ? (
-                      <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-border-subtle shadow-md">
-                        {lessonVideoUrl.includes('youtube.com') || lessonVideoUrl.includes('youtu.be') ? (
-                          <iframe
-                            src={
-                              lessonVideoUrl.includes('watch?v=')
-                                ? lessonVideoUrl.replace('watch?v=', 'embed/')
-                                : lessonVideoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                            }
-                            title="Preview da Aula"
-                            className="w-full h-full"
-                            allowFullScreen
-                          />
+                    return (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[10px] font-bold text-text-tertiary uppercase">
+                          <span>Visualização Prévia do Player (16:9)</span>
+                          {currentActivePreviewUrl && (
+                            <span className="text-accent-emerald-bright">
+                              Pronto para reprodução {validUrls.length > 1 ? `(Vídeo ${selectedPreviewVideoIndex + 1}/${validUrls.length})` : ''}
+                            </span>
+                          )}
+                        </div>
+
+                        {validUrls.length > 1 && (
+                          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                            {validUrls.map((_, pIdx) => (
+                              <button
+                                key={pIdx}
+                                type="button"
+                                onClick={() => setSelectedPreviewVideoIndex(pIdx)}
+                                className={`px-2.5 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all ${
+                                  selectedPreviewVideoIndex === pIdx
+                                    ? 'bg-primary text-black font-extrabold shadow-xs'
+                                    : 'bg-surface-raised text-text-secondary hover:text-text-primary border border-border-subtle'
+                                }`}
+                              >
+                                {pIdx === 0 ? 'Vídeo 1: Principal' : `Vídeo ${pIdx + 1}`}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {currentActivePreviewUrl ? (
+                          <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-border-subtle shadow-md">
+                            {currentActivePreviewUrl.includes('youtube.com') || currentActivePreviewUrl.includes('youtu.be') ? (
+                              <iframe
+                                src={
+                                  currentActivePreviewUrl.includes('watch?v=')
+                                    ? currentActivePreviewUrl.replace('watch?v=', 'embed/')
+                                    : currentActivePreviewUrl.replace('youtu.be/', 'youtube.com/embed/')
+                                }
+                                title="Preview da Aula"
+                                className="w-full h-full"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <video
+                                key={currentActivePreviewUrl}
+                                src={currentActivePreviewUrl}
+                                controls
+                                className="w-full h-full object-contain"
+                              />
+                            )}
+                          </div>
                         ) : (
-                          <video
-                            src={lessonVideoUrl}
-                            controls
-                            className="w-full h-full object-contain"
-                          />
+                          <div className="aspect-video rounded-xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-text-tertiary gap-1 bg-surface-overlay/50">
+                            <span className="material-symbols-outlined text-3xl">play_circle</span>
+                            <span className="text-xs">Nenhum vídeo selecionado ou URL inserida</span>
+                          </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="aspect-video rounded-xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-text-tertiary gap-1 bg-surface-overlay/50">
-                        <span className="material-symbols-outlined text-3xl">play_circle</span>
-                        <span className="text-xs">Nenhum vídeo vinculado ainda</span>
-                        <span className="text-[10px]">Insira uma URL ou envie um arquivo para assistir aqui</span>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })()}
 
                   {/* Materials / Download Files Summary */}
                   <div className="pt-2 border-t border-border-subtle">
@@ -1182,12 +1314,24 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
             <span>Voltar para Informações Básicas</span>
           </button>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {onPublishCourse && (
+              <button
+                type="button"
+                onClick={onPublishCourse}
+                className="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-accent-emerald-bright hover:bg-emerald-400 active:bg-emerald-600 text-black text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Publicar Curso Imediatamente na Home e no Catálogo"
+              >
+                <span className="material-symbols-outlined text-base">rocket_launch</span>
+                <span>Publicar Curso Agora</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onSaveDraft}
               className="flex-1 sm:flex-initial px-5 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              title="Salvar como Rascunho (azul claro)"
+              title="Salvar como Rascunho"
             >
               <span className="material-symbols-outlined text-base">draft</span>
               <span>Salvar Rascunho</span>
@@ -1196,10 +1340,10 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
             <button
               type="button"
               onClick={onProceedToQuizzes}
-              className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-surface-overlay hover:bg-surface-raised border border-border-subtle text-text-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
               title="Prosseguir para a etapa de Quizzes dos Módulos"
             >
-              <span>Prosseguir para Quizzes dos Módulos</span>
+              <span>Quizzes dos Módulos</span>
               <span className="material-symbols-outlined text-base">arrow_forward</span>
             </button>
           </div>

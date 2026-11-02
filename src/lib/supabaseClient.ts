@@ -1,15 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
+// Supabase desativado - a plataforma agora utiliza armazenamento centralizado no servidor Hostinger (platform-store.json)
+export const supabase = {
+  from: () => ({
+    select: () => Promise.resolve({ data: [], error: null, count: 0 }),
+    insert: () => Promise.resolve({ data: null, error: null }),
+    update: () => Promise.resolve({ data: null, error: null }),
+    upsert: () => Promise.resolve({ data: null, error: null }),
+    delete: () => Promise.resolve({ data: null, error: null }),
+    eq: () => ({
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      select: () => Promise.resolve({ data: [], error: null }),
+      update: () => Promise.resolve({ data: null, error: null }),
+      delete: () => Promise.resolve({ data: null, error: null }),
+    }),
+    ilike: () => ({
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    }),
+    or: () => ({
+      limit: () => Promise.resolve({ data: [], error: null }),
+    }),
+    order: () => Promise.resolve({ data: [], error: null }),
+  }),
+} as any;
 
-const metaEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : null;
-const procEnv = typeof process !== 'undefined' && process.env ? process.env : null;
-
-const supabaseUrl = (metaEnv?.VITE_SUPABASE_URL || procEnv?.VITE_SUPABASE_URL || procEnv?.SUPABASE_URL || '') as string;
-const supabaseAnonKey = (metaEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.SUPABASE_ANON_KEY || '') as string;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    '[Supabase] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY not set. Database features will be unavailable.'
-  );
-}
-
-export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder');

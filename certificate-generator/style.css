@@ -263,9 +263,11 @@ body {
    ========================================================================== */
 
 /* 1. Nome do Aluno */
-.campo-aluno {
+.campo-aluno,
+.campo-aluno-container,
+#campo-aluno-container {
   position: absolute;
-  top: 300px;
+  top: 310px;
   left: 175px;
   width: 674px;
   height: 84px;
@@ -283,6 +285,15 @@ body {
   text-overflow: ellipsis;
   pointer-events: auto;
   z-index: 10;
+}
+
+.campo-aluno-nome {
+  font-family: 'Great Vibes', 'Alex Brush', cursive;
+  font-size: 33px;
+  font-weight: 400;
+  color: #091e2b;
+  display: inline-block;
+  line-height: 1;
 }
 
 /* 1.1 CPF do Aluno (Abaixo da linha do nome) */
@@ -392,15 +403,25 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  text-align: center;
   z-index: 10;
 }
 
 .assinatura-texto {
+  display: block;
+  width: 100%;
   font-family: 'Alex Brush', 'Great Vibes', cursive;
-  font-size: 34px;
+  font-size: 32px;
+  line-height: 1.05;
   color: #0b2230;
-  transform: rotate(-3deg);
+  text-align: center;
+  transform: rotate(-2.5deg);
+  transform-origin: center bottom;
   user-select: none;
+  overflow-wrap: break-word;
+  word-break: normal;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
 .assinatura-img {
@@ -597,15 +618,21 @@ body.exportando-pdf .dev-coords-badge {
   margin: 0mm;
 }
 
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
 @media print {
   html, body {
-    width: 297mm;
-    height: 210mm;
+    width: 297mm !important;
+    height: 210mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: none !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   /* Oculta tudo que não faz parte do certificado impresso */
@@ -622,26 +649,35 @@ body.exportando-pdf .dev-coords-badge {
     margin: 0 !important;
     gap: 0 !important;
     display: block !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    overflow: hidden !important;
   }
 
   .certificado-pagina {
-    width: 297mm !important;
-    height: 210mm !important;
-    min-width: 297mm !important;
-    min-height: 210mm !important;
-    max-width: 297mm !important;
-    max-height: 210mm !important;
+    width: 1024px !important;
+    height: 724px !important;
+    min-width: 1024px !important;
+    min-height: 724px !important;
+    max-width: 1024px !important;
+    max-height: 724px !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    transform-origin: top left !important;
+    transform: scale(calc(297mm / 1024px)) !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     display: block !important;
     position: relative !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   /* Evita que a última página gere uma folha em branco extra */
@@ -649,4 +685,32 @@ body.exportando-pdf .dev-coords-badge {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
+}
+
+/* ==========================================================================
+   MODO PREVIEW EMBUTIDO (Para Modais e Validação Pública sem Barra de Edição)
+   ========================================================================== */
+html.modo-preview,
+body.modo-preview {
+  background-color: transparent !important;
+  min-height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+html.modo-preview .painel-controle,
+body.modo-preview .painel-controle,
+html.modo-preview footer,
+body.modo-preview footer,
+html.modo-preview .dev-coords-badge,
+body.modo-preview .dev-coords-badge {
+  display: none !important;
+}
+
+html.modo-preview .palco-certificados,
+body.modo-preview .palco-certificados {
+  padding: 12px 4px !important;
+  gap: 20px !important;
+  background: transparent !important;
+  align-items: center !important;
 }

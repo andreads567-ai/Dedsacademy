@@ -10,6 +10,8 @@ interface CertificatesTabProps {
   onIssueCertificate: (certificate: CertificateItem) => void;
   onCancelCertificate?: (certId: string, reason?: string) => void;
   onDeleteCertificate?: (certId: string) => void;
+  quickIssueStudent?: UserAccount | null;
+  onClearQuickIssue?: () => void;
 }
 
 export const CertificatesTab: React.FC<CertificatesTabProps> = ({
@@ -18,6 +20,8 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
   courses,
   onIssueCertificate,
   onCancelCertificate,
+  quickIssueStudent,
+  onClearQuickIssue,
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'valido' | 'cancelado'>('all');
@@ -26,7 +30,18 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
   const [studioMode, setStudioMode] = useState<'issue' | 'view'>('issue');
   const [studioCert, setStudioCert] = useState<CertificateItem | null>(null);
+  const [studioStudent, setStudioStudent] = useState<UserAccount | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (quickIssueStudent) {
+      setStudioCert(null);
+      setStudioMode('issue');
+      setStudioStudent(quickIssueStudent);
+      setIsStudioModalOpen(true);
+      onClearQuickIssue?.();
+    }
+  }, [quickIssueStudent]);
 
   // 3-dot dropdown menu state
   const [openMenuCertId, setOpenMenuCertId] = useState<string | null>(null);
@@ -81,8 +96,8 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
       courseCategory: course.category,
       studentId: student.id,
       studentCode: student.studentCode || `ALU-${student.id.slice(-4).toUpperCase()}`,
-      studentName: student.name,
-      studentCpf: student.cpf || '384.920.118-04',
+      studentName: student.certificateData?.customName || student.name,
+      studentCpf: student.certificateData?.customCpf || student.cpf || '384.920.118-04',
       hours: Number(hours),
       issueDate: new Date().toLocaleDateString('pt-BR'),
       code,
@@ -159,10 +174,22 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <a
+            href="/certificate-generator/index.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2.5 bg-surface-raised hover:bg-surface-overlay text-text-secondary hover:text-text-primary text-xs font-bold rounded-xl border border-border-subtle shadow-sm transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            title="Abrir o gerador oficial de certificados em uma nova aba do navegador"
+          >
+            <span className="material-symbols-outlined text-base text-accent-gold">open_in_new</span>
+            <span>Gerador em Nova Aba</span>
+          </a>
+
           <button
             type="button"
             onClick={() => {
               setStudioCert(null);
+              setStudioStudent(null);
               setStudioMode('issue');
               setIsStudioModalOpen(true);
             }}
@@ -467,6 +494,13 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                                 onClick={async () => {
                                   try {
                                     setOpenMenuCertId(null);
+                                    const activeCnpj =
+                                      (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null)?.trim() ||
+                                      (cert.institutionCnpj && cert.institutionCnpj !== '45.678.901/0001-23'
+                                        ? cert.institutionCnpj
+                                        : null) ||
+                                      cert.institutionCnpj ||
+                                      '45.678.901/0001-23';
                                     await downloadCertificatePdf({
                                       studentName: cert.studentName,
                                       studentCpf: cert.studentCpf,
@@ -477,6 +511,7 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                                       issueDate: cert.issueDate,
                                       code: cert.code,
                                       instructor: cert.instructor,
+                                      institutionCnpj: activeCnpj,
                                     });
                                   } catch (err) {
                                     console.error(err);
@@ -527,6 +562,17 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                                 <span className="material-symbols-outlined text-sm text-text-tertiary">content_copy</span>
                                 <span>Copiar Código</span>
                               </button>
+
+                              <a
+                                href={`/certificate-generator/index.html?nome=${encodeURIComponent(cert.studentName)}&cpf=${encodeURIComponent(cert.studentCpf || '')}&curso=${encodeURIComponent(cert.courseTitle)}&horas=${encodeURIComponent(`${cert.hours} horas`)}&data=${encodeURIComponent(cert.issueDate)}&codigo=${encodeURIComponent(cert.code)}&url=${encodeURIComponent(`${window.location.origin}/validar-certificado`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setOpenMenuCertId(null)}
+                                className="w-full px-3.5 py-2 text-left text-xs font-semibold text-text-primary hover:bg-surface-overlay flex items-center gap-2 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm text-accent-gold">open_in_new</span>
+                                <span>Abrir no Gerador Externo</span>
+                              </a>
 
                               {isValid ? (
                                 <button
@@ -885,6 +931,13 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                     type="button"
                     onClick={async () => {
                       try {
+                        const activeCnpj =
+                          (typeof window !== 'undefined' ? localStorage.getItem('deds_institution_cnpj') : null)?.trim() ||
+                          (previewCert.institutionCnpj && previewCert.institutionCnpj !== '45.678.901/0001-23'
+                            ? previewCert.institutionCnpj
+                            : null) ||
+                          previewCert.institutionCnpj ||
+                          '45.678.901/0001-23';
                         await downloadCertificatePdf({
                           studentName: previewCert.studentName,
                           studentCpf: previewCert.studentCpf,
@@ -895,6 +948,7 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
                           issueDate: previewCert.issueDate,
                           code: previewCert.code,
                           instructor: previewCert.instructor,
+                          institutionCnpj: activeCnpj,
                         });
                       } catch (err) {
                         console.error(err);
@@ -930,9 +984,13 @@ export const CertificatesTab: React.FC<CertificatesTabProps> = ({
       {/* Modal: Modelo de Certificado (Exportar & Editar campos móveis) */}
       <OfficialCertificateStudioModal
         isOpen={isStudioModalOpen}
-        onClose={() => setIsStudioModalOpen(false)}
+        onClose={() => {
+          setIsStudioModalOpen(false);
+          setStudioStudent(null);
+        }}
         mode={studioMode}
         initialCertificate={studioCert}
+        initialStudent={studioStudent}
         students={students}
         courses={courses}
         existingCertificates={certificates}

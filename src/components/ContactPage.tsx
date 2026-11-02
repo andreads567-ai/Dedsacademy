@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { UserAccount, SupportTicket } from '../types';
+import React, { useState, useEffect } from 'react';
+import { UserAccount, SupportTicket, SupportChannelsSettings } from '../types';
 import { FloatingKnowledgeBook } from './FloatingKnowledgeBook';
+import { getStoredSupportChannels, buildWhatsAppUrl } from '../services/contactChannelsService';
 
 interface ContactPageProps {
   currentUser: UserAccount | null;
@@ -25,6 +26,29 @@ export const ContactPage: React.FC<ContactPageProps> = ({
     subject: string;
   } | null>(null);
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [supportChannels, setSupportChannels] = useState<SupportChannelsSettings>(() => getStoredSupportChannels());
+
+  // Sincronização em tempo real das alterações feitas no painel Admin (Configurações & APIs)
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e?.detail) {
+        setSupportChannels(e.detail);
+      } else {
+        setSupportChannels(getStoredSupportChannels());
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'deds_contact_channels') {
+        setSupportChannels(getStoredSupportChannels());
+      }
+    };
+    window.addEventListener('deds_contact_channels_updated' as any, handleUpdate);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('deds_contact_channels_updated' as any, handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,29 +454,52 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 </div>
                 <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-emerald-bright/10 text-accent-emerald-bright border border-accent-emerald-bright/20 text-[11px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-accent-emerald-bright animate-ping" />
-                  Operacional
+                  {supportChannels.supportStatus || 'Operacional'}
                 </span>
               </div>
 
-              {/* Horário de Atendimento */}
+              {/* Horário de Atendimento Dinâmico */}
               <div className="space-y-3 text-xs">
                 <div>
                   <span className="text-text-tertiary block font-medium mb-1">
                     Horário de Atendimento:
                   </span>
                   <div className="p-3 rounded-xl bg-surface-overlay border border-border-subtle/80 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-secondary font-medium">Segunda a Sexta:</span>
-                      <span className="text-text-primary font-bold">08:00 às 20:00</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-secondary font-medium">Sábados:</span>
-                      <span className="text-text-primary font-bold">09:00 às 14:00</span>
-                    </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-border-subtle/50 text-[11px]">
-                      <span className="text-text-tertiary">Domingos e Feriados:</span>
-                      <span className="text-text-tertiary">Plantão via chamados</span>
-                    </div>
+                    {supportChannels.workingHours && supportChannels.workingHours.length > 0 ? (
+                      supportChannels.workingHours.map((wh, idx) => {
+                        const isLast = idx === supportChannels.workingHours.length - 1;
+                        return (
+                          <div
+                            key={wh.id || `${wh.dayLabel}-${idx}`}
+                            className={`flex items-center justify-between ${
+                              isLast ? 'pt-1 border-t border-border-subtle/50 text-[11px]' : ''
+                            }`}
+                          >
+                            <span className={isLast ? 'text-text-tertiary' : 'text-text-secondary font-medium'}>
+                              {wh.dayLabel}:
+                            </span>
+                            <span className={isLast ? 'text-text-tertiary' : 'text-text-primary font-bold'}>
+                              {wh.hours}
+                            </span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-text-secondary font-medium">Segunda a Sexta:</span>
+                          <span className="text-text-primary font-bold">08:00 às 20:00</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-text-secondary font-medium">Sábados:</span>
+                          <span className="text-text-primary font-bold">09:00 às 14:00</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-border-subtle/50 text-[11px]">
+                          <span className="text-text-tertiary">Domingos e Feriados:</span>
+                          <span className="text-text-tertiary">Plantão via chamados</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -463,11 +510,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                       verified
                     </span>
                     <span className="text-xs font-bold text-text-primary">
-                      Tipo de Suporte & Prazo de Resposta:
+                      Tipo de Suporte &amp; Prazo de Resposta:
                     </span>
                   </div>
                   <p className="text-[12px] text-text-secondary leading-relaxed">
-                    Atendimento técnico, pedagógico e financeiro especializado. O prazo estimado de resposta varia entre <strong className="text-primary font-bold">2 horas</strong> (em horário de expediente ou dúvidas críticas) e no máximo <strong className="text-primary font-bold">24 horas</strong> úteis.
+                    {supportChannels.supportResponseTime ||
+                      'Atendimento técnico, pedagógico e financeiro especializado. O prazo estimado de resposta varia entre 2 horas (em horário de expediente ou dúvidas críticas) e no máximo 24 horas úteis.'}
                   </p>
                 </div>
               </div>
@@ -562,19 +610,22 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 <span className="text-[10px] text-text-tertiary uppercase">Oficial</span>
               </div>
 
-              {/* Informações dos E-mails de Suporte */}
+              {/* Informações dos E-mails de Suporte Dinâmicos */}
               <div>
                 <span className="text-xs font-bold text-text-secondary block mb-2">
                   Suporte por E-mail:
                 </span>
                 <div className="space-y-1.5">
-                  {[
-                    { label: 'Suporte & Alunos', email: 'suporte@dedsacademy.com.br' },
-                    { label: 'Financeiro & Estornos', email: 'financeiro@dedsacademy.com.br' },
-                    { label: 'Contato Geral', email: 'contato@dedsacademy.com.br' },
-                  ].map((item) => (
+                  {(supportChannels.emails && supportChannels.emails.length > 0
+                    ? supportChannels.emails
+                    : [
+                        { id: '1', label: 'Suporte & Alunos', email: 'suporte@dedsacademy.com.br' },
+                        { id: '2', label: 'Financeiro & Estornos', email: 'financeiro@dedsacademy.com.br' },
+                        { id: '3', label: 'Contato Geral', email: 'contato@dedsacademy.com.br' },
+                      ]
+                  ).map((item) => (
                     <div
-                      key={item.email}
+                      key={item.id || item.email}
                       className="p-2.5 rounded-xl bg-surface-overlay border border-border-subtle/70 flex items-center justify-between gap-2 text-xs"
                     >
                       <div className="min-w-0">
@@ -601,17 +652,17 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                 </div>
               </div>
 
-              {/* Botão do WhatsApp */}
+              {/* Botão do WhatsApp Dinâmico */}
               <div>
                 <span className="text-xs font-bold text-text-secondary block mb-2">
                   Atendimento via WhatsApp:
                 </span>
                 <a
-                  href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20gostaria%20de%20atendimento%20sobre%20a%20Deds%20Academy."
+                  href={buildWhatsAppUrl(supportChannels.whatsappNumber, supportChannels.whatsappMessage)}
                   target="_blank"
                   rel="noopener noreferrer"
                   id="whatsapp-support-button"
-                  className="w-full py-3 px-4 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm"
+                  className="w-full py-3 px-4 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] font-bold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm hover:scale-[1.01]"
                 >
                   <svg
                     className="w-4 h-4 fill-current shrink-0"
