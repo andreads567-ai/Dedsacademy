@@ -208,9 +208,9 @@ export default function App() {
   const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('deds_coupons_list');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return INITIAL_COUPONS;
@@ -229,7 +229,7 @@ export default function App() {
     const handleCouponsSync = () => {
       try {
         const saved = localStorage.getItem('deds_coupons_list');
-        if (saved) {
+        if (saved !== null) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) setCouponsList(parsed);
         }
@@ -248,9 +248,9 @@ export default function App() {
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(() => {
     try {
       const saved = localStorage.getItem('deds_campaigns_list');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return INITIAL_CAMPAIGNS;
@@ -269,7 +269,7 @@ export default function App() {
     const handleCampaignsSync = () => {
       try {
         const saved = localStorage.getItem('deds_campaigns_list');
-        if (saved) {
+        if (saved !== null) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) setCampaignsList(parsed);
         }
@@ -475,12 +475,12 @@ export default function App() {
             return merged;
           });
         }
-        if (data.coupons && data.coupons.length > 0) {
+        if (data.coupons && Array.isArray(data.coupons)) {
           setCouponsList(data.coupons);
           try { localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons)); } catch {}
           window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: data.coupons }));
         }
-        if (data.campaigns && data.campaigns.length > 0) {
+        if (data.campaigns && Array.isArray(data.campaigns)) {
           setCampaignsList(data.campaigns);
           try { localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns)); } catch {}
           window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: data.campaigns }));
@@ -529,12 +529,12 @@ export default function App() {
           return merged;
         });
       }
-      if (data.coupons && data.coupons.length > 0) {
+      if (data.coupons && Array.isArray(data.coupons)) {
         setCouponsList(data.coupons);
         try { localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons)); } catch {}
         window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: data.coupons }));
       }
-      if (data.campaigns && data.campaigns.length > 0) {
+      if (data.campaigns && Array.isArray(data.campaigns)) {
         setCampaignsList(data.campaigns);
         try { localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns)); } catch {}
         window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: data.campaigns }));

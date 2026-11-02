@@ -202,8 +202,8 @@ export function startLiveSync(
         try {
           if (data.courses) localStorage.setItem('deds_courses_list', JSON.stringify(data.courses));
           if (data.categories) localStorage.setItem('deds_categories_list', JSON.stringify(data.categories));
-          if (data.coupons) localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons));
-          if (data.campaigns) localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns));
+          if (data.coupons !== undefined) localStorage.setItem('deds_coupons_list', JSON.stringify(data.coupons));
+          if (data.campaigns !== undefined) localStorage.setItem('deds_campaigns_list', JSON.stringify(data.campaigns));
           if (data.heroBanner) localStorage.setItem('deds_hero_banner_config', JSON.stringify(data.heroBanner));
           if (data.middleBanner) localStorage.setItem('deds_middle_banner_config', JSON.stringify(data.middleBanner));
           if (data.checkoutBanner) localStorage.setItem('deds_checkout_banner_config', JSON.stringify(data.checkoutBanner));

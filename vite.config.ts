@@ -209,11 +209,9 @@ export default defineConfig(({ mode }) => {
         }
 
         if (req.method === 'POST') {
-          let body = '';
-          req.on('data', (chunk: any) => { body += chunk.toString(); });
-          req.on('end', async () => {
+          const processPayload = (rawBody: any) => {
             try {
-              const parsed = body ? JSON.parse(body) : {};
+              const parsed = typeof rawBody === 'string' ? (rawBody ? JSON.parse(rawBody) : {}) : (rawBody || {});
               const result = savePlatformData(parsed);
               res.setHeader('Content-Type', 'application/json');
               res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -225,7 +223,16 @@ export default defineConfig(({ mode }) => {
               res.statusCode = 500;
               res.end(JSON.stringify({ success: false, error: err.message }));
             }
-          });
+          };
+
+          if ((req as any).body) {
+            processPayload((req as any).body);
+            return;
+          }
+
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk.toString(); });
+          req.on('end', () => { processPayload(body); });
           return;
         }
 

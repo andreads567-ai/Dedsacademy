@@ -319,6 +319,37 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
     }
 
     onUpdateCampaign({ ...campaign, status: 'cancelada' });
+    setCampaignSuccessToast(`Campanha "${campaign.title}" cancelada com sucesso. Preços normais dos cursos restabelecidos!`);
+    setTimeout(() => setCampaignSuccessToast(null), 4000);
+  };
+
+  const handleDeleteCampaignClick = (camp: PromotionalCampaign) => {
+    if (!window.confirm(`Deseja remover a campanha "${camp.title}" do histórico? Os preços normais dos cursos serão restabelecidos.`)) {
+      return;
+    }
+
+    // Restore prices if available
+    if (camp.status === 'ativa' || camp.status === 'pausada') {
+      if (camp.originalPricesBackup) {
+        Object.entries(camp.originalPricesBackup).forEach(([cId, origPrice]) => {
+          const course = courses.find((c) => c.id === cId);
+          if (course) {
+            onUpdateCourse({ ...course, currentPrice: origPrice });
+          }
+        });
+      } else {
+        const targetList = camp.targetCourseIds.includes('all')
+          ? courses
+          : courses.filter((c) => camp.targetCourseIds.includes(c.id));
+        targetList.forEach((c) => {
+          onUpdateCourse({ ...c, currentPrice: c.originalPrice });
+        });
+      }
+    }
+
+    onDeleteCampaign(camp.id);
+    setCampaignSuccessToast(`Campanha "${camp.title}" removida do histórico.`);
+    setTimeout(() => setCampaignSuccessToast(null), 4000);
   };
 
   // Helper function for countdown format
@@ -1164,11 +1195,7 @@ export const PromotionsTab: React.FC<PromotionsTabProps> = ({
                                 {/* Delete from list */}
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (window.confirm(`Deseja remover a campanha "${camp.title}" do histórico?`)) {
-                                      onDeleteCampaign(camp.id);
-                                    }
-                                  }}
+                                  onClick={() => handleDeleteCampaignClick(camp)}
                                   className="p-1.5 rounded-lg bg-[#080B10] hover:bg-status-danger/10 text-text-tertiary hover:text-status-danger border border-[#1F293D] transition-colors cursor-pointer"
                                   title="Excluir do Histórico"
                                 >

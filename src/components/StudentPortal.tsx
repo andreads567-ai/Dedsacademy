@@ -152,14 +152,15 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
           description: `Curso com certificado oficial emitido em ${cert.issueDate}`,
           category: cert.courseCategory || 'Capacitação Profissional',
           hours: cert.hours || 0,
-          price: 0,
+          currentPrice: 0,
           originalPrice: 0,
           rating: 5.0,
           reviewsCount: 1,
-          featured: false,
+          badge: { text: 'Certificado Emitido', variant: 'emerald' },
+          filterTags: ['Certificado Emitido'],
           status: 'publicado',
           instructor: cert.instructor || 'Deds Academy',
-          imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60',
+          image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60',
           modules: [],
         });
       }

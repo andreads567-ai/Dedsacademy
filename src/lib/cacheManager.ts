@@ -99,13 +99,13 @@ export function initCacheManager(): void {
 
     // 2. Coupons: only populate if completely absent
     const rawCoupons = localStorage.getItem('deds_coupons_list');
-    if (!rawCoupons) {
+    if (rawCoupons === null) {
       localStorage.setItem('deds_coupons_list', JSON.stringify(INITIAL_COUPONS));
     }
 
     // 3. Campaigns: only populate if completely absent
     const rawCampaigns = localStorage.getItem('deds_campaigns_list');
-    if (!rawCampaigns) {
+    if (rawCampaigns === null) {
       localStorage.setItem('deds_campaigns_list', JSON.stringify(INITIAL_CAMPAIGNS));
     }
 

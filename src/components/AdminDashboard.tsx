@@ -155,9 +155,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [couponsList, setCouponsList] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('deds_coupons_list');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return initialCoupons;
@@ -169,12 +169,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [initialCoupons]);
 
+  useEffect(() => {
+    const handleCouponsSync = () => {
+      try {
+        const saved = localStorage.getItem('deds_coupons_list');
+        if (saved !== null) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setCouponsList(parsed);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleCouponsSync);
+    window.addEventListener('deds_coupons_updated', handleCouponsSync);
+    return () => {
+      window.removeEventListener('storage', handleCouponsSync);
+      window.removeEventListener('deds_coupons_updated', handleCouponsSync);
+    };
+  }, []);
+
   const [campaignsList, setCampaignsList] = useState<PromotionalCampaign[]>(() => {
     try {
       const saved = localStorage.getItem('deds_campaigns_list');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
     return initialCampaigns;
@@ -186,80 +205,104 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [initialCampaigns]);
 
+  useEffect(() => {
+    const handleCampaignsSync = () => {
+      try {
+        const saved = localStorage.getItem('deds_campaigns_list');
+        if (saved !== null) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setCampaignsList(parsed);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleCampaignsSync);
+    window.addEventListener('deds_campaigns_updated', handleCampaignsSync);
+    return () => {
+      window.removeEventListener('storage', handleCampaignsSync);
+      window.removeEventListener('deds_campaigns_updated', handleCampaignsSync);
+    };
+  }, []);
+
   const handleAddCoupon = (newCoupon: Coupon) => {
-    setCouponsList((prev) => {
-      const next = [newCoupon, ...prev];
-      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCoupons) onUpdateCoupons(next);
-      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
-      return next;
-    });
+    const next = [newCoupon, ...couponsList];
+    setCouponsList(next);
+    try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCoupons) onUpdateCoupons(next);
+    window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
     sendCouponBroadcastEmail({ coupon: newCoupon, students: users }).catch(console.error);
   };
 
   const handleUpdateCoupon = (updatedCoupon: Coupon) => {
-    setCouponsList((prev) => {
-      const next = prev.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c));
-      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCoupons) onUpdateCoupons(next);
-      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
-      return next;
-    });
+    const next = couponsList.map((c) => (c.id === updatedCoupon.id ? updatedCoupon : c));
+    setCouponsList(next);
+    try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCoupons) onUpdateCoupons(next);
+    window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
   };
 
   const handleDeleteCoupon = (couponId: string) => {
-    setCouponsList((prev) => {
-      const next = prev.filter((c) => c.id !== couponId);
-      try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCoupons) onUpdateCoupons(next);
-      window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
-      return next;
-    });
+    const next = couponsList.filter((c) => c.id !== couponId);
+    setCouponsList(next);
+    try { localStorage.setItem('deds_coupons_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCoupons) onUpdateCoupons(next);
+    window.dispatchEvent(new CustomEvent('deds_coupons_updated', { detail: next }));
   };
 
   const handleAddCampaign = (newCampaign: PromotionalCampaign) => {
-    setCampaignsList((prev) => {
-      const next = [newCampaign, ...prev];
-      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCampaigns) onUpdateCampaigns(next);
-      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
-      return next;
-    });
+    const next = [newCampaign, ...campaignsList];
+    setCampaignsList(next);
+    try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCampaigns) onUpdateCampaigns(next);
+    window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
   };
 
   const handleUpdateCampaign = (updatedCampaign: PromotionalCampaign) => {
-    setCampaignsList((prev) => {
-      const next = prev.map((c) => (c.id === updatedCampaign.id ? updatedCampaign : c));
-      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCampaigns) onUpdateCampaigns(next);
-      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
-      return next;
-    });
+    const next = campaignsList.map((c) => (c.id === updatedCampaign.id ? updatedCampaign : c));
+    setCampaignsList(next);
+    try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCampaigns) onUpdateCampaigns(next);
+    window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
   };
 
   const handleDeleteCampaign = (campaignId: string) => {
-    setCampaignsList((prev) => {
-      const next = prev.filter((c) => c.id !== campaignId);
-      try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
-      if (onUpdateCampaigns) onUpdateCampaigns(next);
-      window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
-      return next;
-    });
+    // Restore normal course prices if the campaign being deleted was active or paused
+    const campaignToDelete = campaignsList.find((c) => c.id === campaignId);
+    if (campaignToDelete && (campaignToDelete.status === 'ativa' || campaignToDelete.status === 'pausada')) {
+      if (campaignToDelete.originalPricesBackup) {
+        Object.entries(campaignToDelete.originalPricesBackup).forEach(([cId, origPrice]) => {
+          const course = courses.find((c) => c.id === cId);
+          if (course) onUpdateCourse({ ...course, currentPrice: origPrice });
+        });
+      } else {
+        const targetList = campaignToDelete.targetCourseIds.includes('all')
+          ? courses
+          : courses.filter((c) => campaignToDelete.targetCourseIds.includes(c.id));
+        targetList.forEach((c) => {
+          onUpdateCourse({ ...c, currentPrice: c.originalPrice });
+        });
+      }
+    }
+    const next = campaignsList.filter((c) => c.id !== campaignId);
+    setCampaignsList(next);
+    try { localStorage.setItem('deds_campaigns_list', JSON.stringify(next)); } catch {}
+    if (onUpdateCampaigns) onUpdateCampaigns(next);
+    window.dispatchEvent(new CustomEvent('deds_campaigns_updated', { detail: next }));
   };
 
   // Announcements list
   const [announcements, setAnnouncements] = useState([
     {
       id: 'ann-1',
-      title: 'MÃ³dulo de InteligÃªncia Artificial Generativa liberado em Python',
-      author: 'CoordenaÃ§Ã£o PedagÃ³gica',
+      title: 'Módulo de Inteligência Artificial Generativa liberado em Python',
+      author: 'Coordenação Pedagógica',
       date: '14/09/2026',
       priority: 'alta',
     },
     {
       id: 'ann-2',
       title: 'Novos modelos de certificados digitais com QR Code da Lei Federal 9.394/96',
-      author: 'GestÃ£o AcadÃªmica',
+      author: 'Gestão Acadêmica',
       date: '10/09/2026',
       priority: 'normal',
     },
@@ -279,7 +322,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     image: '',
     status: 'publicado' as CourseStatus,
     description: '',
-    badgeText: 'LanÃ§amento',
+    badgeText: 'Lançamento',
   });
 
   // Category Handlers
@@ -357,7 +400,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {
         id: `ann-${Date.now()}`,
         title,
-        author: 'CoordenaÃ§Ã£o PedagÃ³gica',
+        author: 'Coordenação Pedagógica',
         date: new Date().toLocaleDateString('pt-BR'),
         priority: 'alta',
       },
@@ -382,7 +425,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               ...c,
               status: 'cancelado',
               cancelledAt: new Date().toLocaleDateString('pt-BR'),
-              cancellationReason: reason || 'Cancelado pela administraÃ§Ã£o',
+              cancellationReason: reason || 'Cancelado pela administração',
             }
           : c
       )
@@ -390,7 +433,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (onCancelCertificate) onCancelCertificate(certId, reason);
   };
 
-  // Review Handlers (BotÃ£o 11: AvaliaÃ§Ã£o de Curso)
+  // Review Handlers (Botão 11: Avaliação de Curso)
   const handleDeleteReview = (reviewId: string) => {
     setReviewsList((prev) => prev.filter((r) => r.id !== reviewId));
   };
@@ -462,7 +505,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             className="w-8 h-8 object-contain rounded-full shadow-[0_0_10px_rgba(0,192,160,0.3)] shrink-0"
           />
           <div>
-            <span className="font-bold text-sm text-text-primary block">Deds GestÃ£o</span>
+            <span className="font-bold text-sm text-text-primary block">Deds Gestão</span>
             <span className="text-[10px] text-text-tertiary">Painel Administrativo</span>
           </div>
         </div>
@@ -516,7 +559,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <h1 className="font-bold text-sm text-text-primary tracking-tight">Deds Academy</h1>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent-emerald-bright" />
-                    <span className="text-[11px] text-text-tertiary font-medium">GestÃ£o &amp; Controle</span>
+                    <span className="text-[11px] text-text-tertiary font-medium">Gestão &amp; Controle</span>
                   </div>
                 </div>
               </div>
@@ -525,7 +568,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Navigation Menu (10 Ordered Items) */}
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-3 py-1 block">
-                Menu de AdministraÃ§Ã£o
+                Menu de Administração
               </span>
 
               {navigationItems.map((item) => {
@@ -587,7 +630,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 onClick={onLogout}
                 className="p-1.5 rounded-lg text-text-tertiary hover:text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer"
-                title="Encerrar SessÃ£o"
+                title="Encerrar Sessão"
               >
                 <span className="material-symbols-outlined text-lg">logout</span>
               </button>
@@ -612,7 +655,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-text-tertiary hidden sm:block">
-                Ambiente restrito de gestÃ£o acadÃªmica e operacional
+                Ambiente restrito de gestão acadêmica e operacional
               </p>
             </div>
           </div>
@@ -641,7 +684,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Content Container based on Active Tab */}
         <div className="p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1">
-          {/* 1. VisÃ£o geral */}
+          {/* 1. Visão geral */}
           {activeTab === 'visao-geral' && (
             <OverviewTab
               courses={courses}
@@ -656,7 +699,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 2. AnÃ¡lise */}
+          {/* 2. Análise */}
           {activeTab === 'analise' && <AnalyticsTab courses={courses} users={users} />}
 
           {/* 3. Postagem de cursos */}
@@ -721,7 +764,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 7. GestÃ£o de aluno */}
+          {/* 7. Gestão de aluno */}
           {activeTab === 'gestao-aluno' && (
             <StudentsTab
               users={users}
@@ -737,7 +780,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 8. UsuÃ¡rios */}
+          {/* 8. Usuários */}
           {activeTab === 'usuarios' && (
             <UsersTab
               users={users}
@@ -779,7 +822,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 11. AvaliaÃ§Ã£o de curso */}
+          {/* 11. Avaliação de curso */}
           {activeTab === 'avaliacao-curso' && (
             <CourseReviewsTab
               reviews={reviewsList}
@@ -801,12 +844,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* 13. ConfiguraÃ§Ãµes & APIs */}
+          {/* 13. Configurações & APIs */}
           {activeTab === 'configuracoes' && (
             <SettingsApiTab />
           )}
 
-          {/* 14. PromoÃ§Ãµes & Cupons de Desconto */}
+          {/* 14. Promoções & Cupons de Desconto */}
           {activeTab === 'promocoes' && (
             <PromotionsTab
               courses={courses}

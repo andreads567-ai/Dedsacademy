@@ -51,6 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('deds_coupons_updated', handleUpdate);
+      window.removeEventListener('deds_campaigns_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, []);
@@ -62,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
     } else {
       try {
         const saved = localStorage.getItem('deds_coupons_list');
-        list = saved ? JSON.parse(saved) : INITIAL_COUPONS;
+        list = saved !== null ? JSON.parse(saved) : INITIAL_COUPONS;
       } catch {
         list = INITIAL_COUPONS;
       }
@@ -85,7 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
     } else {
       try {
         const saved = localStorage.getItem('deds_campaigns_list');
-        list = saved ? JSON.parse(saved) : INITIAL_CAMPAIGNS;
+        list = saved !== null ? JSON.parse(saved) : INITIAL_CAMPAIGNS;
       } catch {
         list = INITIAL_CAMPAIGNS;
       }
