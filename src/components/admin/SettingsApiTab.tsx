@@ -2101,21 +2101,21 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
                   <div>
                     <p>
-                      <strong>1.</strong> Acesse o <strong>Zoho API Console</strong> e selecione o cliente <strong>Self Client</strong>.
+                      <strong>1.</strong> Acesse o <strong>Zoho API Console</strong> e abra seu <strong>Self Client</strong>.
                     </p>
                     <p className="mt-1">
-                      <strong>2.</strong> Na aba <strong>Generate Code</strong>, cole o Escopo (Scope):{' '}
-                      <code className="text-primary font-mono text-[10px] bg-black/30 px-1 py-0.5 rounded">
-                        ZohoMail.messages.CREATE,ZohoMail.accounts.READ
-                      </code>
+                      <strong>2.</strong> Na aba <strong>Client Secret</strong> (ou Detalhes do Cliente), copie o <strong>Client ID</strong> e <strong>Client Secret</strong> reais e cole nos campos acima.
                     </p>
                   </div>
                   <div>
                     <p>
-                      <strong>3.</strong> Defina a validade (ex: 10 minutos) e clique em <strong>Generate</strong>.
+                      <strong>3.</strong> Na aba <strong>Generate Code</strong>, cole o Escopo (Scope):{' '}
+                      <code className="text-primary font-mono text-[10px] bg-black/30 px-1 py-0.5 rounded">
+                        ZohoMail.messages.CREATE,ZohoMail.accounts.READ
+                      </code>
                     </p>
                     <p className="mt-1">
-                      <strong>4.</strong> Cole o código gerado no campo abaixo e clique no botão verde para gerar e gravar o token permanentemente no banco.
+                      <strong>4.</strong> Defina 10 min, clique em <strong>Generate</strong>, cole o token abaixo e clique no botão verde.
                     </p>
                   </div>
                 </div>

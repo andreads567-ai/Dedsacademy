@@ -305,15 +305,35 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
 
     if (accRes.ok) {
       const accData = await accRes.json();
-      if (accData.data && accData.data.length > 0) {
-        if (!targetAccountId) {
-          targetAccountId = String(accData.data[0].accountId);
+      console.log('[Zoho Mail /api/accounts]:', JSON.stringify(accData));
+      if (accData.data) {
+        let accountObj = null;
+        if (Array.isArray(accData.data) && accData.data.length > 0) {
+          accountObj = accData.data[0];
+        } else if (typeof accData.data === 'object' && accData.data.accountId) {
+          accountObj = accData.data;
         }
-        mailboxAddress = accData.data[0].mailboxAddress;
+
+        if (accountObj) {
+          if (!targetAccountId) {
+            targetAccountId = String(accountObj.accountId);
+          }
+          mailboxAddress = accountObj.mailboxAddress || accountObj.incomingUserName || (accountObj.emailAddress?.[0]?.mailId);
+        }
       }
+    } else {
+      const accErr = await accRes.text();
+      console.warn('[Zoho Mail /api/accounts HTTP ' + accRes.status + ']:', accErr);
     }
   } catch (err: any) {
     console.warn('[Zoho Mail] Consulta /api/accounts falhou:', err?.message);
+  }
+
+  if (!targetAccountId) {
+    return {
+      success: false,
+      error: 'ID da conta (AccountId) não identificado no Zoho Mail. Verifique se o escopo ZohoMail.accounts.READ está ativo.',
+    };
   }
 
   // Endereço remetente verificado
@@ -327,26 +347,24 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
     }
   }
 
-  if (!finalFrom) {
-    finalFrom = 'andre.souza@dadsacademy.com.br';
+  if (finalFrom && finalFrom.includes('@dedsacademy.com.br')) {
+    finalFrom = finalFrom.replace('@dedsacademy.com.br', '@dadsacademy.com.br');
   }
 
-  const endpoint = targetAccountId
-    ? `${mailDomain}/api/accounts/${targetAccountId}/messages`
-    : `${mailDomain}/api/accounts/messages`;
+  if (!finalFrom) {
+    finalFrom = mailboxAddress || 'andre.souza@dadsacademy.com.br';
+  }
 
+  const endpoint = `${mailDomain}/api/accounts/${targetAccountId}/messages`;
+
+  // Payload estrito conforme a especificação oficial do Zoho Mail
   const payload: Record<string, any> = {
     fromAddress: finalFrom,
     toAddress: to.trim(),
-    subject: subject,
+    subject: subject.trim(),
     content: html,
     mailFormat: 'html',
-    askReceipt: 'no',
   };
-
-  if (replyTo?.trim()) {
-    payload.inReplyTo = replyTo.trim();
-  }
 
   try {
     let response = await fetch(endpoint, {
