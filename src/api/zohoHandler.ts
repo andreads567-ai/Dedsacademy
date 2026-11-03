@@ -367,6 +367,9 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
   };
 
   try {
+    console.log('[Zoho Mail Dispatching URL]:', endpoint);
+    console.log('[Zoho Mail From Address]:', finalFrom, 'To:', to.trim());
+
     let response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -378,6 +381,7 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
 
     // Se receber 401 Unauthorized (token expirou após primeira verificação), renova e reenvia
     if (response.status === 401 && refreshToken && clientId && clientSecret) {
+      console.log('[Zoho Mail] 401 recebido. Renovando token...');
       const refreshedToken = await renewAccessToken();
       if (refreshedToken) {
         accessToken = refreshedToken;
@@ -392,10 +396,25 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
       }
     }
 
-    const result = await response.json();
+    const responseText = await response.text();
+    let result: any = null;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = { rawText: responseText };
+    }
 
-    if (!response.ok || (result.status && result.status.code !== 200)) {
-      const apiErr = result.data?.message || result.status?.description || result.error || 'Erro na API Zoho Mail';
+    console.log('[Zoho Mail Response Status]:', response.status);
+    console.log('[Zoho Mail Response Body]:', responseText);
+
+    if (!response.ok || (result?.status && result.status.code !== 200)) {
+      const apiErr =
+        result?.data?.message ||
+        result?.status?.description ||
+        result?.error ||
+        result?.data?.description ||
+        responseText ||
+        'Erro na API Zoho Mail';
       return {
         success: false,
         error: `Zoho Mail API (${response.status}): ${apiErr}`,

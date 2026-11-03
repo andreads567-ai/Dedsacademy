@@ -106,6 +106,7 @@ app.post('/api/zoho-refresh', async (req, res) => {
 app.post('/api/zoho-send-email', async (req, res) => {
   try {
     const result = await sendZohoEmailMessage(req.body);
+    console.log('[Zoho Express /api/zoho-send-email Result]:', JSON.stringify(result));
     if (!result.success) {
       res.status(400).json(result);
     } else {
