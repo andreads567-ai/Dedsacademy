@@ -282,6 +282,7 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
   // No Zoho Mail API: identifica accountId e caixa postal autenticada
   let targetAccountId = accountId?.trim();
   let mailboxAddress: string | undefined;
+  let allowedSenders: string[] = [];
 
   try {
     let accRes = await fetch(`${mailDomain}/api/accounts`, {
@@ -305,7 +306,6 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
 
     if (accRes.ok) {
       const accData = await accRes.json();
-      console.log('[Zoho Mail /api/accounts]:', JSON.stringify(accData));
       if (accData.data) {
         let accountObj = null;
         if (Array.isArray(accData.data) && accData.data.length > 0) {
@@ -318,7 +318,20 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
           if (!targetAccountId) {
             targetAccountId = String(accountObj.accountId);
           }
-          mailboxAddress = accountObj.mailboxAddress || accountObj.incomingUserName || (accountObj.emailAddress?.[0]?.mailId);
+          mailboxAddress =
+            accountObj.primaryEmailAddress ||
+            accountObj.mailboxAddress ||
+            accountObj.emailAddress?.find((e: any) => e?.isPrimary)?.mailId ||
+            accountObj.emailAddress?.[0]?.mailId;
+
+          // Lista oficial de remetentes autorizados pelo Zoho para esta conta
+          const collected: string[] = [];
+          if (accountObj.primaryEmailAddress) collected.push(accountObj.primaryEmailAddress);
+          if (accountObj.mailboxAddress) collected.push(accountObj.mailboxAddress);
+          (accountObj.emailAddress || []).forEach((e: any) => e?.mailId && collected.push(e.mailId));
+          (accountObj.sendMailDetails || []).forEach((s: any) => s?.fromAddress && collected.push(s.fromAddress));
+          allowedSenders = Array.from(new Set(collected.map((a) => String(a).trim().toLowerCase())));
+          console.log('[Zoho Mail] Remetentes autorizados:', allowedSenders.join(', '));
         }
       }
     } else {
@@ -336,23 +349,24 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
     };
   }
 
-  // Endereço remetente verificado
-  let finalFrom = fromEmail?.trim();
-
-  // Se o usuário autenticado no Zoho for do domínio dadsacademy.com.br,
-  // mas o formulário estava com dedsacademy ou vazio, garantimos o remetente oficial
-  if (mailboxAddress) {
-    if (!finalFrom || (finalFrom.includes('dedsacademy.com.br') && mailboxAddress.includes('dadsacademy.com.br'))) {
-      finalFrom = mailboxAddress;
+  // Endereço remetente: só é usado o informado no painel se o próprio Zoho o reconhecer
+  // como endereço da conta. Caso contrário, usa o endereço principal retornado pelo Zoho.
+  const requestedFrom = fromEmail?.trim().toLowerCase();
+  let finalFrom: string | undefined;
+  if (requestedFrom && allowedSenders.includes(requestedFrom)) {
+    finalFrom = requestedFrom;
+  } else {
+    finalFrom = mailboxAddress || allowedSenders[0] || fromEmail?.trim();
+    if (requestedFrom && finalFrom && requestedFrom !== finalFrom.toLowerCase()) {
+      console.warn(`[Zoho Mail] Remetente "${requestedFrom}" não pertence à conta Zoho. Usando "${finalFrom}".`);
     }
   }
 
-  if (finalFrom && finalFrom.includes('@dedsacademy.com.br')) {
-    finalFrom = finalFrom.replace('@dedsacademy.com.br', '@dadsacademy.com.br');
-  }
-
   if (!finalFrom) {
-    finalFrom = mailboxAddress || 'andre.souza@dadsacademy.com.br';
+    return {
+      success: false,
+      error: 'Nenhum endereço remetente válido foi retornado pela conta Zoho Mail.',
+    };
   }
 
   const endpoint = `${mailDomain}/api/accounts/${targetAccountId}/messages`;
@@ -409,6 +423,7 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
 
     if (!response.ok || (result?.status && result.status.code !== 200)) {
       const apiErr =
+        result?.data?.moreInfo ||
         result?.data?.message ||
         result?.status?.description ||
         result?.error ||
