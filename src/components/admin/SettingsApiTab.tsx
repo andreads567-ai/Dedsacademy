@@ -61,19 +61,19 @@ const DEFAULT_SETTINGS: ApiIntegrationSettings = {
   email: {
     provider: 'zoho',
     apiKey: '',
-    fromEmail: 'contato@dedsacademy.com.br',
+    fromEmail: 'andre.souza@dadsacademy.com.br',
     fromName: 'Deds Academy',
-    replyToEmail: 'contato@dedsacademy.com.br',
+    replyToEmail: 'andre.souza@dadsacademy.com.br',
     zohoClientId: '',
     zohoClientSecret: '',
-    zohoUser: 'contato@dedsacademy.com.br',
+    zohoUser: 'andre.souza@dadsacademy.com.br',
     zohoAccountId: '',
-    zohoRegion: 'com.br',
+    zohoRegion: 'com',
     zohoScope: 'ZohoMail.messages.CREATE,ZohoMail.accounts.READ',
     zohoGrantToken: '',
     zohoRefreshToken: '',
     zohoAccessToken: '',
-    adminAlertEmail: 'admin@dedsacademy.com.br',
+    adminAlertEmail: 'andre.souza@dadsacademy.com.br',
     notifyOnWelcome: true,
     notifyOnPasswordReset: true,
     notifyOnLessonComplete: true,
@@ -450,8 +450,72 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           missingFields.map((f) => `  • ${f}`).join('\n') +
           `\n\nPreencha todos os campos obrigatórios e tente novamente.`
         );
-      } else {
-        // All required fields are present — connection success
+        return;
+      }
+
+      // Se for validação do Zoho Mail, realiza teste real contra a API do Zoho
+      if (service === 'email' && settings.email.provider === 'zoho') {
+        if (!settings.email.zohoRefreshToken?.trim()) {
+          setTestingService(null);
+          alert(
+            '⚠️ Refresh Token permanente não encontrado!\n\n' +
+            'Para testar a conexão do Zoho, primeiro cole o Grant Token temporário gerado no Zoho Self-Client e clique em "⚡ Gerar e Gravar Token Permanente".'
+          );
+          return;
+        }
+
+        fetch('/api/zoho-refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            refreshToken: settings.email.zohoRefreshToken.trim(),
+            clientId: settings.email.zohoClientId.trim(),
+            clientSecret: settings.email.zohoClientSecret.trim(),
+            region: settings.email.zohoRegion || 'com',
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            setTestingService(null);
+            if (data.success && data.accessToken) {
+              const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+              setSettings((prev) => {
+                const updated = {
+                  ...prev,
+                  email: {
+                    ...prev.email,
+                    status: 'conectado' as const,
+                    zohoAccessToken: data.accessToken,
+                    lastTested: `Autenticado com sucesso (${now})`,
+                  },
+                };
+                try {
+                  localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+                } catch {}
+                return updated;
+              });
+              alert(
+                '✅ Conexão Oficial Zoho Mail Validada com Sucesso!\n\n' +
+                'Status: 200 OK — Autenticado\n' +
+                'O Zoho reconheceu suas credenciais e renovou a sessão do Access Token com êxito.\n' +
+                'Agora você pode clicar no botão "Enviar E-mail de Teste" para disparar sua mensagem.'
+              );
+            } else {
+              const errorMsg = data.error || 'Erro na autenticação com o Zoho.';
+              alert(
+                `❌ Teste de Conexão com Zoho FALHOU:\n\n${errorMsg}\n\n` +
+                'Verifique se o Client ID e Client Secret estão corretos e se o Refresh Token foi gerado para esse mesmo Client ID.'
+              );
+            }
+          })
+          .catch((err) => {
+            setTestingService(null);
+            alert(`❌ Erro ao conectar com a API do Zoho: ${err.message}`);
+          });
+        return;
+      }
+
+      // All required fields are present — connection success
         setSettings((prev) => {
           const serviceKey = service === 'database' ? 'database' : service;
           const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -476,7 +540,6 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           `Status: 200 OK — Latência: 42ms\n` +
           `Todas as credenciais foram validadas com sucesso.`
         );
-      }
     }, 1200);
   };
 
@@ -607,18 +670,15 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         alert(`❌ Falha ao Vincular Token Zoho:\n\n${errorMsg}`);
       }
     } catch (err: any) {
-      // Fallback em caso de teste offline
-      const mockRefreshToken = `1000.refresh_mock_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const errorMsg = err.message || 'Erro de conexão ao comunicar com a API do Zoho.';
       const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const updated: ApiIntegrationSettings = {
         ...settings,
         email: {
           ...settings.email,
-          zohoRefreshToken: mockRefreshToken,
-          zohoGrantToken: '',
-          status: 'conectado',
-          statusDetails: 'Zoho Mail configurado e pronto para envio em modo de teste.',
-          lastTested: `Conectado em ${now}`,
+          status: 'erro',
+          statusDetails: errorMsg,
+          lastTested: `Falha na autenticação (${now})`,
         },
       };
       setSettings(updated);
@@ -626,10 +686,11 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         localStorage.setItem('deds_api_settings', JSON.stringify(updated));
       } catch {}
       alert(
-        `✅ Modo de Teste Zoho Conectado!\n\n` +
-        `Refresh Token Permanente gravado no banco de dados local.\n` +
-        `Token: ${mockRefreshToken.substring(0, 16)}...\n` +
-        `Assim que o domínio oficial estiver online, ele fará a comunicação direta com o Zoho.`
+        `❌ Falha ao Vincular Token Zoho:\n\n${errorMsg}\n\n` +
+        `Certifique-se de que:\n` +
+        `1. O Grant Token foi gerado recentemente (ele expira em até 10 minutos);\n` +
+        `2. O escopo 'ZohoMail.messages.CREATE,ZohoMail.accounts.READ' foi selecionado;\n` +
+        `3. O Client ID e Client Secret estão corretos.`
       );
     } finally {
       setIsExchangingZohoToken(false);
@@ -719,10 +780,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         });
       }
 
-      setTestEmailResult({
-        success: true,
-        message: `E-mail de teste disparado com sucesso para ${target}! (Status: 200 OK)`,
-      });
+      if (res && res.success === false) {
+        setTestEmailResult({
+          success: false,
+          message: `Erro no disparo: ${res.error || 'Falha ao enviar e-mail via Zoho Mail API.'}`,
+        });
+      } else {
+        setTestEmailResult({
+          success: true,
+          message: `E-mail de teste disparado com sucesso para ${target}! (Status: 200 OK — MessageID: ${res?.messageId || 'zoho_ok'})`,
+        });
+      }
     } catch (err: any) {
       setTestEmailResult({
         success: false,
@@ -1759,7 +1827,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                   Região / Data Center Zoho (OAuth Domain)
                 </label>
                 <select
-                  value={settings.email.zohoRegion || 'com.br'}
+                  value={settings.email.zohoRegion || 'com'}
                   onChange={(e) =>
                     setSettings({
                       ...settings,
@@ -1768,11 +1836,11 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                   }
                   className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs sm:text-sm text-text-primary outline-none focus:border-primary cursor-pointer font-medium font-mono"
                 >
-                  <option value="com.br">Brasil (.com.br - accounts.zoho.com.br / mail.zoho.com.br)</option>
-                  <option value="com">Estados Unidos / Global (.com - accounts.zoho.com / mail.zoho.com)</option>
-                  <option value="eu">Europa (.eu - accounts.zoho.eu)</option>
-                  <option value="in">Índia (.in - accounts.zoho.in)</option>
-                  <option value="com.au">Austrália (.com.au - accounts.zoho.com.au)</option>
+                  <option value="com">Brasil &amp; Global (.com — accounts.zoho.com / mail.zoho.com) [Padrão]</option>
+                  <option value="com.br">Brasil (Alias .com.br — roteado para accounts.zoho.com)</option>
+                  <option value="eu">Europa (.eu — accounts.zoho.eu)</option>
+                  <option value="in">Índia (.in — accounts.zoho.in)</option>
+                  <option value="com.au">Austrália (.com.au — accounts.zoho.com.au)</option>
                 </select>
               </div>
 
@@ -1833,7 +1901,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                     </label>
                     <input
                       type="email"
-                      placeholder="contato@dedsacademy.com.br"
+                      placeholder="andre.souza@dadsacademy.com.br"
                       value={settings.email.zohoUser || settings.email.fromEmail}
                       onChange={(e) =>
                         setSettings({
@@ -1847,6 +1915,9 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       }
                       className="w-full px-3.5 py-2.5 bg-surface-raised border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary font-mono"
                     />
+                    <p className="text-[11px] text-text-tertiary mt-1">
+                      * Atenção ao domínio da conta: use o endereço exatamente como cadastrado no Zoho (ex: <code>andre.souza@dadsacademy.com.br</code>).
+                    </p>
                   </div>
 
                   <div>
@@ -1855,7 +1926,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                     </label>
                     <input
                       type="email"
-                      placeholder="contato@dedsacademy.com.br"
+                      placeholder="andre.souza@dadsacademy.com.br"
                       value={settings.email.replyToEmail}
                       onChange={(e) =>
                         setSettings({

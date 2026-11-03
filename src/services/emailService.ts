@@ -196,14 +196,14 @@ export async function sendEmail(payload: SendEmailPayload): Promise<{
         subject: payload.subject,
         html: payload.html,
         text: payload.text,
-        fromEmail: emailConfig?.fromEmail || emailConfig?.zohoUser || 'contato@dedsacademy.com.br',
+        fromEmail: emailConfig?.fromEmail || emailConfig?.zohoUser || 'andre.souza@dadsacademy.com.br',
         fromName: emailConfig?.fromName || 'Deds Academy',
-        replyTo: emailConfig?.replyToEmail || emailConfig?.fromEmail,
+        replyTo: emailConfig?.replyToEmail || emailConfig?.fromEmail || 'andre.souza@dadsacademy.com.br',
         clientId: emailConfig?.zohoClientId,
         clientSecret: emailConfig?.zohoClientSecret,
         refreshToken: emailConfig?.zohoRefreshToken,
         accessToken: emailConfig?.zohoAccessToken,
-        region: emailConfig?.zohoRegion || 'com.br',
+        region: emailConfig?.zohoRegion || 'com',
         accountId: emailConfig?.zohoAccountId,
         pdfAttachmentBase64: payload.pdfAttachmentBase64,
         pdfFilename: payload.pdfFilename,
@@ -219,26 +219,30 @@ export async function sendEmail(payload: SendEmailPayload): Promise<{
         payload: { subject: payload.subject, messageId: data.messageId, provider: emailConfig?.provider || 'zoho' },
       });
       return { success: true, messageId: data.messageId };
+    } else {
+      let errorMsg = 'Falha no envio via Zoho Mail API';
+      try {
+        const errorData = await res.json();
+        errorMsg = errorData.error || errorMsg;
+      } catch {}
+      logEmailEvent({
+        event: `email.${payload.type}`,
+        recipient: payload.to,
+        status: 'Falha',
+        payload: { subject: payload.subject, error: errorMsg, provider: emailConfig?.provider || 'zoho' },
+      });
+      return { success: false, error: errorMsg };
     }
-  } catch (err) {
-    // Se a API backend não estiver alcançável (ou estático), fallback controlado
-    console.warn('[EmailService] Fallback de simulação ativado:', err);
+  } catch (err: any) {
+    console.error('[EmailService] Erro ao comunicar com API de e-mail:', err);
+    logEmailEvent({
+      event: `email.${payload.type}`,
+      recipient: payload.to,
+      status: 'Falha',
+      payload: { subject: payload.subject, error: err?.message || 'Erro de conexão', provider: emailConfig?.provider || 'zoho' },
+    });
+    return { success: false, error: err?.message || 'Erro de conexão ao enviar e-mail' };
   }
-
-  // Fallback simulado com registro em auditoria
-  const simulatedId = `sim_msg_${Date.now()}`;
-  logEmailEvent({
-    event: `email.${payload.type}`,
-    recipient: payload.to,
-    status: 'Simulado',
-    payload: {
-      subject: payload.subject,
-      simulatedId,
-      notice: 'Disparo simulado registrado com sucesso.',
-    },
-  });
-
-  return { success: true, messageId: simulatedId, simulated: true };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -38,9 +38,12 @@ export interface ZohoSendEmailParams {
 }
 
 // Domínios OAuth por Região Zoho
+// NOTA TÉCNICA: O Zoho NÃO possui os domínios accounts.zoho.com.br e mail.zoho.com.br no DNS mundial.
+// Todas as contas criadas no Brasil e América Latina residem no Data Center Global/EUA (accounts.zoho.com e mail.zoho.com).
+// Mapeamos 'com.br' diretamente para 'https://accounts.zoho.com' e 'https://mail.zoho.com' para resiliência total.
 const ZOHO_ACCOUNTS_DOMAINS: Record<string, string> = {
   'com': 'https://accounts.zoho.com',
-  'com.br': 'https://accounts.zoho.com.br',
+  'com.br': 'https://accounts.zoho.com',
   'eu': 'https://accounts.zoho.eu',
   'in': 'https://accounts.zoho.in',
   'com.au': 'https://accounts.zoho.com.au',
@@ -49,18 +52,20 @@ const ZOHO_ACCOUNTS_DOMAINS: Record<string, string> = {
 // Domínios da API de E-mails por Região Zoho
 const ZOHO_MAIL_DOMAINS: Record<string, string> = {
   'com': 'https://mail.zoho.com',
-  'com.br': 'https://mail.zoho.com.br',
+  'com.br': 'https://mail.zoho.com',
   'eu': 'https://mail.zoho.eu',
   'in': 'https://mail.zoho.in',
   'com.au': 'https://mail.zoho.com.au',
 };
 
-function getAccountsDomain(region: string = 'com.br'): string {
-  return ZOHO_ACCOUNTS_DOMAINS[region] || ZOHO_ACCOUNTS_DOMAINS['com.br'];
+function getAccountsDomain(region: string = 'com'): string {
+  if (region === 'com.br') return 'https://accounts.zoho.com';
+  return ZOHO_ACCOUNTS_DOMAINS[region] || 'https://accounts.zoho.com';
 }
 
-function getMailDomain(region: string = 'com.br'): string {
-  return ZOHO_MAIL_DOMAINS[region] || ZOHO_MAIL_DOMAINS['com.br'];
+function getMailDomain(region: string = 'com'): string {
+  if (region === 'com.br') return 'https://mail.zoho.com';
+  return ZOHO_MAIL_DOMAINS[region] || 'https://mail.zoho.com';
 }
 
 /**
@@ -225,31 +230,42 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
     to,
     subject,
     html,
-    fromEmail = 'contato@dedsacademy.com.br',
+    fromEmail,
     fromName = 'Deds Academy',
+    replyTo,
     clientId,
     clientSecret,
     refreshToken,
-    region = 'com.br',
+    region = 'com',
     accountId,
   } = params;
 
-  let accessToken = params.accessToken;
+  let accessToken = params.accessToken?.trim();
 
-  // Se não tem access token ou se ele expirou, tenta renovar via refresh token
+  const renewAccessToken = async (): Promise<string | null> => {
+    if (refreshToken && clientId && clientSecret) {
+      const refreshRes = await refreshZohoAccessToken({
+        refreshToken: refreshToken.trim(),
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
+        region,
+      });
+      if (refreshRes.success && refreshRes.accessToken) {
+        return refreshRes.accessToken;
+      }
+    }
+    return null;
+  };
+
+  // Se não tem access token ou se ele expirou, tenta renovar via refresh token permanente
   if (!accessToken && refreshToken && clientId && clientSecret) {
-    const refreshRes = await refreshZohoAccessToken({
-      refreshToken,
-      clientId,
-      clientSecret,
-      region,
-    });
-    if (refreshRes.success && refreshRes.accessToken) {
-      accessToken = refreshRes.accessToken;
+    const refreshed = await renewAccessToken();
+    if (refreshed) {
+      accessToken = refreshed;
     } else {
       return {
         success: false,
-        error: `Não foi possível obter Access Token do Zoho: ${refreshRes.error}`,
+        error: 'Não foi possível obter Access Token ativo do Zoho a partir do Refresh Token.',
       };
     }
   }
@@ -263,23 +279,56 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
 
   const mailDomain = getMailDomain(region);
   
-  // No Zoho Mail API:
-  // Se accountId não foi informado, podemos consultar /api/accounts ou tentar o accountId default
-  let targetAccountId = accountId;
-  if (!targetAccountId) {
-    try {
-      const accRes = await fetch(`${mailDomain}/api/accounts`, {
-        headers: {
-          'Authorization': `Zoho-oauthtoken ${accessToken}`,
-        },
-      });
+  // No Zoho Mail API: identifica accountId e caixa postal autenticada
+  let targetAccountId = accountId?.trim();
+  let mailboxAddress: string | undefined;
+
+  try {
+    let accRes = await fetch(`${mailDomain}/api/accounts`, {
+      headers: {
+        'Authorization': `Zoho-oauthtoken ${accessToken}`,
+      },
+    });
+
+    // Se o token estiver expirado (401), renova e tenta de novo
+    if (accRes.status === 401 && refreshToken && clientId && clientSecret) {
+      const refreshedToken = await renewAccessToken();
+      if (refreshedToken) {
+        accessToken = refreshedToken;
+        accRes = await fetch(`${mailDomain}/api/accounts`, {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        });
+      }
+    }
+
+    if (accRes.ok) {
       const accData = await accRes.json();
       if (accData.data && accData.data.length > 0) {
-        targetAccountId = accData.data[0].accountId;
+        if (!targetAccountId) {
+          targetAccountId = String(accData.data[0].accountId);
+        }
+        mailboxAddress = accData.data[0].mailboxAddress;
       }
-    } catch {
-      // continua com endpoint genérico
     }
+  } catch (err: any) {
+    console.warn('[Zoho Mail] Consulta /api/accounts falhou:', err?.message);
+  }
+
+  // Endereço remetente verificado
+  let finalFrom = fromEmail?.trim();
+
+  // Se o usuário autenticado no Zoho for do domínio dadsacademy.com.br,
+  // mas o formulário estava com dedsacademy ou vazio, garantimos o remetente oficial
+  if (mailboxAddress) {
+    if (!finalFrom || (finalFrom.includes('dedsacademy.com.br') && mailboxAddress.includes('dadsacademy.com.br'))) {
+      finalFrom = mailboxAddress;
+    }
+  }
+
+  if (!finalFrom) {
+    finalFrom = 'andre.souza@dadsacademy.com.br';
   }
 
   const endpoint = targetAccountId
@@ -287,16 +336,20 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
     : `${mailDomain}/api/accounts/messages`;
 
   const payload: Record<string, any> = {
-    fromAddress: fromEmail,
-    toAddress: to,
+    fromAddress: finalFrom,
+    toAddress: to.trim(),
     subject: subject,
     content: html,
     mailFormat: 'html',
     askReceipt: 'no',
   };
 
+  if (replyTo?.trim()) {
+    payload.inReplyTo = replyTo.trim();
+  }
+
   try {
-    const response = await fetch(endpoint, {
+    let response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Zoho-oauthtoken ${accessToken}`,
@@ -305,12 +358,29 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
       body: JSON.stringify(payload),
     });
 
+    // Se receber 401 Unauthorized (token expirou após primeira verificação), renova e reenvia
+    if (response.status === 401 && refreshToken && clientId && clientSecret) {
+      const refreshedToken = await renewAccessToken();
+      if (refreshedToken) {
+        accessToken = refreshedToken;
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+    }
+
     const result = await response.json();
 
     if (!response.ok || (result.status && result.status.code !== 200)) {
+      const apiErr = result.data?.message || result.status?.description || result.error || 'Erro na API Zoho Mail';
       return {
         success: false,
-        error: result.data?.message || result.status?.description || result.error || 'Erro na API Zoho Mail',
+        error: `Zoho Mail API (${response.status}): ${apiErr}`,
         raw: result,
       };
     }
@@ -319,6 +389,7 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
       success: true,
       messageId: result.data?.messageId || `zoho_${Date.now()}`,
       status: 'enviado',
+      from: finalFrom,
       timestamp: new Date().toISOString(),
     };
   } catch (err: any) {
