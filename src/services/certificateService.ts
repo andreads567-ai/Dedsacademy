@@ -1,5 +1,6 @@
 import type { CertificateItem, UserAccount } from '../types';
 import { sendCertificateEmail } from './emailService';
+import { supabase } from '../lib/supabaseClient';
 
 export const DEDS_CERTIFICATES_STORAGE_KEY = 'deds_certificates_list';
 
@@ -193,6 +194,20 @@ export function rowToCertificate(row: Record<string, any>): CertificateItem {
  * Busca todos os certificados persistidos no servidor Hostinger e cache local
  */
 export async function fetchCertificatesFromDB(): Promise<CertificateItem[] | null> {
+  // 1. Consulta prioritária na nuvem Supabase
+  try {
+    const { data, error } = await supabase.from('certificates').select('*');
+    if (!error && Array.isArray(data) && data.length > 0) {
+      const certs = data.map(rowToCertificate);
+      try {
+        localStorage.setItem(DEDS_CERTIFICATES_STORAGE_KEY, JSON.stringify(certs));
+      } catch {}
+      return certs;
+    }
+  } catch (err) {
+    console.warn('[CertificateService] Falha ao consultar certificados no Supabase:', err);
+  }
+
   try {
     const res = await fetch('/api/platform-sync', { cache: 'no-store' });
     if (res.ok) {
@@ -270,6 +285,17 @@ export async function saveCertificateToDB(
       console.info('[CertificateService] Sincronização em background continuará via offline cache.');
     }
 
+    // 3.1 Grava na nuvem Supabase em tempo real
+    try {
+      const row = certificateToRow(certificate);
+      const { error: sbErr } = await supabase.from('certificates').upsert(row);
+      if (sbErr) {
+        console.warn('[CertificateService] Falha ao persistir certificado no Supabase:', sbErr.message);
+      }
+    } catch (sbErr) {
+      console.warn('[CertificateService] Erro ao gravar certificado no Supabase:', sbErr);
+    }
+
     // 4. Dispara e-mail de Conclusão & Certificado (PDF) se o e-mail do aluno for localizado
     try {
       const studentEmail =
@@ -326,6 +352,30 @@ export async function validateCertificateInDB(
 }> {
   const cleanCode = code.trim().toUpperCase().replace('#', '');
   const alphaCode = cleanCode.replace(/[^A-Z0-9]/g, '');
+
+  // 0. Consulta prioritária na nuvem Supabase por código
+  try {
+    const { data, error } = await supabase
+      .from('certificates')
+      .select('*')
+      .or(`code.ilike.${cleanCode},code.ilike.%${cleanCode}%`)
+      .limit(1);
+
+    if (!error && data && data.length > 0) {
+      const cert = rowToCertificate(data[0]);
+      if (cert.status === 'cancelado') {
+        return {
+          valid: false,
+          status: 'cancelled',
+          certificate: cert,
+          reason: cert.cancellationReason || 'Certificado revogado pela administração acadêmica.',
+        };
+      }
+      return { valid: true, status: 'valid', certificate: cert };
+    }
+  } catch (err) {
+    console.info('[CertificateService] Consulta Supabase indisponível, usando fallback:', err);
+  }
 
   // 1. Consulta no endpoint de validação oficial do servidor Hostinger
   try {

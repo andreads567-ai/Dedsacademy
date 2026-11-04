@@ -1,4 +1,6 @@
 import { getPlatformUsers, upsertPlatformUser } from './platformSyncHandler';
+import { supabase } from '../lib/supabaseClient';
+import { sendZohoEmailMessage } from './zohoHandler';
 
 export interface StripeWebhookResult {
   success: boolean;
@@ -21,6 +23,19 @@ export async function processStripeWebhook(eventPayload: any): Promise<StripeWeb
   }
 
   console.log(`[Stripe Webhook] Recebido evento: ${eventType} (ID: ${eventPayload.id || 'sem_id'})`);
+
+  // Registra auditoria do webhook diretamente no Supabase
+  try {
+    supabase.from('webhook_logs').insert({
+      event_type: eventType,
+      payload: eventPayload,
+      status: 'received',
+    }).then(({ error }) => {
+      if (error) console.warn('[Stripe Webhook] Falha ao registrar log no Supabase:', error.message);
+    });
+  } catch (logErr) {
+    console.warn('[Stripe Webhook] Erro ao gravar log no Supabase:', logErr);
+  }
 
   // ─── 1. Evento: checkout.session.completed ───────────────────────────────
   if (eventType === 'checkout.session.completed') {
@@ -89,6 +104,60 @@ export async function processStripeWebhook(eventPayload: any): Promise<StripeWeb
       }
     } catch (storeErr) {
       console.warn('[Stripe Webhook] Erro ao sincronizar aluno no Hostinger store:', storeErr);
+    }
+
+    // Persiste também na tabela users do Supabase
+    try {
+      const { data: dbUser } = await supabase.from('users').select('*').eq('email', normalizedEmail).maybeSingle();
+      if (dbUser) {
+        const currentEnrolled: string[] = dbUser.enrolled_course_ids || [];
+        const updatedEnrolled = Array.from(new Set([...currentEnrolled, ...courseIds]));
+        await supabase.from('users').update({
+          enrolled_course_ids: updatedEnrolled,
+          status: 'ativo',
+          updated_at: new Date().toISOString(),
+        }).eq('id', dbUser.id);
+      } else {
+        await supabase.from('users').insert({
+          id: `user-aluno-${Date.now()}`,
+          email: normalizedEmail,
+          name: customerName,
+          role: 'aluno',
+          status: 'ativo',
+          cpf: studentCpf || null,
+          student_code: `ALU-${Math.floor(1000 + Math.random() * 9000)}`,
+          registered_at: new Date().toLocaleDateString('pt-BR'),
+          enrolled_course_ids: courseIds,
+          completed_course_ids: [],
+        });
+      }
+    } catch (sbUserErr) {
+      console.warn('[Stripe Webhook] Erro ao sincronizar aluno no Supabase:', sbUserErr);
+    }
+
+    // Dispara e-mail de confirmação de pagamento e liberação de acesso
+    try {
+      sendZohoEmailMessage({
+        to: normalizedEmail,
+        toName: customerName,
+        subject: '🎉 Matrícula Confirmada e Acesso Liberado - Deds Academy',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #1e293b; border-radius: 12px; background: #0f172a; color: #f8fafc;">
+            <h1 style="color: #00c0a0; margin-bottom: 8px;">Pagamento Confirmado!</h1>
+            <p style="font-size: 16px; color: #94a3b8;">Olá, <strong>${customerName}</strong>! Seu pagamento foi processado com sucesso pela Stripe.</p>
+            <div style="background: #1e293b; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-weight: bold; color: #38bdf8;">Cursos Liberados:</p>
+              <p style="margin: 4px 0 0; color: #cbd5e1;">${courseIds.join(', ')}</p>
+            </div>
+            <p style="font-size: 14px; color: #94a3b8;">Seu acesso imediato aos módulos e certificados oficiais com validade jurídica já está disponível na plataforma.</p>
+            <div style="text-align: center; margin-top: 28px;">
+              <a href="https://dedsacademy.com.br" style="background: #00c0a0; color: #000; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Acessar Área do Aluno</a>
+            </div>
+          </div>
+        `,
+      }).catch((mailErr) => console.warn('[Stripe Webhook] Falha no disparo de e-mail de pagamento:', mailErr));
+    } catch (mailErr) {
+      console.warn('[Stripe Webhook] Erro ao disparar notificação de pagamento:', mailErr);
     }
 
     return {

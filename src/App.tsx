@@ -35,7 +35,7 @@ import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from './data/promotionsData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
 import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, StudentBannersConfig, DEFAULT_STUDENT_BANNERS_CONFIG, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { getStoredStudentBanners, saveStoredStudentBanners } from './services/studentBannersService';
-import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
+import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty, saveStudentProgressToDB, fetchStudentProgressFromDB } from './lib/supabaseService';
 import { supabase } from './lib/supabaseClient';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
@@ -1382,6 +1382,7 @@ export default function App() {
         },
       };
       try { localStorage.setItem('deds_student_progress', JSON.stringify(updated)); } catch {}
+      saveStudentProgressToDB(userId, courseId, updated[userId][courseId]).catch(console.error);
 
       // 3. Notificação de conclusão de aula
       sendLessonCompleteEmail({
@@ -1447,6 +1448,7 @@ export default function App() {
           },
         };
         try { localStorage.setItem('deds_student_progress', JSON.stringify(updated)); } catch {}
+      saveStudentProgressToDB(userId, courseId, updated[userId][courseId]).catch(console.error);
         return updated;
       });
 
