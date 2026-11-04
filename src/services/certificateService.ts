@@ -1,4 +1,5 @@
 import type { CertificateItem, UserAccount } from '../types';
+import { sendCertificateEmail } from './emailService';
 
 export const DEDS_CERTIFICATES_STORAGE_KEY = 'deds_certificates_list';
 
@@ -267,6 +268,41 @@ export async function saveCertificateToDB(
       });
     } catch (netErr) {
       console.info('[CertificateService] Sincronização em background continuará via offline cache.');
+    }
+
+    // 4. Dispara e-mail de Conclusão & Certificado (PDF) se o e-mail do aluno for localizado
+    try {
+      const studentEmail =
+        studentUser?.email ||
+        (certificate as any).studentEmail ||
+        (() => {
+          try {
+            const usersRaw = localStorage.getItem('deds_users_list');
+            if (usersRaw) {
+              const users: UserAccount[] = JSON.parse(usersRaw);
+              const found = users.find(
+                (u) =>
+                  (certificate.studentCpf && (u.cpf || '').replace(/\D/g, '') === (certificate.studentCpf || '').replace(/\D/g, '')) ||
+                  (certificate.studentId && u.id === certificate.studentId)
+              );
+              return found?.email;
+            }
+          } catch {}
+          return undefined;
+        })();
+
+      if (studentEmail) {
+        sendCertificateEmail({
+          studentEmail,
+          studentName: certificate.studentName,
+          courseTitle: certificate.courseTitle,
+          hours: certificate.hours || 40,
+          instructor: certificate.instructor,
+          certCode: certificate.code,
+        }).catch((e) => console.warn('[CertificateService] Falha no disparo de e-mail de certificado:', e));
+      }
+    } catch (notifyErr) {
+      console.warn('[CertificateService] Erro ao disparar notificação de certificado:', notifyErr);
     }
 
     return { success: true, certificate };

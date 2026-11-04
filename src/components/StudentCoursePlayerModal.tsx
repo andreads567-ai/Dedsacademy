@@ -642,28 +642,31 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
             {/* REPRODUTOR DE VÍDEO (Exibido APENAS se houver vídeo cadastrado) */}
             {hasVideo ? (
               <div className="space-y-2">
-                {modalVideoUrls.length > 1 && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">video_library</span>
-                      <span>Vídeos Disponíveis:</span>
-                    </span>
-                    {modalVideoUrls.map((_, vIdx) => (
+                {/* Visual Neon com Pulso nos botões dos vídeos */}
+                <div className="flex flex-wrap items-center gap-2.5 pb-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+                    <span className="material-symbols-outlined text-sm text-indigo-400">video_library</span>
+                    <span>Vídeos da Aula ({modalVideoUrls.length}):</span>
+                  </span>
+                  {modalVideoUrls.map((_, vIdx) => {
+                    const isActive = activeModalVideoIndex === vIdx;
+                    return (
                       <button
                         key={vIdx}
                         type="button"
                         onClick={() => setActiveModalVideoIndex(vIdx)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          activeModalVideoIndex === vIdx
-                            ? 'bg-primary text-black font-extrabold shadow-xs'
-                            : 'bg-white/10 text-slate-300 hover:text-white'
+                        className={`relative inline-flex items-center gap-2 px-4 py-2 font-semibold text-xs rounded-lg border transition-all duration-300 cursor-pointer ${
+                          isActive
+                            ? 'text-white bg-indigo-600 shadow-[0_0_15px_rgba(99,102,241,0.6)] hover:shadow-[0_0_25px_rgba(99,102,241,0.9)] border-indigo-400 animate-pulse hover:animate-none'
+                            : 'bg-indigo-950/40 hover:bg-indigo-900/60 text-slate-300 border-indigo-500/30'
                         }`}
                       >
-                        {vIdx === 0 ? 'Vídeo 1: Principal' : `Vídeo ${vIdx + 1}`}
+                        <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping shrink-0" />
+                        <span>{vIdx === 0 ? 'Assistir: Vídeo 1 (Principal)' : `Assistir: Vídeo ${vIdx + 1}`}</span>
                       </button>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
 
                 <div className="relative bg-black rounded-2xl overflow-hidden border border-white/10 aspect-video flex items-center justify-center shadow-2xl">
                   {(() => {

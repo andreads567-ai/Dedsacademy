@@ -20,7 +20,7 @@ import { SupportTicketsTab } from './admin/SupportTicketsTab';
 import { SettingsApiTab } from './admin/SettingsApiTab';
 import { PromotionsTab } from './admin/PromotionsTab';
 import { CourseEditModal } from './admin/CourseEditModal';
-import { sendCouponBroadcastEmail } from '../services/emailService';
+import { sendCouponBroadcastEmail, sendNewCourseBroadcastEmail } from '../services/emailService';
 
 interface AdminDashboardProps {
   courses: Course[];
@@ -709,6 +709,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               instructors={instructorsList}
               onAddCourse={(c) => {
                 onAddCourse(c);
+                sendNewCourseBroadcastEmail({ course: c, students: users }).catch(console.error);
               }}
               onNavigateToCourses={() => setActiveTab('gestao-curso')}
               onNavigateHome={onNavigateHome}

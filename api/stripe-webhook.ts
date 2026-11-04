@@ -64,6 +64,29 @@ export default async function handler(req: any, res: any) {
 
     console.log(`[Stripe Webhook] Recebido evento: ${eventType} (ID: ${payload.id || 'sem_id'})`);
 
+    // Registra log de auditoria na tabela webhook_logs
+    try {
+      await supabase.from('webhook_logs').insert({
+        event_type: eventType,
+        payload: {
+          id: payload.id || null,
+          type: eventType,
+          customer_email:
+            eventData.customer_details?.email ||
+            eventData.customer_email ||
+            eventData.metadata?.student_email ||
+            null,
+          amount: eventData.amount ? eventData.amount / 100 : null,
+          currency: eventData.currency || null,
+          metadata: eventData.metadata || null,
+        },
+        status: 'recebido',
+        created_at: new Date().toISOString(),
+      });
+    } catch (logErr) {
+      console.warn('[Stripe Webhook] Aviso ao registrar em webhook_logs:', logErr);
+    }
+
     // Handle checkout.session.completed
     if (eventType === 'checkout.session.completed') {
       const customerEmail =

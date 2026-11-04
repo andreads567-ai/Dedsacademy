@@ -386,6 +386,9 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 
   const [activeStudentVideoIndex, setActiveStudentVideoIndex] = useState(0);
 
+  // Watched video indices for current lesson progress locking
+  const [watchedVideos, setWatchedVideos] = useState<number[]>([]);
+
   // Check if current lesson has real video(s)
   const studentVideoUrls = useMemo(() => {
     if (currentLessonItem?.videoUrls && currentLessonItem.videoUrls.length > 0) {
@@ -400,13 +403,49 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
   const currentVideoUrl = studentVideoUrls[activeStudentVideoIndex] || studentVideoUrls[0] || '';
   const isCurrentLessonCompleted = currentLessonItem ? completedLessonIds.includes(currentLessonItem.id) : false;
 
+  // Verification if all required videos of this lesson have been watched
+  const isAllVideosWatched = useMemo(() => {
+    if (isCurrentLessonCompleted || !hasVideo) return true;
+    return studentVideoUrls.every((_, idx) => watchedVideos.includes(idx));
+  }, [isCurrentLessonCompleted, hasVideo, studentVideoUrls, watchedVideos]);
+
+  // YouTube Player postMessage listener to detect video completion (onStateChange === 0)
+  useEffect(() => {
+    const handleYouTubeMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
+        // YouTube Player API emits onStateChange with info: 0 (ENDED)
+        if (
+          (data?.event === 'onStateChange' && (data?.info === 0 || data?.info === '0')) ||
+          data === 'ended'
+        ) {
+          setWatchedVideos((prev) => Array.from(new Set([...prev, activeStudentVideoIndex])));
+          showStudyToast(`Vídeo ${activeStudentVideoIndex + 1} concluído com sucesso!`, 'success');
+        }
+      } catch {
+        // Ignore non-json messages
+      }
+    };
+
+    window.addEventListener('message', handleYouTubeMessage);
+    return () => window.removeEventListener('message', handleYouTubeMessage);
+  }, [activeStudentVideoIndex]);
+
   // Reset quiz & video states when changing lesson
   useEffect(() => {
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizResult(null);
     setActiveStudentVideoIndex(0);
-  }, [selectedLessonId]);
+    if (isCurrentLessonCompleted) {
+      setWatchedVideos(studentVideoUrls.map((_, i) => i));
+    } else {
+      setWatchedVideos([]);
+    }
+  }, [selectedLessonId, isCurrentLessonCompleted, studentVideoUrls.length]);
 
   // Synchronize on course or progress change
   useEffect(() => {
@@ -1165,31 +1204,51 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
 
             {/* Reprodutor de Vídeo (se houver cadastrado no ADM) */}
             {hasVideo && (
-              <div className="space-y-2">
-                {studentVideoUrls.length > 1 && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">video_library</span>
-                      <span>Vídeos da Aula:</span>
-                    </span>
-                    {studentVideoUrls.map((_, vIdx) => (
+              <div className="space-y-3">
+                {/* Visual Neon com Pulso nos botões dos vídeos */}
+                <div className="flex flex-wrap items-center gap-2.5 pb-1">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+                    <span className="material-symbols-outlined text-sm text-indigo-400">video_library</span>
+                    <span>Vídeos da Aula ({studentVideoUrls.length}):</span>
+                  </span>
+
+                  {studentVideoUrls.map((_, vIdx) => {
+                    const isWatched = isCurrentLessonCompleted || watchedVideos.includes(vIdx);
+                    const isActive = activeStudentVideoIndex === vIdx;
+
+                    return (
                       <button
                         key={vIdx}
                         type="button"
                         onClick={() => setActiveStudentVideoIndex(vIdx)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                          activeStudentVideoIndex === vIdx
-                            ? 'bg-primary text-on-primary shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary'
+                        className={`relative inline-flex items-center gap-2 px-4 py-2 font-semibold text-xs sm:text-sm rounded-lg border transition-all duration-300 cursor-pointer ${
+                          isActive
+                            ? 'text-white bg-indigo-600 shadow-[0_0_15px_rgba(99,102,241,0.6)] hover:shadow-[0_0_25px_rgba(99,102,241,0.9)] border-indigo-400 animate-pulse hover:animate-none'
+                            : isWatched
+                            ? 'bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:border-emerald-500'
+                            : 'bg-indigo-950/40 hover:bg-indigo-900/60 text-slate-300 border-indigo-500/30'
                         }`}
                       >
-                        {vIdx === 0 ? 'Vídeo 1: Principal' : `Vídeo ${vIdx + 1}`}
+                        {!isWatched && (
+                          <span className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping shrink-0" />
+                        )}
+                        {isWatched && (
+                          <span className="material-symbols-outlined text-sm text-emerald-400">check_circle</span>
+                        )}
+                        <span>
+                          {vIdx === 0 ? 'Assistir: Vídeo 1 (Principal)' : `Assistir: Vídeo ${vIdx + 1}`}
+                        </span>
+                        {isWatched && (
+                          <span className="text-[10px] text-emerald-400 font-bold ml-0.5">
+                            (Assistido)
+                          </span>
+                        )}
                       </button>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
 
-                <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-lg border border-slate-200 dark:border-white/10">
+                <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-2xl border border-slate-200 dark:border-white/10">
                   {(() => {
                     const embedInfo = getVideoEmbedInfo(currentVideoUrl);
                     if (embedInfo.isIframe) {
@@ -1210,6 +1269,10 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                         key={currentVideoUrl}
                         src={currentVideoUrl}
                         controls
+                        onEnded={() => {
+                          setWatchedVideos((prev) => Array.from(new Set([...prev, activeStudentVideoIndex])));
+                          showStudyToast(`Vídeo ${activeStudentVideoIndex + 1} concluído com sucesso!`, 'success');
+                        }}
                         poster={currentLessonItem.imageUrl || course.image}
                         className="w-full h-full object-contain"
                       >
@@ -1217,6 +1280,39 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                       </video>
                     );
                   })()}
+                </div>
+
+                {/* Status da Aula & Botão de Confirmação de Vídeo Assistido */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-100 dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base text-indigo-400">lock_clock</span>
+                    <span className="text-slate-700 dark:text-slate-300">
+                      <strong>Trava de Progresso:</strong> Assista aos vídeos da aula para liberar o avanço. (
+                      {watchedVideos.length} de {studentVideoUrls.length} assistido{watchedVideos.length === 1 ? '' : 's'})
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWatchedVideos((prev) => Array.from(new Set([...prev, activeStudentVideoIndex])));
+                      showStudyToast(`Vídeo ${activeStudentVideoIndex + 1} marcado como assistido!`, 'success');
+                    }}
+                    className={`px-3.5 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                      watchedVideos.includes(activeStudentVideoIndex) || isCurrentLessonCompleted
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.5)]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {watchedVideos.includes(activeStudentVideoIndex) || isCurrentLessonCompleted ? 'verified' : 'check'}
+                    </span>
+                    <span>
+                      {watchedVideos.includes(activeStudentVideoIndex) || isCurrentLessonCompleted
+                        ? 'Vídeo Registrado como Assistido'
+                        : 'Marcar Vídeo como Assistido'}
+                    </span>
+                  </button>
                 </div>
               </div>
             )}
@@ -1448,27 +1544,46 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleAdvanceLesson}
-                  disabled={requiresQuizPass}
-                  className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer ${
-                    requiresQuizPass
-                      ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed opacity-60'
-                      : 'bg-primary hover:bg-emerald-600 text-white shadow-emerald-500/20 active:scale-95'
-                  }`}
-                  title={requiresQuizPass ? 'Responda ao questionário acima para liberar o avanço' : 'Concluir esta etapa e avançar'}
-                >
-                  <span className="material-symbols-outlined text-base">
-                    {currentLessonIndex === totalLessonsCount - 1 ? 'workspace_premium' : 'check'}
-                  </span>
-                  <span>
-                    {currentLessonIndex === totalLessonsCount - 1
-                      ? 'Concluir Curso & Avaliar'
-                      : 'Continuar / Próxima Etapa'}
-                  </span>
-                  <span className="material-symbols-outlined text-base">arrow_forward</span>
-                </button>
+                {(() => {
+                  const canProceed = isAllVideosWatched && !requiresQuizPass;
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={handleAdvanceLesson}
+                      disabled={!canProceed}
+                      className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md ${
+                        canProceed
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30 cursor-pointer active:scale-95'
+                          : 'bg-zinc-700 text-zinc-400 cursor-not-allowed opacity-60'
+                      }`}
+                      title={
+                        !isAllVideosWatched
+                          ? 'Assista aos vídeos obrigatórios da aula para liberar o avanço'
+                          : requiresQuizPass
+                          ? 'Responda ao questionário acima para liberar o avanço'
+                          : 'Concluir esta etapa e avançar'
+                      }
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        {!isAllVideosWatched
+                          ? 'lock'
+                          : currentLessonIndex === totalLessonsCount - 1
+                          ? 'workspace_premium'
+                          : 'arrow_forward'}
+                      </span>
+                      <span>
+                        {!isAllVideosWatched
+                          ? 'Assista aos vídeos obrigatórios para liberar'
+                          : requiresQuizPass
+                          ? 'Responda ao questionário para liberar'
+                          : currentLessonIndex === totalLessonsCount - 1
+                          ? 'Concluir Curso & Avaliar'
+                          : 'Próxima Aula →'}
+                      </span>
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </main>

@@ -128,6 +128,35 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
     setAvatarLoadFailed(false);
   }, [user]);
 
+  // Consulta automática ao ViaCEP no perfil do aluno
+  const handleStudentCepChange = async (val: string) => {
+    let clean = val.replace(/\D/g, '');
+    if (clean.length > 8) clean = clean.slice(0, 8);
+    const masked = clean.replace(/^(\d{5})(\d)/, '$1-$2');
+    setFormData((prev) => ({ ...prev, cep: masked }));
+
+    if (clean.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.erro) {
+            setFormData((prev) => ({
+              ...prev,
+              cep: clean.replace(/^(\d{5})(\d{3})$/, '$1-$2'),
+              street: data.logradouro || prev.street,
+              neighborhood: data.bairro || prev.neighborhood,
+              city: data.localidade || prev.city,
+              state: data.uf || prev.state,
+            }));
+          }
+        }
+      } catch (e) {
+        console.warn('ViaCEP StudentPortal err:', e);
+      }
+    }
+  };
+
   const [activeLessonModal, setActiveLessonModal] = useState<{
     isOpen: boolean;
     course: Course | null;
@@ -1626,7 +1655,7 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
                           <input
                             type="text"
                             value={formData.cep}
-                            onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                            onChange={(e) => handleStudentCepChange(e.target.value)}
                             className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary focus:outline-none focus:border-primary transition-colors"
                             placeholder="00000-000"
                           />

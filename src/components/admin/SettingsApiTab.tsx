@@ -2260,16 +2260,18 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <input
                   type="checkbox"
                   checked={settings.email.notifyOnWelcome !== false}
-                  onChange={(e) =>
-                    setSettings({
+                  onChange={(e) => {
+                    const updated = {
                       ...settings,
                       email: {
                         ...settings.email,
                         notifyOnWelcome: e.target.checked,
                         notifyOnEnrollment: e.target.checked,
                       },
-                    })
-                  }
+                    };
+                    setSettings(updated);
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                  }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
                 <div>
@@ -2288,15 +2290,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <input
                   type="checkbox"
                   checked={settings.email.notifyOnPasswordReset !== false}
-                  onChange={(e) =>
-                    setSettings({
+                  onChange={(e) => {
+                    const updated = {
                       ...settings,
                       email: {
                         ...settings.email,
                         notifyOnPasswordReset: e.target.checked,
                       },
-                    })
-                  }
+                    };
+                    setSettings(updated);
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                  }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
                 <div>
@@ -2315,8 +2319,8 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <input
                   type="checkbox"
                   checked={settings.email.notifyOnCertificate !== false}
-                  onChange={(e) =>
-                    setSettings({
+                  onChange={(e) => {
+                    const updated = {
                       ...settings,
                       email: {
                         ...settings.email,
@@ -2324,8 +2328,10 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                         notifyOnLessonComplete: e.target.checked,
                         notifyOnCompletion: e.target.checked,
                       },
-                    })
-                  }
+                    };
+                    setSettings(updated);
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                  }}
                   className="w-4 h-4 mt-0.5 text-accent-emerald-bright rounded cursor-pointer accent-accent-emerald-bright"
                 />
                 <div>
@@ -2346,15 +2352,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <input
                   type="checkbox"
                   checked={settings.email.notifyOnNewCoupon !== false}
-                  onChange={(e) =>
-                    setSettings({
+                  onChange={(e) => {
+                    const updated = {
                       ...settings,
                       email: {
                         ...settings.email,
                         notifyOnNewCoupon: e.target.checked,
                       },
-                    })
-                  }
+                    };
+                    setSettings(updated);
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                  }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
                 <div>
@@ -2373,15 +2381,17 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                 <input
                   type="checkbox"
                   checked={settings.email.notifyOnNewCourse !== false}
-                  onChange={(e) =>
-                    setSettings({
+                  onChange={(e) => {
+                    const updated = {
                       ...settings,
                       email: {
                         ...settings.email,
                         notifyOnNewCourse: e.target.checked,
                       },
-                    })
-                  }
+                    };
+                    setSettings(updated);
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                  }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
                 <div>

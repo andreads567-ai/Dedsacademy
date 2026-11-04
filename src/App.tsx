@@ -36,6 +36,7 @@ import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_
 import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, StudentBannersConfig, DEFAULT_STUDENT_BANNERS_CONFIG, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { getStoredStudentBanners, saveStoredStudentBanners } from './services/studentBannersService';
 import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty } from './lib/supabaseService';
+import { supabase } from './lib/supabaseClient';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
 import { sanitizeCourseList, getCacheBustedImageUrl, DEDS_CACHE_VERSION } from './lib/cacheManager';
@@ -1174,10 +1175,101 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    supabase.auth.signOut().catch(() => {});
     setCurrentUser(null);
     setActiveNavTab('inicio');
     showToast('Sessão encerrada com segurança.');
   };
+
+  // Google / Supabase OAuth Handler: Automatically creates student account or logs in
+  const handleSupabaseUser = React.useCallback(async (sbUser: any) => {
+    if (!sbUser || !sbUser.email) return;
+
+    const emailLower = sbUser.email.toLowerCase();
+    const fullName =
+      sbUser.user_metadata?.full_name ||
+      sbUser.user_metadata?.name ||
+      sbUser.user_metadata?.given_name ||
+      sbUser.email.split('@')[0] ||
+      'Aluno Deds';
+    const avatar =
+      sbUser.user_metadata?.avatar_url ||
+      sbUser.user_metadata?.picture ||
+      undefined;
+
+    let targetUser: UserAccount;
+
+    // 1. Check if user already exists in current list or localStorage
+    const saved = localStorage.getItem('deds_users_list');
+    const localList: UserAccount[] = saved ? JSON.parse(saved) : usersList;
+    const existing = localList.find(
+      (u) => (u.email && u.email.toLowerCase() === emailLower) || u.id === sbUser.id
+    );
+
+    if (existing) {
+      // Existing student or admin: log in, keep courses and update last access & avatar
+      targetUser = {
+        ...existing,
+        lastAccess: new Date().toISOString(),
+        avatar: existing.avatar || avatar,
+      };
+      setUsersList((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? targetUser : u))
+      );
+      upsertUser(targetUser).catch(console.error);
+      showToast(`Bem-vindo(a) de volta, ${targetUser.name}!`);
+    } else {
+      // New student registration via Google: create student account automatically
+      targetUser = {
+        id: sbUser.id || `google-${Date.now()}`,
+        name: fullName,
+        email: sbUser.email,
+        role: 'aluno',
+        avatar: avatar,
+        status: 'ativo',
+        registeredAt: new Date().toISOString(),
+        lastAccess: new Date().toISOString(),
+        enrolledCourseIds: [],
+        completedCourseIds: [],
+      };
+      setUsersList((prev) => [targetUser, ...prev]);
+      upsertUser(targetUser).catch(console.error);
+      sendWelcomeEmail(targetUser.email, targetUser.name).catch(console.error);
+      showToast(`Conta criada com sucesso via Google! Bem-vindo(a), ${targetUser.name}!`);
+    }
+
+    setCurrentUser(targetUser);
+
+    if (cartItems.length > 0) {
+      setActiveNavTab('carrinho');
+    } else {
+      setActiveNavTab(targetUser.role === 'admin' ? 'admin' : 'aluno');
+    }
+
+    // Clean OAuth hash/code from address bar
+    if (window.location.hash || window.location.search.includes('code=')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [usersList, cartItems.length]);
+
+  // Supabase Auth listener for OAuth callback & active session
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!error && session?.user && !currentUser) {
+        handleSupabaseUser(session.user);
+      }
+    }).catch(console.error);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        handleSupabaseUser(session.user);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [handleSupabaseUser, currentUser]);
 
   // Admin Course Management operations (synchronized with immediate cache update)
   const handleAddCourse = (newCourse: Course) => {

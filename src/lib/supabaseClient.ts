@@ -1,24 +1,20 @@
-// Supabase desativado - a plataforma agora utiliza armazenamento centralizado no servidor Hostinger (platform-store.json)
-export const supabase = {
-  from: () => ({
-    select: () => Promise.resolve({ data: [], error: null, count: 0 }),
-    insert: () => Promise.resolve({ data: null, error: null }),
-    update: () => Promise.resolve({ data: null, error: null }),
-    upsert: () => Promise.resolve({ data: null, error: null }),
-    delete: () => Promise.resolve({ data: null, error: null }),
-    eq: () => ({
-      maybeSingle: () => Promise.resolve({ data: null, error: null }),
-      select: () => Promise.resolve({ data: [], error: null }),
-      update: () => Promise.resolve({ data: null, error: null }),
-      delete: () => Promise.resolve({ data: null, error: null }),
-    }),
-    ilike: () => ({
-      maybeSingle: () => Promise.resolve({ data: null, error: null }),
-    }),
-    or: () => ({
-      limit: () => Promise.resolve({ data: [], error: null }),
-    }),
-    order: () => Promise.resolve({ data: [], error: null }),
-  }),
-} as any;
+import { createClient } from '@supabase/supabase-js';
 
+const metaEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : null;
+const procEnv = typeof process !== 'undefined' && process.env ? process.env : null;
+
+export const supabaseUrl = (
+  metaEnv?.VITE_SUPABASE_URL ||
+  procEnv?.VITE_SUPABASE_URL ||
+  procEnv?.SUPABASE_URL ||
+  'https://berjxxsglkwtciiltvri.supabase.co'
+) as string;
+
+export const supabaseAnonKey = (
+  metaEnv?.VITE_SUPABASE_ANON_KEY ||
+  procEnv?.VITE_SUPABASE_ANON_KEY ||
+  procEnv?.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcmp4eHNnbGt3dGNpaWx0dnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2ODEwOTQsImV4cCI6MjEwOTI1NzA5NH0.L3DF85lkE3ec-A3D1fPt4QsFXj6r3Xxmrw1awUq2xeE'
+) as string;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

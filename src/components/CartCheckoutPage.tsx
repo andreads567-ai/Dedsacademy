@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CartItem, UserAccount, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, Coupon } from '../types';
 import { INITIAL_COUPONS } from '../data/promotionsData';
 import { redirectToStripeCheckout } from '../lib/stripeClient';
 import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
 import { getStoredSupportChannels, buildWhatsAppUrl } from '../services/contactChannelsService';
+import { supabase } from '../lib/supabaseClient';
 
 export interface CheckoutData {
   studentName: string;
@@ -60,6 +61,44 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
     studentCpf?: string;
   }>({});
   const [isExistingAccount, setIsExistingAccount] = useState<boolean>(Boolean(currentUser && currentUser.status !== 'inativo'));
+
+  // Dynamic Support Channels (WhatsApp) synchronized from settings / database
+  const [supportChannels, setSupportChannels] = useState(() => getStoredSupportChannels());
+
+  useEffect(() => {
+    const syncChannels = () => {
+      setSupportChannels(getStoredSupportChannels());
+    };
+    window.addEventListener('deds_contact_channels_updated', syncChannels);
+    window.addEventListener('storage', syncChannels);
+
+    // Also attempt to fetch from Supabase if platform_settings exists
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('platform_settings')
+          .select('support_whatsapp, support_channels')
+          .maybeSingle();
+        if (data?.support_whatsapp) {
+          setSupportChannels((prev) => ({
+            ...prev,
+            whatsappNumber: data.support_whatsapp,
+          }));
+        } else if (data?.support_channels?.whatsappNumber) {
+          setSupportChannels(data.support_channels);
+        }
+      } catch {
+        // Fallback gracefully to getStoredSupportChannels()
+      }
+    })();
+
+    return () => {
+      window.removeEventListener('deds_contact_channels_updated', syncChannels);
+      window.removeEventListener('storage', syncChannels);
+    };
+  }, []);
+
+  const supportWhatsAppNumber = supportChannels.whatsappNumber || '(11) 99999-9999';
 
   // Helper to locate user by 11-digit CPF (searching currentUser, props usersList, and deds_users_list fallback)
   const findUserByCpf = (digits: string): UserAccount | null => {
@@ -753,7 +792,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                       <div className="shrink-0 flex items-center gap-2">
                         <a
                           href={buildWhatsAppUrl(
-                            getStoredSupportChannels().whatsappNumber,
+                            supportWhatsAppNumber,
                             `Olá, equipe Deds Academy! Meu CPF é ${studentCpf} e minha conta está com status inativo no carrinho de compras. Gostaria de reativá-la.`
                           )}
                           target="_blank"
@@ -1076,7 +1115,7 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                     </div>
                     <a
                       href={buildWhatsAppUrl(
-                        getStoredSupportChannels().whatsappNumber,
+                        supportWhatsAppNumber,
                         `Olá! Meu CPF é ${studentCpf} e minha conta está inativa na Deds Academy. Gostaria de regularizar meu cadastro.`
                       )}
                       target="_blank"
@@ -1136,11 +1175,11 @@ export const CartCheckoutPage: React.FC<CartCheckoutPageProps> = ({
                   <p className="font-body-sm text-body-sm text-text-tertiary">Chame nossa equipe via WhatsApp</p>
                   <a
                     className="text-primary font-label-md text-label-md hover:underline inline-flex items-center gap-1 mt-0.5"
-                    href={buildWhatsAppUrl(getStoredSupportChannels().whatsappNumber, 'Olá, estou finalizando a matrícula e tenho dúvidas sobre o pagamento.')}
+                    href={buildWhatsAppUrl(supportWhatsAppNumber, 'Olá, estou finalizando a matrícula e tenho dúvidas sobre o pagamento.')}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    {getStoredSupportChannels().whatsappNumber || '(11) 99999-9999'} <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                    {supportWhatsAppNumber} <span className="material-symbols-outlined text-[14px]">open_in_new</span>
                   </a>
                 </div>
               </div>
