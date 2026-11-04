@@ -497,6 +497,10 @@ export default function App() {
           setCheckoutBannerConfig(data.checkoutBanner);
           safeSaveLocalStorage('deds_checkout_banner_config', data.checkoutBanner);
         }
+        if (data.studentBanners) {
+          setStudentBannersConfig(data.studentBanners);
+          saveStoredStudentBanners(data.studentBanners);
+        }
         if (data.categories && data.categories.length > 0) {
           setCategoriesList(data.categories);
           try { localStorage.setItem('deds_categories_list', JSON.stringify(data.categories)); } catch {}
@@ -550,6 +554,10 @@ export default function App() {
       if (data.checkoutBanner) {
         setCheckoutBannerConfig(data.checkoutBanner);
         safeSaveLocalStorage('deds_checkout_banner_config', data.checkoutBanner);
+      }
+      if (data.studentBanners) {
+        setStudentBannersConfig(data.studentBanners);
+        saveStoredStudentBanners(data.studentBanners);
       }
       if (data.categories && data.categories.length > 0) {
         setCategoriesList(data.categories);

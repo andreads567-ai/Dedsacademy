@@ -42,10 +42,13 @@ function buildFormData(data: any, form = new URLSearchParams(), parentKey = ''):
   return form;
 }
 
-export async function createStripeCheckoutSession(payload: CreateSessionRequest, origin: string) {
-  const secretKey = (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY) || '';
+export async function createStripeCheckoutSession(payload: CreateSessionRequest & { secretKey?: string }, origin: string) {
+  const secretKey =
+    payload.secretKey?.trim() ||
+    (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY) ||
+    '';
   if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY não está configurada no ambiente.');
+    throw new Error('STRIPE_SECRET_KEY não está configurada no ambiente ou no painel.');
   }
 
   const successUrl =
