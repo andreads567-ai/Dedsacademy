@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Course, CourseModule, Lesson, UserAccount, Instructor } from '../types';
 import { getEffectiveCourseBadge } from '../utils/courseBadgeUtils';
 import { getCacheBustedImageUrl, FALLBACK_COURSE_IMAGE } from '../lib/cacheManager';
+import { getVideoEmbedInfo } from '../utils/videoUtils';
 
 interface CourseDetailPageProps {
   course: Course;
@@ -481,28 +482,31 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 </div>
 
                 <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-border-subtle shadow-md">
-                  {course.videoUrl.includes('youtube.com') || course.videoUrl.includes('youtu.be') ? (
-                    <iframe
-                      src={
-                        course.videoUrl.includes('watch?v=')
-                          ? course.videoUrl.replace('watch?v=', 'embed/')
-                          : course.videoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                      }
-                      title={`Trailer ${course.title}`}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={course.videoUrl}
-                      controls
-                      className="w-full h-full object-contain"
-                      poster={getCacheBustedImageUrl(course.image)}
-                    >
-                      Seu navegador não suporta a reprodução de vídeo.
-                    </video>
-                  )}
+                  {(() => {
+                    const embedInfo = getVideoEmbedInfo(course.videoUrl);
+                    if (embedInfo.isIframe) {
+                      return (
+                        <iframe
+                          src={embedInfo.embedUrl}
+                          title={`Trailer ${course.title}`}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                        />
+                      );
+                    }
+                    return (
+                      <video
+                        src={course.videoUrl}
+                        controls
+                        className="w-full h-full object-contain"
+                        poster={getCacheBustedImageUrl(course.image)}
+                      >
+                        Seu navegador não suporta a reprodução de vídeo.
+                      </video>
+                    );
+                  })()}
                 </div>
                 <p className="text-xs text-text-tertiary">
                   Assista à apresentação do instrutor para conhecer a metodologia, ferramentas e projetos desenvolvidos ao longo das aulas.

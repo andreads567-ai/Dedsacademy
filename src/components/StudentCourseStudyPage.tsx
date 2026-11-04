@@ -15,7 +15,8 @@ import {
 } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
 import { generateSequentialCertificateCode, saveCertificateToDB } from '../services/certificateService';
-import { InteractiveNoticeBox } from './admin/WordLikeEditor';
+import { InteractiveNoticeBox, DocumentSheetRenderer } from './DocumentSheetRenderer';
+import { getVideoEmbedInfo } from '../utils/videoUtils';
 
 export interface StudentCourseStudyPageProps {
   course: Course | null;
@@ -746,7 +747,7 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
             <strong>Atenção:</strong> Este conteúdo é de autoria exclusiva da Deds Academy. O acesso e a progressão dos módulos são controlados por etapas sequenciais com verificação de aprendizado e emissão de certificado oficial.
           </div>
 
-          <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-8 py-6 sm:py-10 space-y-8">
+          <main className="flex-1 w-full max-w-[1550px] mx-auto px-4 sm:px-8 xl:px-12 py-6 sm:py-10 space-y-8">
             {/* 1. CABEÇALHO E IDENTIDADE DO CURSO: CAPA, CONTRACAPA E DETALHES */}
             <section className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
               {/* Contracapa / Banner Header */}
@@ -1145,8 +1146,8 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
             </div>
           </header>
 
-          {/* Conteúdo Principal de Leitura */}
-          <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-8 py-8 space-y-8">
+          {/* Conteúdo Principal de Leitura (Totalmente responsivo e ocupando o espaço útil do ecrã) */}
+          <main className="flex-1 w-full max-w-[1550px] mx-auto px-4 sm:px-8 xl:px-12 py-6 sm:py-8 space-y-8">
             {/* Título e Identificação da Lição */}
             <div className="space-y-2 border-b border-slate-200 dark:border-white/10 pb-4">
               <div className="flex items-center gap-2">
@@ -1189,30 +1190,33 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
                 )}
 
                 <div className="relative bg-black rounded-2xl overflow-hidden aspect-video shadow-lg border border-slate-200 dark:border-white/10">
-                  {currentVideoUrl?.includes('youtube.com') || currentVideoUrl?.includes('youtu.be') ? (
-                    <iframe
-                      key={currentVideoUrl}
-                      src={
-                        currentVideoUrl.includes('watch?v=')
-                          ? currentVideoUrl.replace('watch?v=', 'embed/')
-                          : currentVideoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                      }
-                      title={currentLessonItem.title}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      key={currentVideoUrl}
-                      src={currentVideoUrl}
-                      controls
-                      poster={currentLessonItem.imageUrl || course.image}
-                      className="w-full h-full object-contain"
-                    >
-                      Seu navegador não suporta reprodução deste vídeo.
-                    </video>
-                  )}
+                  {(() => {
+                    const embedInfo = getVideoEmbedInfo(currentVideoUrl);
+                    if (embedInfo.isIframe) {
+                      return (
+                        <iframe
+                          key={embedInfo.embedUrl}
+                          src={embedInfo.embedUrl}
+                          title={currentLessonItem.title}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                        />
+                      );
+                    }
+                    return (
+                      <video
+                        key={currentVideoUrl}
+                        src={currentVideoUrl}
+                        controls
+                        poster={currentLessonItem.imageUrl || course.image}
+                        className="w-full h-full object-contain"
+                      >
+                        Seu navegador não suporta reprodução deste vídeo.
+                      </video>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1228,58 +1232,14 @@ export const StudentCourseStudyPage: React.FC<StudentCourseStudyPageProps> = ({
               </div>
             )}
 
-            {/* Conteúdo Formato Texto / Apostila / Ementa Completa */}
-            <article className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed bg-white dark:bg-[#0F172A] p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
-              {(() => {
-                const desc = currentLessonItem?.description ||
-                  `Seja bem-vindo(a) a esta etapa de aprendizado de "${course.title}".\n\nNesta lição, abordamos detalhadamente os principais conceitos teóricos, as metodologias de mercado e os exemplos práticos necessários para o domínio deste tópico.\n\nDedique atenção aos pontos-chave apresentados nesta apostila e aos materiais complementares anexados.`;
-
-                if (!desc.includes('deds-alert-box')) {
-                  return <div className="whitespace-pre-line">{desc}</div>;
+            {/* Conteúdo Formato Texto / Apostila / Ementa Completa com Paridade Total à Folha */}
+            <article className="w-full text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed bg-white dark:bg-[#0F172A] p-6 sm:p-10 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
+              <DocumentSheetRenderer
+                content={
+                  currentLessonItem?.description ||
+                  `Seja bem-vindo(a) a esta etapa de aprendizado de "${course.title}".\n\nNesta lição, abordamos detalhadamente os principais conceitos teóricos, as metodologias de mercado e os exemplos práticos necessários para o domínio deste tópico.\n\nDedique atenção aos pontos-chave apresentados nesta apostila e aos materiais complementares anexados.`
                 }
-
-                // Parse alert box HTML snippets and regular text
-                const parts = desc.split(/(<div class="deds-alert-box"[\s\S]*?<\/div>)/gi);
-                return (
-                  <div className="space-y-4 not-prose">
-                    {parts.map((part, pIdx) => {
-                      if (part.includes('class="deds-alert-box"')) {
-                        const titleMatch = part.match(/data-title="([^"]*)"/);
-                        const timerMatch = part.match(/data-timer="([^"]*)"/);
-                        const bgMatch = part.match(/data-bg="([^"]*)"/);
-                        const colorMatch = part.match(/data-color="([^"]*)"/);
-                        const borderMatch = part.match(/data-border="([^"]*)"/);
-                        const iconMatch = part.match(/data-icon="([^"]*)"/);
-                        const cleanMessage = part
-                          .replace(/^<div[^>]*>/, '')
-                          .replace(/<\/div>$/, '')
-                          .replace(/<strong>.*?<\/strong>/, '')
-                          .replace(/<p>/g, '')
-                          .replace(/<\/p>/g, '\n')
-                          .trim();
-
-                        return (
-                          <InteractiveNoticeBox
-                            key={pIdx}
-                            title={titleMatch ? titleMatch[1] : 'AVISO'}
-                            message={cleanMessage}
-                            bgColor={bgMatch ? bgMatch[1] : '#1E293B'}
-                            textColor={colorMatch ? colorMatch[1] : '#FEF3C7'}
-                            borderColor={borderMatch ? borderMatch[1] : '#F59E0B'}
-                            timerSeconds={timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0}
-                            icon={iconMatch ? iconMatch[1] : '⚠️'}
-                          />
-                        );
-                      }
-                      return part.trim() ? (
-                        <div key={pIdx} className="whitespace-pre-line leading-relaxed text-slate-800 dark:text-slate-200">
-                          {part}
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
-                );
-              })()}
+              />
             </article>
 
             {/* Materiais Complementares e Anexos (Word, Excel, PDF) */}

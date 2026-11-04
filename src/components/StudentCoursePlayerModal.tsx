@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Course, CourseModule, Lesson, LessonAttachment, LessonQuiz, CourseReview, StudentProgress, UserAccount } from '../types';
 import { downloadCertificatePdf, downloadCertificatePng } from '../utils/certificateGenerator';
-import { InteractiveNoticeBox } from './admin/WordLikeEditor';
+import { InteractiveNoticeBox, DocumentSheetRenderer } from './DocumentSheetRenderer';
+import { getVideoEmbedInfo } from '../utils/videoUtils';
 
 interface StudentCoursePlayerModalProps {
   course: Course | null;
@@ -665,31 +666,34 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
                 )}
 
                 <div className="relative bg-black rounded-2xl overflow-hidden border border-white/10 aspect-video flex items-center justify-center shadow-2xl">
-                  {currentModalVideoUrl?.includes('youtube.com') || currentModalVideoUrl?.includes('youtu.be') ? (
-                    <iframe
-                      key={currentModalVideoUrl}
-                      src={
-                        currentModalVideoUrl.includes('watch?v=')
-                          ? currentModalVideoUrl.replace('watch?v=', 'embed/')
-                          : currentModalVideoUrl.replace('youtu.be/', 'youtube.com/embed/')
-                      }
-                      title={currentLesson?.title}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      key={currentModalVideoUrl}
-                      src={currentModalVideoUrl}
-                      controls
-                      autoPlay={false}
-                      poster={currentLesson?.imageUrl || course.image}
-                      className="w-full h-full object-contain"
-                    >
-                      Seu navegador não suporta a reprodução deste vídeo.
-                    </video>
-                  )}
+                  {(() => {
+                    const embedInfo = getVideoEmbedInfo(currentModalVideoUrl);
+                    if (embedInfo.isIframe) {
+                      return (
+                        <iframe
+                          key={embedInfo.embedUrl}
+                          src={embedInfo.embedUrl}
+                          title={currentLesson?.title}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                        />
+                      );
+                    }
+                    return (
+                      <video
+                        key={currentModalVideoUrl}
+                        src={currentModalVideoUrl}
+                        controls
+                        autoPlay={false}
+                        poster={currentLesson?.imageUrl || course.image}
+                        className="w-full h-full object-contain"
+                      >
+                        Seu navegador não suporta a reprodução deste vídeo.
+                      </video>
+                    );
+                  })()}
                 </div>
               </div>
             ) : null}
@@ -746,56 +750,13 @@ export const StudentCoursePlayerModal: React.FC<StudentCoursePlayerModalProps> =
                     </span>
                   </div>
 
-                  <div className="prose prose-invert max-w-none text-slate-300">
-                    {(() => {
-                      const desc = currentLesson?.description ||
-                        `Bem-vindo(a) à aula teórica "${currentLesson?.title}".\n\nNeste tópico fundamental, exploramos conceitos teóricos consolidados, arquitetura de soluções, padrões de projeto e diretrizes práticas recomendadas para o mercado profissional contemporâneo.\n\nDedique atenção especial aos tópicos aprofundados, pois os conhecimentos abordados aqui formam a base para as próximas etapas sequenciais da formação.`;
-
-                      if (!desc.includes('deds-alert-box')) {
-                        return <div className="whitespace-pre-line">{desc}</div>;
+                  <div className="w-full text-slate-300">
+                    <DocumentSheetRenderer
+                      content={
+                        currentLesson?.description ||
+                        `Bem-vindo(a) à aula teórica "${currentLesson?.title}".\n\nNeste tópico fundamental, exploramos conceitos teóricos consolidados, arquitetura de soluções, padrões de projeto e diretrizes práticas recomendadas para o mercado profissional contemporâneo.\n\nDedique atenção especial aos tópicos aprofundados, pois os conhecimentos abordados aqui formam a base para as próximas etapas sequenciais da formação.`
                       }
-
-                      const parts = desc.split(/(<div class="deds-alert-box"[\s\S]*?<\/div>)/gi);
-                      return (
-                        <div className="space-y-4 not-prose">
-                          {parts.map((part, pIdx) => {
-                            if (part.includes('class="deds-alert-box"')) {
-                              const titleMatch = part.match(/data-title="([^"]*)"/);
-                              const timerMatch = part.match(/data-timer="([^"]*)"/);
-                              const bgMatch = part.match(/data-bg="([^"]*)"/);
-                              const colorMatch = part.match(/data-color="([^"]*)"/);
-                              const borderMatch = part.match(/data-border="([^"]*)"/);
-                              const iconMatch = part.match(/data-icon="([^"]*)"/);
-                              const cleanMessage = part
-                                .replace(/^<div[^>]*>/, '')
-                                .replace(/<\/div>$/, '')
-                                .replace(/<strong>.*?<\/strong>/, '')
-                                .replace(/<p>/g, '')
-                                .replace(/<\/p>/g, '\n')
-                                .trim();
-
-                              return (
-                                <InteractiveNoticeBox
-                                  key={pIdx}
-                                  title={titleMatch ? titleMatch[1] : 'AVISO'}
-                                  message={cleanMessage}
-                                  bgColor={bgMatch ? bgMatch[1] : '#1E293B'}
-                                  textColor={colorMatch ? colorMatch[1] : '#FEF3C7'}
-                                  borderColor={borderMatch ? borderMatch[1] : '#F59E0B'}
-                                  timerSeconds={timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0}
-                                  icon={iconMatch ? iconMatch[1] : '⚠️'}
-                                />
-                              );
-                            }
-                            return part.trim() ? (
-                              <div key={pIdx} className="whitespace-pre-line leading-relaxed text-slate-300">
-                                {part}
-                              </div>
-                            ) : null;
-                          })}
-                        </div>
-                      );
-                    })()}
+                    />
                   </div>
 
                   {/* Destaque / Conclusão da Leitura */}

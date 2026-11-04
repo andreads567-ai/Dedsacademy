@@ -1,5 +1,14 @@
-import React, { useState, useRef, useEffect, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, DragEvent, useCallback } from 'react';
 import { LessonAttachment } from '../../types';
+import { uploadImageToServer } from '../../lib/platformSyncClient';
+import {
+  DocumentSheetRenderer,
+  InteractiveNoticeBox,
+  InteractiveNoticeBoxProps,
+  TableCardBlock,
+} from '../DocumentSheetRenderer';
+
+export { InteractiveNoticeBox };
 
 interface WordLikeEditorProps {
   value: string;
@@ -97,89 +106,6 @@ const NOTICE_PRESETS: NoticePreset[] = [
   },
 ];
 
-/**
- * INTERACTIVE NOTICE BOX COMPONENT WITH LIVE COUNTDOWN TIMER
- */
-export const InteractiveNoticeBox: React.FC<{
-  title: string;
-  message: string;
-  bgColor: string;
-  textColor: string;
-  borderColor: string;
-  timerSeconds?: number;
-  icon?: string;
-}> = ({ title, message, bgColor, textColor, borderColor, timerSeconds, icon }) => {
-  const [timeLeft, setTimeLeft] = useState<number>(timerSeconds || 0);
-  const [isDismissed, setIsDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!timerSeconds || timerSeconds <= 0) return;
-    setTimeLeft(timerSeconds);
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [timerSeconds]);
-
-  if (isDismissed) return null;
-
-  return (
-    <div
-      style={{
-        backgroundColor: bgColor,
-        color: textColor,
-        borderLeft: `5px solid ${borderColor}`,
-      }}
-      className="p-4 my-4 rounded-xl shadow-lg relative border border-white/10 transition-all animate-in fade-in"
-    >
-      <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
-        <div className="flex items-center gap-2 font-bold text-sm">
-          <span className="text-base">{icon || '⚠️'}</span>
-          <span>{title}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          {timerSeconds && timerSeconds > 0 ? (
-            <span className="px-2.5 py-0.5 rounded-full bg-black/40 font-mono font-bold flex items-center gap-1 border border-white/15">
-              <span>⏱️</span>
-              <span>{timeLeft > 0 ? `${timeLeft}s` : 'Temporizador concluído'}</span>
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setIsDismissed(true)}
-            className="opacity-70 hover:opacity-100 p-1 text-xs hover:bg-white/10 rounded transition-all cursor-pointer"
-            title="Fechar aviso"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {timerSeconds && timerSeconds > 0 && (
-        <div className="w-full bg-black/30 h-1.5 rounded-full mb-3 overflow-hidden">
-          <div
-            className="h-full transition-all duration-1000"
-            style={{
-              backgroundColor: borderColor,
-              width: `${Math.max(0, (timeLeft / timerSeconds) * 100)}%`,
-            }}
-          />
-        </div>
-      )}
-
-      <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
-        {message}
-      </div>
-    </div>
-  );
-};
-
 export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   value,
   onChange,
@@ -187,16 +113,45 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   onAddAttachment,
   onRemoveAttachment,
 }) => {
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  // Modes: 'visual' (continuous visual document with directly displayed images & cards), 'code' (raw text), 'preview' (full student sheet)
+  const [editorMode, setEditorMode] = useState<'visual' | 'code' | 'preview'>('visual');
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('left');
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
+
+  // Link Modal
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
 
+  // Image Modal
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageCaption, setImageCaption] = useState('');
 
-  // Notice & Pop-up with Timer Modal State
+  // Reformulated Table / 16:9 Card Modal (with multiple vertical block stacking)
+  const [showTableCardModal, setShowTableCardModal] = useState(false);
+  const [cardBlocks, setCardBlocks] = useState<
+    Array<{
+      id: string;
+      title: string;
+      description: string;
+      imageUrl: string;
+      linkText: string;
+      linkUrl: string;
+    }>
+  >([
+    {
+      id: '1',
+      title: 'Tópico Estruturado 1',
+      description: 'Explicação detalhada dos conceitos teóricos e aplicação prática.',
+      imageUrl: '',
+      linkText: 'Ver Detalhes / Link',
+      linkUrl: '',
+    },
+  ]);
+
+  // Notice & Pop-up Modal State
   const [showNoticeModal, setShowNoticeModal] = useState(false);
   const [customNoticeTitle, setCustomNoticeTitle] = useState('AVISO IMPORTANTE');
   const [customNoticeMessage, setCustomNoticeMessage] = useState(
@@ -209,18 +164,92 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
   const [customNoticeHasTimer, setCustomNoticeHasTimer] = useState(false);
   const [customNoticeTimerSeconds, setCustomNoticeTimerSeconds] = useState(10);
 
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | 'justify'>('left');
-  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
-
+  // Refs for cursor and scroll tracking to prevent jumping to bottom
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const documentContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multipleImageInputRef = useRef<HTMLInputElement>(null);
+  const cardImageInputRef = useRef<HTMLInputElement>(null);
+  const activeCardIndexForUploadRef = useRef<number>(0);
+
+  // Saved cursor / selection range
+  const lastSelectionRangeRef = useRef<{ start: number; end: number; scrollTop: number }>({
+    start: 0,
+    end: 0,
+    scrollTop: 0,
+  });
 
   const showNotification = (msg: string) => {
     setUploadFeedback(msg);
     setTimeout(() => setUploadFeedback(null), 3500);
   };
+
+  /**
+   * Save selection and scroll position whenever user clicks or types in textarea
+   */
+  const handleSaveTextareaSelection = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      lastSelectionRangeRef.current = {
+        start: textarea.selectionStart || 0,
+        end: textarea.selectionEnd || 0,
+        scrollTop: textarea.scrollTop || 0,
+      };
+    }
+  };
+
+  /**
+   * Insert snippet at current or last remembered cursor position.
+   * FIX: Keeps viewport and cursor exactly at insertion point, never jumping to footer!
+   */
+  const insertSnippetAtCursor = useCallback(
+    (snippet: string) => {
+      const textarea = textareaRef.current;
+      const saved = lastSelectionRangeRef.current;
+
+      let insertStart = saved.start;
+      let insertEnd = saved.end;
+      let currentScrollTop = saved.scrollTop;
+
+      if (textarea && document.activeElement === textarea) {
+        insertStart = textarea.selectionStart;
+        insertEnd = textarea.selectionEnd;
+        currentScrollTop = textarea.scrollTop;
+      }
+
+      // Safe boundaries
+      const safeStart = Math.min(Math.max(0, insertStart), value.length);
+      const safeEnd = Math.min(Math.max(safeStart, insertEnd), value.length);
+
+      const before = value.substring(0, safeStart);
+      const after = value.substring(safeEnd);
+
+      // Clean spacing before & after if block snippet
+      const needsPrefixNewline = before.length > 0 && !before.endsWith('\n');
+      const needsSuffixNewline = after.length > 0 && !after.startsWith('\n');
+      const formattedSnippet = `${needsPrefixNewline ? '\n' : ''}${snippet}${needsSuffixNewline ? '\n' : ''}`;
+
+      const newValue = before + formattedSnippet + after;
+      onChange(newValue);
+
+      const newCursorPos = safeStart + formattedSnippet.length;
+      lastSelectionRangeRef.current = {
+        start: newCursorPos,
+        end: newCursorPos,
+        scrollTop: currentScrollTop,
+      };
+
+      // Restore focus, cursor, and scroll position immediately
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textareaRef.current.scrollTop = currentScrollTop;
+        }
+      }, 0);
+    },
+    [value, onChange]
+  );
 
   /**
    * GENERATE HTML SNIPPET FOR NOTICE/POP-UP BOX
@@ -236,89 +265,76 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     icon: string;
   }) => {
     const timerAttr = notice.hasTimer ? notice.timerSeconds : 0;
-    return `\n<div class="deds-alert-box" data-title="${notice.title}" data-timer="${timerAttr}" data-bg="${notice.bgColor}" data-color="${notice.textColor}" data-border="${notice.borderColor}" data-icon="${notice.icon}" style="background-color: ${notice.bgColor}; color: ${notice.textColor}; border-left: 5px solid ${notice.borderColor}; padding: 14px 18px; border-radius: 12px; margin: 16px 0;">\n<strong>${notice.icon} ${notice.title}${notice.hasTimer ? ` (⏱️ Temporizador: ${notice.timerSeconds}s)` : ''}</strong>\n<p>${notice.message}</p>\n</div>\n`;
+    return `<div class="deds-alert-box" data-title="${notice.title}" data-timer="${timerAttr}" data-bg="${notice.bgColor}" data-color="${notice.textColor}" data-border="${notice.borderColor}" data-icon="${notice.icon}" style="background-color: ${notice.bgColor}; color: ${notice.textColor}; border-left: 5px solid ${notice.borderColor}; padding: 14px 18px; border-radius: 12px; margin: 16px 0;">\n<strong>${notice.icon} ${notice.title}${notice.hasTimer ? ` (⏱️ Temporizador: ${notice.timerSeconds}s)` : ''}</strong>\n<p>${notice.message}</p>\n</div>`;
   };
 
   /**
-   * INSERT TEXT / SNIPPET AT CURRENT CURSOR OR DRAG POSITION
-   */
-  const insertSnippetAtCursor = (snippet: string) => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newValue = value.substring(0, start) + snippet + value.substring(end);
-      onChange(newValue);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + snippet.length, start + snippet.length);
-      }, 0);
-    } else {
-      onChange(value + (value.endsWith('\n') ? '' : '\n') + snippet);
-    }
-    showNotification('Aviso adicionado ao documento com sucesso!');
-  };
-
-  /**
-   * FORMAT TEXT STRICTLY APPLIED TO SELECTED TEXT ONLY
+   * INLINE FORMATTING (B, I, U, strike) strictly applied to selection
    */
   const applyInlineFormat = (prefix: string, suffix: string = prefix, placeholder: string = 'texto') => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    const start = textarea ? textarea.selectionStart : lastSelectionRangeRef.current.start;
+    const end = textarea ? textarea.selectionEnd : lastSelectionRangeRef.current.end;
+    const currentScrollTop = textarea ? textarea.scrollTop : lastSelectionRangeRef.current.scrollTop;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const isSelected = start !== end;
     const selectedText = isSelected ? value.substring(start, end) : placeholder;
-
     const replacement = `${prefix}${selectedText}${suffix}`;
+
     const newValue = value.substring(0, start) + replacement + value.substring(end);
     onChange(newValue);
 
     setTimeout(() => {
-      textarea.focus();
-      if (isSelected) {
-        textarea.setSelectionRange(start, start + replacement.length);
-      } else {
-        textarea.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        if (isSelected) {
+          textareaRef.current.setSelectionRange(start, start + replacement.length);
+        } else {
+          textareaRef.current.setSelectionRange(start + prefix.length, start + prefix.length + placeholder.length);
+        }
+        textareaRef.current.scrollTop = currentScrollTop;
       }
     }, 0);
   };
 
   /**
-   * HEADINGS: Strictly applied to selected text range without affecting whole block
+   * HEADINGS (H1, H2, H3) applied cleanly
    */
   const applyHeading = (level: 1 | 2 | 3) => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    const start = textarea ? textarea.selectionStart : lastSelectionRangeRef.current.start;
+    const end = textarea ? textarea.selectionEnd : lastSelectionRangeRef.current.end;
+    const currentScrollTop = textarea ? textarea.scrollTop : lastSelectionRangeRef.current.scrollTop;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const isSelected = start !== end;
     const selectedText = isSelected ? value.substring(start, end) : `Título H${level}`;
-
     const hashes = '#'.repeat(level);
-    const replacement = `${hashes} ${selectedText} ${hashes}`;
+
+    // Standard clean markdown heading
+    const cleanHeadingText = selectedText.replace(/^#+\s*/, '').replace(/#+$/, '').trim();
+    const replacement = `\n${hashes} ${cleanHeadingText}\n`;
     const newValue = value.substring(0, start) + replacement + value.substring(end);
     onChange(newValue);
 
     setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start, start + replacement.length);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(start + 1, start + replacement.length - 1);
+        textareaRef.current.scrollTop = currentScrollTop;
+      }
     }, 0);
   };
 
   /**
-   * NUMBERED LIST: Logical sequential order (1., 2., 3...) without skipping or resetting
+   * NUMBERED LIST
    */
   const applyNumberedList = () => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    const start = textarea ? textarea.selectionStart : lastSelectionRangeRef.current.start;
+    const end = textarea ? textarea.selectionEnd : lastSelectionRangeRef.current.end;
+    const currentScrollTop = textarea ? textarea.scrollTop : lastSelectionRangeRef.current.scrollTop;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
-
     if (selectedText.trim()) {
       const lines = selectedText.split('\n');
       let counter = 1;
@@ -335,39 +351,28 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       const newValue = value.substring(0, start) + formatted + value.substring(end);
       onChange(newValue);
       setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start, start + formatted.length);
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(start, start + formatted.length);
+          textareaRef.current.scrollTop = currentScrollTop;
+        }
       }, 0);
     } else {
-      const textBefore = value.substring(0, start);
-      const linesBefore = textBefore.split('\n');
-      const lastLine = linesBefore[linesBefore.length - 1] || '';
-      const match = lastLine.match(/^(\d+)\.\s/);
-      const nextNum = match ? parseInt(match[1], 10) + 1 : 1;
-
-      const prefix = textBefore.endsWith('\n') || start === 0 ? '' : '\n';
-      const insertText = `${prefix}${nextNum}. Item ${nextNum}\n`;
-      const newValue = value.substring(0, start) + insertText + value.substring(end);
-      onChange(newValue);
-
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
-      }, 0);
+      const insertText = `\n1. Primeiro item\n2. Segundo item\n`;
+      insertSnippetAtCursor(insertText);
     }
   };
 
   /**
-   * BULLETED LIST: Sequence of bullet points (• )
+   * BULLETED LIST
    */
   const applyBulletList = () => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
+    const start = textarea ? textarea.selectionStart : lastSelectionRangeRef.current.start;
+    const end = textarea ? textarea.selectionEnd : lastSelectionRangeRef.current.end;
+    const currentScrollTop = textarea ? textarea.scrollTop : lastSelectionRangeRef.current.scrollTop;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
     const selectedText = value.substring(start, end);
-
     if (selectedText.trim()) {
       const lines = selectedText.split('\n');
       const formatted = lines
@@ -381,20 +386,14 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       const newValue = value.substring(0, start) + formatted + value.substring(end);
       onChange(newValue);
       setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start, start + formatted.length);
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(start, start + formatted.length);
+          textareaRef.current.scrollTop = currentScrollTop;
+        }
       }, 0);
     } else {
-      const textBefore = value.substring(0, start);
-      const prefix = textBefore.endsWith('\n') || start === 0 ? '' : '\n';
-      const insertText = `${prefix}• Novo tópico com marcador\n`;
-      const newValue = value.substring(0, start) + insertText + value.substring(end);
-      onChange(newValue);
-
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + insertText.length, start + insertText.length);
-      }, 0);
+      insertSnippetAtCursor(`\n• Primeiro item do marcador\n• Segundo item do marcador\n`);
     }
   };
 
@@ -403,34 +402,23 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
    */
   const insertQuote = () => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const start = textarea ? textarea.selectionStart : lastSelectionRangeRef.current.start;
+    const end = textarea ? textarea.selectionEnd : lastSelectionRangeRef.current.end;
     const selectedText = value.substring(start, end) || 'Destaque importante para a aula';
-    const replacement = `\n> 💡 **Destaque:** ${selectedText}\n`;
-    const newValue = value.substring(0, start) + replacement + value.substring(end);
-    onChange(newValue);
-    setTimeout(() => textarea.focus(), 0);
-  };
-
-  /**
-   * TABLE TEMPLATE
-   */
-  const insertTable = () => {
-    const tableTemplate = `\n| Tópico / Conceito | Descrição Prática | Aplicação no Mercado |\n| :--- | :--- | :--- |\n| Conceito 1 | Fundamentação metodológica | Projeto prático |\n| Conceito 2 | Execução passo a passo | Implementação |\n`;
-    onChange(value + tableTemplate);
+    insertSnippetAtCursor(`\n> 💡 **Destaque:** ${selectedText}\n`);
   };
 
   /**
    * PROCESS MULTIPLE FILES (DRAG & DROP OR FILE SELECTOR)
+   * UPLOADS IMAGES DIRECTLY AND INSERTS AT CURSOR WITHOUT JUMPING TO BOTTOM!
    */
-  const processFilesBatch = (files: FileList | File[]) => {
+  const processFilesBatch = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    let appendedText = '';
+    showNotification(`Processando ${fileArray.length} arquivo(s)...`);
 
-    fileArray.forEach((file) => {
+    for (const file of fileArray) {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isImg = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
 
@@ -440,13 +428,23 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       else if (['pdf'].includes(ext)) type = 'pdf';
       else if (['ppt', 'pptx'].includes(ext)) type = 'powerpoint';
 
-      const sizeFormatted = file.size > 1024 * 1024
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${Math.max(1, Math.round(file.size / 1024))} KB`;
+      const sizeFormatted =
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.max(1, Math.round(file.size / 1024))} KB`;
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = typeof event.target?.result === 'string' ? event.target.result : URL.createObjectURL(file);
+      try {
+        let fileUrl = '';
+        if (isImg) {
+          // Upload through platform sync client to get optimized permanent URL
+          fileUrl = await uploadImageToServer(file, 'lesson_img');
+        } else {
+          fileUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(typeof e.target?.result === 'string' ? e.target.result : '');
+            reader.readAsDataURL(file);
+          });
+        }
 
         const newAttachment: LessonAttachment = {
           id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -454,26 +452,25 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           fileName: file.name,
           type: type,
           fileSize: sizeFormatted,
-          fileUrl: dataUrl,
+          fileUrl: fileUrl,
         };
         onAddAttachment(newAttachment);
 
         if (isImg) {
-          appendedText += `\n\n![${file.name}](${dataUrl})\n*Legenda: ${file.name}*\n`;
+          // Insert image markdown at exact cursor position!
+          const imageSnippet = `\n![${file.name}](${fileUrl})\n`;
+          insertSnippetAtCursor(imageSnippet);
         } else {
-          appendedText += `\n\n> 📥 **Material para Download anexado:** [${file.name}] (${sizeFormatted})\n`;
+          // Insert download attachment link at cursor!
+          const attachSnippet = `\n> 📥 **Material para Download anexado:** [${file.name}] (${sizeFormatted})\n`;
+          insertSnippetAtCursor(attachSnippet);
         }
+      } catch (err) {
+        console.error('Erro ao processar arquivo:', err);
+      }
+    }
 
-        onChange(value + appendedText);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    showNotification(
-      `Upload processado com sucesso: ${fileArray.length} ${
-        fileArray.length === 1 ? 'arquivo recebido' : 'arquivos recebidos'
-      }.`
-    );
+    showNotification('Arquivos e imagens inseridos com sucesso na posição atual!');
   };
 
   /**
@@ -496,9 +493,9 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     e.stopPropagation();
     setIsDraggingFiles(false);
 
-    // If text was dragged (e.g. from notice badges)
+    // If alert snippet was dragged from presets
     const draggedText = e.dataTransfer.getData('text/plain');
-    if (draggedText && draggedText.includes('deds-alert-box')) {
+    if (draggedText && (draggedText.includes('deds-alert-box') || draggedText.includes('deds-table-card'))) {
       insertSnippetAtCursor(draggedText);
       return;
     }
@@ -513,286 +510,95 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     if (!linkUrl.trim()) return;
     const text = linkText.trim() || linkUrl.trim();
     const linkMarkdown = `[${text}](${linkUrl.trim()})`;
-    const textarea = textareaRef.current;
-
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newValue = value.substring(0, start) + linkMarkdown + value.substring(end);
-      onChange(newValue);
-    } else {
-      onChange(value + ' ' + linkMarkdown);
-    }
+    insertSnippetAtCursor(linkMarkdown);
 
     setShowLinkModal(false);
     setLinkText('');
     setLinkUrl('');
   };
 
-  // Image insertion via URL
+  // Image insertion via URL modal
   const handleInsertImageUrl = () => {
     if (!imageUrl.trim()) return;
     const caption = imageCaption.trim() || 'Imagem Ilustrativa';
-    const imageMarkdown = `\n\n![${caption}](${imageUrl.trim()})\n*Legenda: ${caption}*\n`;
-    onChange(value + imageMarkdown);
+    const imageMarkdown = `\n![${caption}](${imageUrl.trim()})\n`;
+    insertSnippetAtCursor(imageMarkdown);
 
     setShowImageModal(false);
     setImageUrl('');
     setImageCaption('');
   };
 
-  // Render "Visualizar Folha" / Sheet view parser
-  const renderDocumentSheetView = (content: string) => {
-    if (!content.trim()) {
-      return (
-        <div className="py-12 text-center text-text-tertiary italic">
-          Nenhum conteúdo digitado para visualização da folha. Volte para o modo &quot;Edição&quot; e redija o material da aula.
-        </div>
-      );
+  // Reformulated Table / 16:9 Card Inserter (supports stacking multiple vertical blocks)
+  const handleInsertTableCards = () => {
+    if (cardBlocks.length === 0) return;
+
+    // Generate stacked card HTML blocks
+    const cardsHtml = cardBlocks
+      .map((block) => {
+        return `<div class="deds-table-card" data-title="${block.title.replace(/"/g, '&quot;')}" data-desc="${block.description.replace(/"/g, '&quot;')}" data-img="${block.imageUrl || ''}" data-link-text="${(block.linkText || 'Acessar Link').replace(/"/g, '&quot;')}" data-link-url="${block.linkUrl || ''}">\n<strong>${block.title}</strong>\n<p>${block.description}</p>\n</div>`;
+      })
+      .join('\n\n');
+
+    insertSnippetAtCursor(`\n${cardsHtml}\n`);
+    setShowTableCardModal(false);
+    showNotification(
+      `${cardBlocks.length} bloco(s) de card empilhados inseridos com sucesso!`
+    );
+  };
+
+  // Add another vertical card block to modal
+  const handleAddCardBlock = () => {
+    setCardBlocks((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        title: `Tópico Estruturado ${prev.length + 1}`,
+        description: 'Descrição detalhada dos conceitos teóricos e aplicação prática.',
+        imageUrl: '',
+        linkText: 'Acessar Hiperlink',
+        linkUrl: '',
+      },
+    ]);
+  };
+
+  // Remove a block from modal
+  const handleRemoveCardBlock = (id: string) => {
+    if (cardBlocks.length <= 1) return;
+    setCardBlocks((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  // Update a card block field
+  const handleUpdateCardBlock = (
+    id: string,
+    field: keyof (typeof cardBlocks)[0],
+    val: string
+  ) => {
+    setCardBlocks((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, [field]: val } : b))
+    );
+  };
+
+  // Upload image for a specific card block
+  const handleCardBlockImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      showNotification('Enviando imagem do bloco...');
+      const url = await uploadImageToServer(file, 'card_img');
+      const idx = activeCardIndexForUploadRef.current;
+      setCardBlocks((prev) => {
+        const next = [...prev];
+        if (next[idx]) {
+          next[idx] = { ...next[idx], imageUrl: url };
+        }
+        return next;
+      });
+      showNotification('Imagem do card carregada!');
+    } catch (err) {
+      console.error(err);
+      alert('Falha ao carregar imagem para o card.');
     }
-
-    // Split paragraphs and process blocks
-    const lines = content.split('\n');
-    const elements: React.ReactNode[] = [];
-    let inList = false;
-    let listType: 'ul' | 'ol' = 'ul';
-    let listItems: React.ReactNode[] = [];
-
-    const flushList = () => {
-      if (inList && listItems.length > 0) {
-        if (listType === 'ol') {
-          elements.push(
-            <ol key={`list-${elements.length}`} className="list-decimal pl-6 space-y-1.5 my-3 text-sm text-text-primary">
-              {listItems}
-            </ol>
-          );
-        } else {
-          elements.push(
-            <ul key={`list-${elements.length}`} className="list-disc pl-6 space-y-1.5 my-3 text-sm text-text-primary">
-              {listItems}
-            </ul>
-          );
-        }
-        listItems = [];
-        inList = false;
-      }
-    };
-
-    let inAlertBlock = false;
-    let currentAlertProps: {
-      title: string;
-      timer: number;
-      bg: string;
-      color: string;
-      border: string;
-      icon: string;
-      lines: string[];
-    } | null = null;
-
-    lines.forEach((line, idx) => {
-      const trimmed = line.trim();
-
-      // Check if line starts an alert box
-      if (trimmed.includes('class="deds-alert-box"') || trimmed.includes("class='deds-alert-box'")) {
-        flushList();
-        const titleMatch = trimmed.match(/data-title="([^"]*)"/);
-        const timerMatch = trimmed.match(/data-timer="([^"]*)"/);
-        const bgMatch = trimmed.match(/data-bg="([^"]*)"/);
-        const colorMatch = trimmed.match(/data-color="([^"]*)"/);
-        const borderMatch = trimmed.match(/data-border="([^"]*)"/);
-        const iconMatch = trimmed.match(/data-icon="([^"]*)"/);
-
-        currentAlertProps = {
-          title: titleMatch ? titleMatch[1] : 'AVISO',
-          timer: timerMatch ? parseInt(timerMatch[1], 10) || 0 : 0,
-          bg: bgMatch ? bgMatch[1] : '#1E293B',
-          color: colorMatch ? colorMatch[1] : '#FEF3C7',
-          border: borderMatch ? borderMatch[1] : '#F59E0B',
-          icon: iconMatch ? iconMatch[1] : '⚠️',
-          lines: [],
-        };
-
-        if (trimmed.endsWith('</div>')) {
-          // Single line alert box
-          const innerClean = trimmed
-            .replace(/^<div[^>]*>/, '')
-            .replace(/<\/div>$/, '')
-            .replace(/<strong>.*?<\/strong>/, '')
-            .replace(/<p>/g, '')
-            .replace(/<\/p>/g, '\n')
-            .trim();
-          elements.push(
-            <InteractiveNoticeBox
-              key={`alert-${idx}`}
-              title={currentAlertProps.title}
-              message={innerClean || 'Orientação acadêmica para a aula.'}
-              bgColor={currentAlertProps.bg}
-              textColor={currentAlertProps.color}
-              borderColor={currentAlertProps.border}
-              timerSeconds={currentAlertProps.timer}
-              icon={currentAlertProps.icon}
-            />
-          );
-          currentAlertProps = null;
-        } else {
-          inAlertBlock = true;
-        }
-        return;
-      }
-
-      if (inAlertBlock && currentAlertProps) {
-        if (trimmed.includes('</div>')) {
-          const cleanMessage = currentAlertProps.lines
-            .join('\n')
-            .replace(/<strong>.*?<\/strong>/g, '')
-            .replace(/<p>/g, '')
-            .replace(/<\/p>/g, '\n')
-            .trim();
-          elements.push(
-            <InteractiveNoticeBox
-              key={`alert-${idx}`}
-              title={currentAlertProps.title}
-              message={cleanMessage || 'Orientação acadêmica para a aula.'}
-              bgColor={currentAlertProps.bg}
-              textColor={currentAlertProps.color}
-              borderColor={currentAlertProps.border}
-              timerSeconds={currentAlertProps.timer}
-              icon={currentAlertProps.icon}
-            />
-          );
-          inAlertBlock = false;
-          currentAlertProps = null;
-        } else {
-          currentAlertProps.lines.push(line);
-        }
-        return;
-      }
-
-      // Empty line
-      if (!trimmed) {
-        flushList();
-        return;
-      }
-
-      // H1 Header (# text or # text #)
-      if (trimmed.startsWith('# ') || trimmed.startsWith('#')) {
-        flushList();
-        const clean = trimmed.replace(/^#+\s*/, '').replace(/#+$/, '').trim();
-        const level = (trimmed.match(/^#+/) || ['#'])[0].length;
-        if (level === 1) {
-          elements.push(
-            <h1
-              key={idx}
-              className="text-2xl font-extrabold text-text-primary border-b border-border-subtle pb-2 mt-6 mb-3 tracking-tight"
-            >
-              {clean}
-            </h1>
-          );
-        } else if (level === 2) {
-          elements.push(
-            <h2
-              key={idx}
-              className="text-xl font-bold text-text-primary border-b border-border-subtle/50 pb-1.5 mt-5 mb-2.5"
-            >
-              {clean}
-            </h2>
-          );
-        } else {
-          elements.push(
-            <h3 key={idx} className="text-base font-bold text-text-primary mt-4 mb-2">
-              {clean}
-            </h3>
-          );
-        }
-        return;
-      }
-
-      // Blockquote (> text)
-      if (trimmed.startsWith('>')) {
-        flushList();
-        const quoteContent = trimmed.replace(/^>\s*/, '');
-        elements.push(
-          <div
-            key={idx}
-            className="p-3.5 my-3 rounded-xl bg-blue-500/10 border-l-4 border-blue-500 text-xs sm:text-sm text-text-primary shadow-xs"
-          >
-            {quoteContent.includes('**') ? (
-              <span dangerouslySetInnerHTML={{ __html: quoteContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-            ) : (
-              quoteContent
-            )}
-          </div>
-        );
-        return;
-      }
-
-      // Numbered list item (1. item)
-      const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
-      if (numMatch) {
-        if (!inList || listType !== 'ol') {
-          flushList();
-          inList = true;
-          listType = 'ol';
-        }
-        listItems.push(<li key={idx}>{numMatch[2]}</li>);
-        return;
-      }
-
-      // Bulleted list item (• item or - item or * item)
-      if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-        if (!inList || listType !== 'ul') {
-          flushList();
-          inList = true;
-          listType = 'ul';
-        }
-        const bulletContent = trimmed.replace(/^(•|-|\*)\s*/, '');
-        listItems.push(<li key={idx}>{bulletContent}</li>);
-        return;
-      }
-
-      // Embedded Image (![caption](url))
-      const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)/);
-      if (imgMatch) {
-        flushList();
-        elements.push(
-          <div key={idx} className="my-4 text-center">
-            <img
-              src={imgMatch[2]}
-              alt={imgMatch[1] || 'Imagem do documento'}
-              className="max-h-80 mx-auto rounded-xl shadow-md border border-border-subtle object-contain bg-black/40"
-            />
-            {imgMatch[1] && (
-              <p className="text-[11px] text-text-tertiary italic mt-1.5">{imgMatch[1]}</p>
-            )}
-          </div>
-        );
-        return;
-      }
-
-      // Standard Paragraph
-      flushList();
-
-      let formattedHtml = trimmed
-        .replace(/<u>(.*?)<\/u>/g, '<span class="underline underline-offset-2">$1</span>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-text-primary">$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-        .replace(/~~(.*?)~~/g, '<del class="line-through text-text-tertiary">$1</del>')
-        .replace(
-          /\[(.*?)\]\((.*?)\)/g,
-          '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 font-semibold underline hover:text-blue-300">$1</a>'
-        );
-
-      elements.push(
-        <p
-          key={idx}
-          className="text-sm text-text-primary leading-relaxed my-2"
-          dangerouslySetInnerHTML={{ __html: formattedHtml }}
-        />
-      );
-    });
-
-    flushList();
-    return elements;
   };
 
   const wordsCount = value.trim() ? value.trim().split(/\s+/).length : 0;
@@ -802,9 +608,12 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
     <div className="bg-surface-raised border border-border-subtle rounded-2xl overflow-hidden shadow-sm flex flex-col">
       {/* Toast Notification */}
       {uploadFeedback && (
-        <div className="bg-primary text-on-primary px-4 py-2 text-xs font-bold flex items-center justify-between">
-          <span>{uploadFeedback}</span>
-          <button type="button" onClick={() => setUploadFeedback(null)}>
+        <div className="bg-primary text-on-primary px-4 py-2 text-xs font-bold flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">info</span>
+            <span>{uploadFeedback}</span>
+          </div>
+          <button type="button" onClick={() => setUploadFeedback(null)} className="cursor-pointer">
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
@@ -813,7 +622,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
       {/* Ribbon Header bar - Word-Like Toolbar */}
       <div className="bg-surface-overlay border-b border-border-subtle p-2 space-y-2">
         {/* Top bar: Document Title and View Switcher */}
-        <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
               W
@@ -822,31 +631,49 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               Editor de Conteúdo &amp; Descrição Detalhada
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium hidden sm:inline">
-              Formatação Rica Word • Inline &amp; Mídia
+              Formatação Rica Word • Inline &amp; Mídia Contínua
             </span>
           </div>
 
+          {/* Mode Switcher: Continuous Visual, Code, and Final Student Sheet */}
           <div className="flex items-center gap-1 bg-surface-raised p-0.5 rounded-lg border border-border-subtle">
             <button
               type="button"
-              onClick={() => setViewMode('edit')}
-              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === 'edit'
+              onClick={() => setEditorMode('visual')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                editorMode === 'visual'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-text-tertiary hover:text-text-primary'
               }`}
+              title="Editor visual contínuo com imagens carregadas, blocos e formatação em tempo real"
             >
-              <span className="material-symbols-outlined text-sm">edit_document</span>
-              <span>Edição</span>
+              <span className="material-symbols-outlined text-sm">wysiwyg</span>
+              <span>Edição Visual</span>
             </button>
+
             <button
               type="button"
-              onClick={() => setViewMode('preview')}
-              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === 'preview'
+              onClick={() => setEditorMode('code')}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                editorMode === 'code'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-text-tertiary hover:text-text-primary'
               }`}
+              title="Edição direta de texto e sintaxe Markdown"
+            >
+              <span className="material-symbols-outlined text-sm">code</span>
+              <span>Texto / Código</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditorMode('preview')}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                editorMode === 'preview'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-text-tertiary hover:text-text-primary'
+              }`}
+              title="Visualizar a folha exatamente como aparecerá no painel do aluno"
             >
               <span className="material-symbols-outlined text-sm">visibility</span>
               <span>Visualizar Folha</span>
@@ -862,7 +689,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyInlineFormat('**', '**', 'texto em negrito')}
               className="w-7 h-7 rounded hover:bg-surface-overlay flex items-center justify-center font-bold text-xs text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Negrito (B) — Aplica apenas ao texto selecionado"
+              title="Negrito (B) — Aplica ao texto selecionado"
             >
               <span className="font-black">B</span>
             </button>
@@ -870,7 +697,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyInlineFormat('*', '*', 'texto em itálico')}
               className="w-7 h-7 rounded hover:bg-surface-overlay flex items-center justify-center italic text-xs text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Itálico (I) — Aplica apenas ao texto selecionado"
+              title="Itálico (I) — Aplica ao texto selecionado"
             >
               <span className="font-serif italic font-bold">I</span>
             </button>
@@ -878,7 +705,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyInlineFormat('<u>', '</u>', 'texto sublinhado')}
               className="w-7 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-xs text-text-primary hover:text-blue-400 cursor-pointer underline underline-offset-2"
-              title="Sublinhado (S) — Aplica apenas ao texto selecionado"
+              title="Sublinhado (S) — Aplica ao texto selecionado"
             >
               <u>S</u>
             </button>
@@ -898,7 +725,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyHeading(1)}
               className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-[11px] font-bold text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Título 1 (H1) — Aplica apenas ao texto selecionado"
+              title="Título 1 (H1)"
             >
               H1
             </button>
@@ -906,7 +733,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyHeading(2)}
               className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-[11px] font-bold text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Título 2 (H2) — Aplica apenas ao texto selecionado"
+              title="Título 2 (H2)"
             >
               H2
             </button>
@@ -914,7 +741,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => applyHeading(3)}
               className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-[11px] font-bold text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Título 3 (H3) — Aplica apenas ao texto selecionado"
+              title="Título 3 (H3)"
             >
               H3
             </button>
@@ -926,7 +753,9 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => setTextAlign('left')}
               className={`w-7 h-7 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                textAlign === 'left' ? 'bg-blue-500/20 text-blue-400 font-bold' : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
+                textAlign === 'left'
+                  ? 'bg-blue-500/20 text-blue-400 font-bold'
+                  : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
               }`}
               title="Alinhar à Esquerda"
             >
@@ -936,7 +765,9 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => setTextAlign('center')}
               className={`w-7 h-7 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                textAlign === 'center' ? 'bg-blue-500/20 text-blue-400 font-bold' : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
+                textAlign === 'center'
+                  ? 'bg-blue-500/20 text-blue-400 font-bold'
+                  : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
               }`}
               title="Centralizar"
             >
@@ -946,7 +777,9 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => setTextAlign('right')}
               className={`w-7 h-7 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                textAlign === 'right' ? 'bg-blue-500/20 text-blue-400 font-bold' : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
+                textAlign === 'right'
+                  ? 'bg-blue-500/20 text-blue-400 font-bold'
+                  : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
               }`}
               title="Alinhar à Direita"
             >
@@ -956,7 +789,9 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={() => setTextAlign('justify')}
               className={`w-7 h-7 rounded flex items-center justify-center cursor-pointer transition-colors ${
-                textAlign === 'justify' ? 'bg-blue-500/20 text-blue-400 font-bold' : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
+                textAlign === 'justify'
+                  ? 'bg-blue-500/20 text-blue-400 font-bold'
+                  : 'hover:bg-surface-overlay text-text-tertiary hover:text-text-primary'
               }`}
               title="Justificar"
             >
@@ -964,13 +799,13 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
             </button>
           </div>
 
-          {/* Group 4: Sequential Lists & Formatting */}
+          {/* Group 4: Sequential Lists & Quotes */}
           <div className="flex items-center gap-0.5 bg-surface-raised p-1 rounded-lg border border-border-subtle">
             <button
               type="button"
               onClick={applyBulletList}
               className="w-7 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Lista com Marcadores Sequenciais"
+              title="Lista com Marcadores"
             >
               <span className="material-symbols-outlined text-base">format_list_bulleted</span>
             </button>
@@ -978,7 +813,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
               type="button"
               onClick={applyNumberedList}
               className="w-7 h-7 rounded hover:bg-surface-overlay flex items-center justify-center text-text-primary hover:text-blue-400 cursor-pointer"
-              title="Lista Numerada Sequencial (1., 2., 3...)"
+              title="Lista Numerada (1., 2., 3...)"
             >
               <span className="material-symbols-outlined text-base">format_list_numbered</span>
             </button>
@@ -990,14 +825,19 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
             >
               <span className="material-symbols-outlined text-base">format_quote</span>
             </button>
+
+            {/* REFORMULATED TABLE TOOL: CARDS 16:9 WITH LATERAL TEXT BOX & STACKING */}
             <button
               type="button"
-              onClick={insertTable}
-              className="px-1.5 h-7 rounded hover:bg-surface-overlay flex items-center gap-1 text-[11px] font-bold text-text-secondary hover:text-blue-400 cursor-pointer"
-              title="Inserir Tabela Estruturada"
+              onClick={() => {
+                handleSaveTextareaSelection();
+                setShowTableCardModal(true);
+              }}
+              className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 cursor-pointer border border-blue-500/30 bg-blue-500/10"
+              title="Inserir Card de Tabela Estruturada 16:9 com Texto Lateral e Empilhamento"
             >
-              <span className="material-symbols-outlined text-sm">table_chart</span>
-              <span className="hidden xl:inline">Tabela</span>
+              <span className="material-symbols-outlined text-sm">view_agenda</span>
+              <span>Tabela / Cards 16:9</span>
             </button>
           </div>
 
@@ -1005,7 +845,10 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-border-subtle">
             <button
               type="button"
-              onClick={() => setShowLinkModal(true)}
+              onClick={() => {
+                handleSaveTextareaSelection();
+                setShowLinkModal(true);
+              }}
               className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center gap-1 text-xs font-bold text-text-primary hover:text-blue-400 cursor-pointer"
               title="Inserir Hiperlink no Documento"
             >
@@ -1027,12 +870,15 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
             />
             <button
               type="button"
-              onClick={() => multipleImageInputRef.current?.click()}
-              className="px-2 h-7 rounded hover:bg-surface-overlay flex items-center gap-1 text-xs font-bold text-text-primary hover:text-emerald-400 cursor-pointer"
-              title="Upload de Múltiplas Imagens Simultâneas"
+              onClick={() => {
+                handleSaveTextareaSelection();
+                multipleImageInputRef.current?.click();
+              }}
+              className="px-2.5 h-7 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 flex items-center gap-1 text-xs font-bold text-emerald-400 cursor-pointer transition-colors"
+              title="Upload de Imagem — Exibe diretamente a imagem carregada desde o início no editor"
             >
               <span className="material-symbols-outlined text-base text-emerald-400">add_photo_alternate</span>
-              <span className="hidden sm:inline">+ Imagens</span>
+              <span>+ Imagens</span>
             </button>
 
             <input
@@ -1049,12 +895,15 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
             />
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                handleSaveTextareaSelection();
+                fileInputRef.current?.click();
+              }}
               className="px-2.5 h-7 rounded bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 flex items-center gap-1 text-xs font-bold text-blue-400 cursor-pointer transition-colors"
               title="Upload de Múltiplos Arquivos para Download (Word, Excel, PDF)"
             >
               <span className="material-symbols-outlined text-base">attach_file</span>
-              <span>Anexar Arquivos</span>
+              <span className="hidden sm:inline">Anexar Arquivos</span>
             </button>
           </div>
 
@@ -1062,7 +911,10 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           <div className="flex items-center gap-1 bg-surface-raised p-1 rounded-lg border border-amber-500/30">
             <button
               type="button"
-              onClick={() => setShowNoticeModal(true)}
+              onClick={() => {
+                handleSaveTextareaSelection();
+                setShowNoticeModal(true);
+              }}
               className="px-2.5 h-7 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/40 flex items-center gap-1 text-xs font-bold cursor-pointer transition-all shadow-xs"
               title="Adicionar Pop-up com Temporizador e Caixas de Cores Customizadas"
             >
@@ -1072,11 +924,11 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           </div>
         </div>
 
-        {/* Quick Presets Ribbon: Click or Drag Notices into Document */}
+        {/* Quick Presets Ribbon: Click to Insert at Cursor */}
         <div className="flex items-center gap-2 pt-1 border-t border-border-subtle/50 overflow-x-auto pb-1 text-xs">
           <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider shrink-0 flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs">drag_indicator</span>
-            <span>Avisos Rápidos (Clique ou Arraste):</span>
+            <span className="material-symbols-outlined text-xs">flash_on</span>
+            <span>Avisos Rápidos:</span>
           </span>
 
           <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
@@ -1086,18 +938,14 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                 <button
                   key={preset.id}
                   type="button"
-                  draggable={true}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', snippet);
-                  }}
                   onClick={() => insertSnippetAtCursor(snippet)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-grab active:cursor-grabbing hover:scale-105 transition-all shadow-xs shrink-0 border"
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-xs shrink-0 border"
                   style={{
                     backgroundColor: `${preset.bgColor}EE`,
                     color: preset.textColor,
                     borderColor: `${preset.borderColor}80`,
                   }}
-                  title={`Clique para inserir ou arraste para dentro da aula (${preset.hasTimer ? `Temporizador ${preset.timerSeconds}s` : 'Aviso fixo'})`}
+                  title={`Inserir no cursor (${preset.hasTimer ? `Temporizador ${preset.timerSeconds}s` : 'Aviso fixo'})`}
                 >
                   <span>{preset.icon}</span>
                   <span>{preset.label}</span>
@@ -1115,10 +963,11 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
 
       {/* Main Document Canvas with Drag & Drop Zone */}
       <div
+        ref={documentContainerRef}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`p-4 bg-surface-subtle min-h-[350px] flex flex-col items-center transition-colors relative ${
+        className={`p-4 bg-surface-subtle min-h-[400px] flex flex-col items-center transition-colors relative ${
           isDraggingFiles ? 'bg-primary/10 ring-2 ring-primary ring-dashed' : ''
         }`}
       >
@@ -1127,33 +976,107 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-base">cloud_upload</span>
             <span>
-              <strong>Upload Múltiplo &amp; Arraste e Solte:</strong> Arraste e solte avisos, imagens ou arquivos (PDF, Word, Excel, JPG, PNG) diretamente aqui para inclusão instantânea.
+              <strong>Upload Múltiplo &amp; Arraste e Solte:</strong> Arraste imagens ou arquivos diretamente para inclusão imediata no ponto de inserção.
             </span>
           </div>
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              handleSaveTextareaSelection();
+              multipleImageInputRef.current?.click();
+            }}
             className="text-[11px] font-bold text-primary hover:underline cursor-pointer shrink-0"
           >
-            Selecionar do PC
+            Selecionar Imagens do PC
           </button>
         </div>
 
         {/* Document "Sheet" Frame */}
-        <div className="w-full max-w-4xl bg-[#0E131F] border border-[#222E46] rounded-xl shadow-xl p-6 sm:p-10 relative min-h-[320px]">
+        <div className="w-full max-w-4xl bg-[#0E131F] border border-[#222E46] rounded-xl shadow-xl p-6 sm:p-10 relative min-h-[350px]">
           <div className="border-b border-[#222E46] pb-2.5 mb-6 flex items-center justify-between text-[10px] text-text-tertiary">
-            <span className="font-semibold uppercase tracking-wider">DOCUMENTO DA AULA • FORMATO PADRÃO A4</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold uppercase tracking-wider">DOCUMENTO DA AULA • FORMATO PADRÃO A4</span>
+              <span className="px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 font-bold uppercase text-[9px]">
+                {editorMode === 'visual'
+                  ? 'Modo Visual Contínuo'
+                  : editorMode === 'code'
+                  ? 'Modo Texto / Markdown'
+                  : 'Folha Oficial do Aluno'}
+              </span>
+            </div>
             <span>MARGENS ABNT (2.5 cm)</span>
           </div>
 
-          {viewMode === 'edit' ? (
+          {/* MODE 1: CONTINUOUS VISUAL EDITOR WITH DIRECT IMAGE & BLOCK DISPLAY */}
+          {editorMode === 'visual' && (
+            <div className="space-y-6">
+              {/* Live Rendered Continuous Document View */}
+              <div
+                className={`text-sm text-text-primary leading-relaxed space-y-4 min-h-[220px] ${
+                  textAlign === 'center'
+                    ? 'text-center'
+                    : textAlign === 'right'
+                    ? 'text-right'
+                    : textAlign === 'justify'
+                    ? 'text-justify'
+                    : 'text-left'
+                }`}
+              >
+                <DocumentSheetRenderer content={value} />
+              </div>
+
+              {/* Seamless Inline Quick-Editor at the insertion point */}
+              <div className="pt-4 border-t border-[#222E46]">
+                <div className="flex items-center justify-between mb-1.5 text-xs text-text-secondary">
+                  <span className="font-bold flex items-center gap-1.5 text-blue-400">
+                    <span className="material-symbols-outlined text-sm">edit_note</span>
+                    Área de Digitação &amp; Inserção Contínua:
+                  </span>
+                  <span className="text-[10px] text-text-tertiary">
+                    Qualquer imagem, aviso ou tabela inserida aparecerá renderizada acima imediatamente
+                  </span>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  rows={8}
+                  value={value}
+                  onSelect={handleSaveTextareaSelection}
+                  onClick={handleSaveTextareaSelection}
+                  onKeyUp={handleSaveTextareaSelection}
+                  onChange={(e) => {
+                    onChange(e.target.value);
+                    handleSaveTextareaSelection();
+                  }}
+                  placeholder="Digite aqui o conteúdo da aula. Use a barra de ferramentas para inserir cards de tabela 16:9, títulos, negritos, avisos e imagens com visualização contínua..."
+                  className={`w-full p-4 bg-[#141B2D] border border-[#222E46] rounded-xl text-sm text-text-primary leading-relaxed outline-none focus:border-blue-500 transition-colors resize-y font-sans min-h-[140px] ${
+                    textAlign === 'center'
+                      ? 'text-center'
+                      : textAlign === 'right'
+                      ? 'text-right'
+                      : textAlign === 'justify'
+                      ? 'text-justify'
+                      : 'text-left'
+                  }`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* MODE 2: CODE / RAW TEXT */}
+          {editorMode === 'code' && (
             <textarea
               ref={textareaRef}
-              rows={14}
+              rows={16}
               value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder="Digite a descrição detalhada da aula com formatação estilo Word. Utilize títulos (H1, H2, H3), negrito, itálico, sublinhado, listas de passos, destaques, hiperlinks, tabelas e avisos com temporizador..."
-              className={`w-full bg-transparent border-none outline-none resize-y text-sm text-text-primary leading-relaxed font-sans min-h-[240px] ${
+              onSelect={handleSaveTextareaSelection}
+              onClick={handleSaveTextareaSelection}
+              onKeyUp={handleSaveTextareaSelection}
+              onChange={(e) => {
+                onChange(e.target.value);
+                handleSaveTextareaSelection();
+              }}
+              placeholder="Digite a descrição detalhada em Markdown ou HTML..."
+              className={`w-full bg-transparent border-none outline-none resize-y text-sm text-text-primary leading-relaxed font-mono min-h-[280px] ${
                 textAlign === 'center'
                   ? 'text-center'
                   : textAlign === 'right'
@@ -1163,9 +1086,12 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                   : 'text-left'
               }`}
             />
-          ) : (
+          )}
+
+          {/* MODE 3: PREVIEW ("VISUALIZAR FOLHA") EXACT STUDENT PARITY */}
+          {editorMode === 'preview' && (
             <div
-              className={`text-sm text-text-primary leading-relaxed space-y-3 min-h-[240px] ${
+              className={`text-sm text-text-primary leading-relaxed space-y-4 min-h-[280px] ${
                 textAlign === 'center'
                   ? 'text-center'
                   : textAlign === 'right'
@@ -1175,10 +1101,11 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                   : 'text-left'
               }`}
             >
-              {renderDocumentSheetView(value)}
+              <DocumentSheetRenderer content={value} isSheetPreview={true} />
             </div>
           )}
 
+          {/* Attachments Section */}
           {attachments.length > 0 && (
             <div className="mt-8 pt-5 border-t border-[#222E46]">
               <div className="flex items-center justify-between mb-3">
@@ -1277,7 +1204,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
         </div>
       </div>
 
-      {/* Modal Inserir Link */}
+      {/* MODAL: INSERIR LINK */}
       {showLinkModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-surface-raised border border-border-subtle rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl animate-in fade-in">
@@ -1304,7 +1231,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                   type="text"
                   value={linkText}
                   onChange={(e) => setLinkText(e.target.value)}
-                  placeholder="Ex: Clique aqui para acessar a documentação oficial"
+                  placeholder="Ex: Clique aqui para acessar a documentação"
                   className="w-full px-3 py-2 bg-surface-overlay border border-border-subtle rounded-xl text-xs text-text-primary outline-none focus:border-primary"
                 />
               </div>
@@ -1343,7 +1270,7 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
         </div>
       )}
 
-      {/* Modal Inserir Imagem via URL */}
+      {/* MODAL: INSERIR IMAGEM VIA URL */}
       {showImageModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-surface-raised border border-border-subtle rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl animate-in fade-in">
@@ -1403,6 +1330,234 @@ export const WordLikeEditor: React.FC<WordLikeEditorProps> = ({
                 className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
               >
                 Inserir Imagem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REFORMULATED MODAL: CARDS DE TABELA 16:9 COM TEXTO LATERAL & EMPILHAMENTO */}
+      {showTableCardModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-surface-raised border border-border-subtle rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl animate-in fade-in max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-text-primary flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-400">view_agenda</span>
+                  Card Estruturado de Tabela (Proporção 16:9 com Texto Lateral)
+                </h4>
+                <p className="text-xs text-text-tertiary">
+                  Insira blocos visuais de conteúdo com imagem quadrada/16:9, título, descrição e link, empilhando múltiplos blocos verticais.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTableCardModal(false)}
+                className="text-text-tertiary hover:text-text-primary cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            {/* Hidden file input for card image upload */}
+            <input
+              ref={cardImageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCardBlockImageUpload}
+            />
+
+            {/* List of Card Blocks */}
+            <div className="space-y-4">
+              {cardBlocks.map((block, bIdx) => (
+                <div
+                  key={block.id}
+                  className="p-4 rounded-xl bg-surface-overlay border border-border-subtle space-y-3 relative group"
+                >
+                  <div className="flex items-center justify-between border-b border-border-subtle/60 pb-2">
+                    <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5 uppercase tracking-wider">
+                      <span className="material-symbols-outlined text-sm">dashboard</span>
+                      Bloco Vertical {bIdx + 1}
+                    </span>
+                    {cardBlocks.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCardBlock(block.id)}
+                        className="text-xs text-status-danger hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">delete</span>
+                        <span>Remover Bloco</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+                    {/* Left: 16:9 Image Uploader & Preview */}
+                    <div className="sm:col-span-5 space-y-2">
+                      <label className="block text-[11px] font-bold text-text-secondary">
+                        Imagem do Bloco (Proporção 16:9 / Quadrada)
+                      </label>
+                      <div className="w-full aspect-video rounded-xl overflow-hidden bg-black/60 border border-border-subtle flex flex-col items-center justify-center relative group/img">
+                        {block.imageUrl ? (
+                          <>
+                            <img
+                              src={block.imageUrl}
+                              alt={block.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  activeCardIndexForUploadRef.current = bIdx;
+                                  cardImageInputRef.current?.click();
+                                }}
+                                className="px-2 py-1 rounded-md bg-blue-600 text-white text-[10px] font-bold cursor-pointer"
+                              >
+                                Alterar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCardBlock(block.id, 'imageUrl', '')}
+                                className="px-2 py-1 rounded-md bg-status-danger text-white text-[10px] font-bold cursor-pointer"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center p-3 text-center space-y-1">
+                            <span className="material-symbols-outlined text-2xl text-text-tertiary">
+                              add_photo_alternate
+                            </span>
+                            <span className="text-[11px] text-text-tertiary">
+                              Nenhuma imagem selecionada
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                activeCardIndexForUploadRef.current = bIdx;
+                                cardImageInputRef.current?.click();
+                              }}
+                              className="mt-1 px-3 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-xs font-bold cursor-pointer transition-all"
+                            >
+                              Upload do PC
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Optional URL input for image */}
+                      <input
+                        type="url"
+                        value={block.imageUrl}
+                        onChange={(e) => handleUpdateCardBlock(block.id, 'imageUrl', e.target.value)}
+                        placeholder="Ou cole a URL da imagem (https://...)"
+                        className="w-full px-2.5 py-1.5 bg-surface-raised border border-border-subtle rounded-lg text-[11px] text-text-primary outline-none focus:border-primary font-mono"
+                      />
+                    </div>
+
+                    {/* Right: Lateral Text Box (Title, Description, Link) */}
+                    <div className="sm:col-span-7 space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                          Título do Bloco <span className="text-status-danger">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={block.title}
+                          onChange={(e) => handleUpdateCardBlock(block.id, 'title', e.target.value)}
+                          placeholder="Ex: Introdução à Metodologia Ágil"
+                          className="w-full px-3 py-1.5 bg-surface-raised border border-border-subtle rounded-lg text-xs font-bold text-text-primary outline-none focus:border-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-text-secondary mb-1">
+                          Descrição / Conteúdo Lateral
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={block.description}
+                          onChange={(e) => handleUpdateCardBlock(block.id, 'description', e.target.value)}
+                          placeholder="Escreva a explicação técnica, diretrizes ou notas deste card..."
+                          className="w-full px-3 py-1.5 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary leading-relaxed"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                            Texto do Link (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={block.linkText}
+                            onChange={(e) => handleUpdateCardBlock(block.id, 'linkText', e.target.value)}
+                            placeholder="Ex: Acessar Material"
+                            className="w-full px-2.5 py-1 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-text-secondary mb-1">
+                            URL do Link (Opcional)
+                          </label>
+                          <input
+                            type="url"
+                            value={block.linkUrl}
+                            onChange={(e) => handleUpdateCardBlock(block.id, 'linkUrl', e.target.value)}
+                            placeholder="https://..."
+                            className="w-full px-2.5 py-1 bg-surface-raised border border-border-subtle rounded-lg text-xs text-text-primary outline-none focus:border-primary font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Button to stack another vertical block */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={handleAddCardBlock}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 border border-blue-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">add_circle</span>
+                <span>+ Adicionar Outro Bloco Vertical (Empilhar)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const classicTable = `\n| Tópico / Conceito | Descrição Prática | Aplicação no Mercado |\n| :--- | :--- | :--- |\n| Conceito 1 | Fundamentação metodológica | Projeto prático |\n| Conceito 2 | Execução passo a passo | Implementação |\n`;
+                  insertSnippetAtCursor(classicTable);
+                  setShowTableCardModal(false);
+                }}
+                className="text-xs text-text-tertiary hover:text-text-primary underline cursor-pointer"
+              >
+                Inserir Tabela Clássica Markdown
+              </button>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-subtle">
+              <button
+                type="button"
+                onClick={() => setShowTableCardModal(false)}
+                className="px-4 py-2 rounded-xl bg-surface-overlay text-xs font-bold text-text-secondary hover:text-text-primary cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertTableCards}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md"
+              >
+                <span className="material-symbols-outlined text-sm">done_all</span>
+                <span>Inserir Blocos no Documento</span>
               </button>
             </div>
           </div>

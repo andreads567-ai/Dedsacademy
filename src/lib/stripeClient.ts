@@ -11,6 +11,15 @@ export interface StripeCheckoutOptions {
 }
 
 export async function redirectToStripeCheckout(options: StripeCheckoutOptions): Promise<void> {
+  let customSecretKey: string | undefined;
+  try {
+    const saved = localStorage.getItem('deds_api_settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      customSecretKey = parsed?.payment?.secretKey?.trim();
+    }
+  } catch {}
+
   const payload = {
     items: options.items.map((item) => ({
       id: item.course.id,
@@ -24,6 +33,7 @@ export async function redirectToStripeCheckout(options: StripeCheckoutOptions): 
     studentEmail: options.studentEmail,
     studentCpf: options.studentCpf,
     discountAmount: options.discountAmount || 0,
+    secretKey: customSecretKey || undefined,
     successUrl: `${window.location.origin}/?payment_status=success&session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${window.location.origin}/?payment_status=cancel`,
   };

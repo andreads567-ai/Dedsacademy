@@ -14,6 +14,7 @@ export interface PlatformSyncPayload {
   heroBanner?: any;
   middleBanner?: any;
   checkoutBanner?: any;
+  studentBanners?: any;
   instructors?: any[];
   blogPosts?: any[];
   announcements?: any[];
@@ -189,14 +190,16 @@ export function startLiveSync(
   intervalMs: number = 3500
 ): () => void {
   let isChecking = false;
+  let lastHandledVersion = currentKnownVersion;
 
   const check = async () => {
     if (isChecking) return;
     isChecking = true;
     try {
+      const prevVersion = lastHandledVersion;
       const data = await fetchPlatformSyncData();
-      if (data && data.version && data.version > currentKnownVersion) {
-        currentKnownVersion = data.version;
+      if (data && data.version && (lastHandledVersion === 0 || data.version !== lastHandledVersion)) {
+        lastHandledVersion = data.version;
 
         // Safely synchronize localStorage without deleting unrelated keys
         try {

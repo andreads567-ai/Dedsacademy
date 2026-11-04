@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { CourseModule, Lesson, LessonAttachment } from '../../types';
 import { WordLikeEditor } from './WordLikeEditor';
+import { getVideoEmbedInfo } from '../../utils/videoUtils';
 
 interface ModuleLessonsManagerProps {
   courseTitle: string;
@@ -883,25 +884,29 @@ export const ModuleLessonsManager: React.FC<ModuleLessonsManagerProps> = ({
 
                         {currentActivePreviewUrl ? (
                           <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-border-subtle shadow-md">
-                            {currentActivePreviewUrl.includes('youtube.com') || currentActivePreviewUrl.includes('youtu.be') ? (
-                              <iframe
-                                src={
-                                  currentActivePreviewUrl.includes('watch?v=')
-                                    ? currentActivePreviewUrl.replace('watch?v=', 'embed/')
-                                    : currentActivePreviewUrl.replace('youtu.be/', 'youtube.com/embed/')
-                                }
-                                title="Preview da Aula"
-                                className="w-full h-full"
-                                allowFullScreen
-                              />
-                            ) : (
-                              <video
-                                key={currentActivePreviewUrl}
-                                src={currentActivePreviewUrl}
-                                controls
-                                className="w-full h-full object-contain"
-                              />
-                            )}
+                            {(() => {
+                              const embedInfo = getVideoEmbedInfo(currentActivePreviewUrl);
+                              if (embedInfo.isIframe) {
+                                return (
+                                  <iframe
+                                    src={embedInfo.embedUrl}
+                                    title="Preview da Aula"
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    referrerPolicy="strict-origin-when-cross-origin"
+                                  />
+                                );
+                              }
+                              return (
+                                <video
+                                  key={currentActivePreviewUrl}
+                                  src={currentActivePreviewUrl}
+                                  controls
+                                  className="w-full h-full object-contain"
+                                />
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="aspect-video rounded-xl border border-dashed border-border-subtle flex flex-col items-center justify-center text-text-tertiary gap-1 bg-surface-overlay/50">
