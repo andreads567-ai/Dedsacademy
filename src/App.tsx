@@ -20,6 +20,7 @@ import { AuthModal } from './components/AuthModal';
 import { CourseDetailPage } from './components/CourseDetailPage';
 import { StudentPortal } from './components/StudentPortal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { RegisterPage } from './components/RegisterPage';
 import type { RegistrationData } from './components/RegisterPage';
 import { BlogPage } from './components/BlogPage';
@@ -64,7 +65,49 @@ const AdminAccessBlocked: React.FC<{ onRedirect: () => void }> = ({ onRedirect }
 
 export default function App() {
   // Navigation View: 'inicio' | 'cursos' | 'categorias' | 'planos' | 'certificados' | 'blog' | 'contato' | 'carrinho' | 'aluno' | 'admin' | 'cadastro'
-  const [activeNavTab, setActiveNavTab] = useState<string>('inicio');
+  const [activeNavTab, setActiveNavTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '').trim();
+      const hash = window.location.hash.toLowerCase().replace(/^#+/, '').trim();
+      const target = path || hash;
+      if (target === 'admin' || target === 'dashboard') return 'admin';
+      if (target === 'aluno' || target === 'portal') return 'aluno';
+      if (target === 'carrinho' || target === 'checkout') return 'carrinho';
+      if (target === 'cursos' || target === 'catalogo') return 'cursos';
+      if (target === 'blog') return 'blog';
+      if (target === 'contato' || target === 'suporte') return 'contato';
+      if (target === 'cadastro' || target === 'registro') return 'cadastro';
+    }
+    return 'inicio';
+  });
+
+  // Mantém a barra de endereço sincronizada com a rota da visualização atual
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !selectedCourse) {
+      const currentPath = window.location.pathname.replace(/^\/+|\/+$/g, '').trim();
+      const newPath = activeNavTab === 'inicio' ? '/' : `/${activeNavTab}`;
+      if (currentPath !== (activeNavTab === 'inicio' ? '' : activeNavTab)) {
+        window.history.replaceState({ tab: activeNavTab }, '', newPath);
+      }
+    }
+  }, [activeNavTab, selectedCourse]);
+
+  // Sincroniza quando o usuário clica em Voltar/Avançar no navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '').trim();
+      if (path === 'admin' || path === 'dashboard') setActiveNavTab('admin');
+      else if (path === 'aluno' || path === 'portal') setActiveNavTab('aluno');
+      else if (path === 'carrinho') setActiveNavTab('carrinho');
+      else if (path === 'cursos') setActiveNavTab('cursos');
+      else if (path === 'blog') setActiveNavTab('blog');
+      else if (path === 'contato') setActiveNavTab('contato');
+      else if (path === 'cadastro') setActiveNavTab('cadastro');
+      else setActiveNavTab('inicio');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [activeCourseFilter, setActiveCourseFilter] = useState('Em alta');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1831,106 +1874,102 @@ export default function App() {
             }}
           />
         ) : activeNavTab === 'aluno' ? (
-          /* VIEW 2: ÁREA DO ALUNO (ESTUDANTE) — Fix 3: require login */
-          currentUser ? (
-          <StudentPortal
-            user={currentUser}
-            onUpdateUser={handleUpdateUser}
-            enrolledCourses={studentEnrolledCourses}
-            allCourses={enrichedCoursesList.filter((c) => c.status === 'publicado')}
-            categories={categoriesList}
-            progressData={(currentUser && studentProgressMap[currentUser.id]) || {}}
-            certificates={certificatesList.filter((c) => c.studentId === currentUser?.id)}
-            onNavigateHome={() => {
-              setSelectedCategory(null);
-              setActiveNavTab('cursos');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onLogout={handleLogout}
-            onOpenCertificateModal={(code?: string) => handleOpenCertificateModal(code)}
-            onOpenCatalog={() => {
-              setSelectedCategory(null);
-              setActiveNavTab('cursos');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onCompleteLesson={handleCompleteLesson}
-            onCancelEnrollment={handleCancelEnrollment}
-            onSubmitReview={handleStudentSubmitReview}
-            onEnrollCourse={handleEnrollCourse}
-            onStartCourse={handleStartCourseFromPresentation}
-            onAddToCart={handleAddToCart}
-            onSelectCourse={handleSelectCourse}
-            studentBannersConfig={studentBannersConfig}
-            onOpenCart={() => setIsCartDrawerOpen(true)}
-          />
-          ) : (() => {
-            // Redirect unauthenticated visitor to login
-            setTimeout(() => {
+          /* VIEW 2: ÁREA DO ALUNO (ESTUDANTE) — ROTA PROTEGIDA */
+          <ProtectedRoute
+            currentUser={currentUser}
+            requireAdmin={false}
+            onUnauthorized={() => {
               setActiveNavTab('inicio');
               setAuthModal({ isOpen: true, mode: 'login', role: 'aluno' });
               showToast('Faça login para acessar a Área do Aluno.');
-            }, 0);
-            return <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center space-y-4">
-                <span className="material-symbols-outlined text-6xl text-text-tertiary">lock</span>
-                <p className="text-text-secondary font-label-lg">Redirecionando para o login...</p>
-              </div>
-            </div>;
-          })()
-        ) : activeNavTab === 'admin' ? (
-          /* VIEW 3: PAINEL DO ADMIN — SECURITY: strict admin role guard */
-          currentUser?.role === 'admin' ? (
-          <AdminDashboard
-            courses={enrichedCoursesList}
-            users={usersList}
-            blogPosts={blogPostsList}
-            onAddPost={handleAddBlogPost}
-            onUpdatePost={handleUpdateBlogPost}
-            onDeletePost={handleDeleteBlogPost}
-            categories={categoriesList}
-            certificates={certificatesList}
-            onIssueCertificate={handleAdminIssueCertificate}
-            onCancelCertificate={handleAdminCancelCertificate}
-            heroBannerConfig={heroBannerConfig}
-            onUpdateHeroBannerConfig={handleUpdateHeroBannerConfig}
-            middleBannerConfig={middleBannerConfig}
-            onUpdateMiddleBannerConfig={handleUpdateMiddleBannerConfig}
-            checkoutBannerConfig={checkoutBannerConfig}
-            onUpdateCheckoutBannerConfig={handleUpdateCheckoutBannerConfig}
-            studentBannersConfig={studentBannersConfig}
-            onUpdateStudentBannersConfig={handleUpdateStudentBannersConfig}
-            announcements={announcementsList}
-            onAddAnnouncement={handleAddAnnouncement}
-            onAddCourse={handleAddCourse}
-            onUpdateCourse={handleUpdateCourse}
-            onDeleteCourse={handleDeleteCourse}
-            onAddUser={handleAddUser}
-            onUpdateUser={handleUpdateUser}
-            onUpdateCategories={handleUpdateCategories}
-            onLogout={handleLogout}
-            reviews={reviewsList}
-            onDeleteReview={handleDeleteReview}
-            progressMap={studentProgressMap}
-            coupons={couponsList}
-            onUpdateCoupons={handleUpdateCoupons}
-            campaigns={campaignsList}
-            onUpdateCampaigns={handleUpdateCampaigns}
-            onNavigateHome={() => {
-              setSelectedCategory(null);
-              setActiveNavTab('inicio');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-          />
-          ) : (
-            /* SECURITY: Non-admin access — show blocked screen and redirect immediately */
-            <AdminAccessBlocked
-              onRedirect={() => {
+          >
+            {currentUser && (
+              <StudentPortal
+                user={currentUser}
+                onUpdateUser={handleUpdateUser}
+                enrolledCourses={studentEnrolledCourses}
+                allCourses={enrichedCoursesList.filter((c) => c.status === 'publicado')}
+                categories={categoriesList}
+                progressData={(currentUser && studentProgressMap[currentUser.id]) || {}}
+                certificates={certificatesList.filter((c) => c.studentId === currentUser?.id)}
+                onNavigateHome={() => {
+                  setSelectedCategory(null);
+                  setActiveNavTab('cursos');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onLogout={handleLogout}
+                onOpenCertificateModal={(code?: string) => handleOpenCertificateModal(code)}
+                onOpenCatalog={() => {
+                  setSelectedCategory(null);
+                  setActiveNavTab('cursos');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onCompleteLesson={handleCompleteLesson}
+                onCancelEnrollment={handleCancelEnrollment}
+                onSubmitReview={handleStudentSubmitReview}
+                onEnrollCourse={handleEnrollCourse}
+                onStartCourse={handleStartCourseFromPresentation}
+                onAddToCart={handleAddToCart}
+                onSelectCourse={handleSelectCourse}
+                studentBannersConfig={studentBannersConfig}
+                onOpenCart={() => setIsCartDrawerOpen(true)}
+              />
+            )}
+          </ProtectedRoute>
+        ) : activeNavTab === 'admin' ? (
+          /* VIEW 3: PAINEL DO ADMIN — ROTA PROTEGIDA COM PERFIL DE ADMIN */
+          <ProtectedRoute
+            currentUser={currentUser}
+            requireAdmin={true}
+            onUnauthorized={() => {
+              setActiveNavTab('inicio');
+              setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
+              showToast('Acesso negado. Faça login com credenciais de administrador.');
+            }}
+          >
+            <AdminDashboard
+              courses={enrichedCoursesList}
+              users={usersList}
+              blogPosts={blogPostsList}
+              onAddPost={handleAddBlogPost}
+              onUpdatePost={handleUpdateBlogPost}
+              onDeletePost={handleDeleteBlogPost}
+              categories={categoriesList}
+              certificates={certificatesList}
+              onIssueCertificate={handleAdminIssueCertificate}
+              onCancelCertificate={handleAdminCancelCertificate}
+              heroBannerConfig={heroBannerConfig}
+              onUpdateHeroBannerConfig={handleUpdateHeroBannerConfig}
+              middleBannerConfig={middleBannerConfig}
+              onUpdateMiddleBannerConfig={handleUpdateMiddleBannerConfig}
+              checkoutBannerConfig={checkoutBannerConfig}
+              onUpdateCheckoutBannerConfig={handleUpdateCheckoutBannerConfig}
+              studentBannersConfig={studentBannersConfig}
+              onUpdateStudentBannersConfig={handleUpdateStudentBannersConfig}
+              announcements={announcementsList}
+              onAddAnnouncement={handleAddAnnouncement}
+              onAddCourse={handleAddCourse}
+              onUpdateCourse={handleUpdateCourse}
+              onDeleteCourse={handleDeleteCourse}
+              onAddUser={handleAddUser}
+              onUpdateUser={handleUpdateUser}
+              onUpdateCategories={handleUpdateCategories}
+              onLogout={handleLogout}
+              reviews={reviewsList}
+              onDeleteReview={handleDeleteReview}
+              progressMap={studentProgressMap}
+              coupons={couponsList}
+              onUpdateCoupons={handleUpdateCoupons}
+              campaigns={campaignsList}
+              onUpdateCampaigns={handleUpdateCampaigns}
+              onNavigateHome={() => {
+                setSelectedCategory(null);
                 setActiveNavTab('inicio');
-                setAuthModal({ isOpen: true, mode: 'login', role: 'admin' });
-                showToast('Acesso negado. Faça login com credenciais de administrador.');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
-          )
+          </ProtectedRoute>
         ) : activeNavTab === 'cadastro' ? (
           /* VIEW 4: PÁGINA DE CADASTRO COMPLETO */
           <RegisterPage
