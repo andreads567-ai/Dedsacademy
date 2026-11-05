@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import {
   CertificateOfficialTemplate,
@@ -622,7 +621,8 @@ export async function downloadCertificatePdf(
   const frontCanvas = await renderCertificateCanvas(studentData, template, 'frente');
   const frontDataUrl = frontCanvas.toDataURL('image/jpeg', 0.98);
 
-  // 2. Inicializa o PDF A4 Paisagem (297 x 210 mm)
+  // 2. Inicializa o PDF A4 Paisagem (297 x 210 mm) via import dinâmico para evitar TDZ e conflito de chunks
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',

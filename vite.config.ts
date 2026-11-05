@@ -268,6 +268,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss(), localApiPlugin],
+    optimizeDeps: {
+      include: ['jspdf', 'qrcode'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
