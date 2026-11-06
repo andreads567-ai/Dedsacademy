@@ -213,7 +213,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         // Validação TOTP com janela de tolerância de ±30s
         if (activeSecret) {
-          isValid = await verifyTotpCode(activeSecret, cleanCode);
+          isValid = await verifyTotpCode(activeSecret, cleanCode, pendingAdminUser.email);
         }
 
         // Fallback de contingência: verifica se o usuário digitou um código de backup ou emergência
@@ -361,7 +361,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           setErrorMessage('');
                           if (val.length === 6) {
                             setTimeout(() => {
-                              verifyTotpCode(totpSecret, val).then((valid) => {
+                              verifyTotpCode(totpSecret || activeSecret, val, pendingAdminUser.email).then((valid) => {
                                 if (valid) {
                                   handleVerifyMfa();
                                 }
