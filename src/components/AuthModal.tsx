@@ -159,16 +159,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // Se o usuário for Administrador, exige obrigatoriamente a verificação TOTP do Google Authenticator (MFA)
     // Se o usuário for Administrador, verifica liberação direta ou MFA
     if (determinedRole === 'admin') {
-      // REGRA DE LIBERAÇÃO / BYPASS SUPER ADMINISTRADOR (andre.ads567@gmail.com)
-      if (matchedUser.email.toLowerCase() === 'andre.ads567@gmail.com') {
-        try {
-          sessionStorage.setItem('deds_admin_mfa_verified', 'true');
-          sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
-        } catch {}
-        onSuccess('admin', matchedUser);
-        onClose();
-        return;
-      }
 
       const secret = getOrCreateAdminTotpSecret(matchedUser.email);
       setTotpSecret(secret);
@@ -190,17 +180,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleVerifyMfa = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!pendingAdminUser) return;
-
-    // Regra de Liberação Direta / Bypass para o Super Administrador andre.ads567@gmail.com
-    if (pendingAdminUser.email.toLowerCase() === 'andre.ads567@gmail.com') {
-      try {
-        sessionStorage.setItem('deds_admin_mfa_verified', 'true');
-        sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
-      } catch {}
-      onSuccess('admin', pendingAdminUser);
-      onClose();
-      return;
-    }
 
     setIsVerifyingMfa(true);
     setErrorMessage('');
@@ -225,6 +204,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else {
         // ─── MODO 2: Código TOTP de 6 Dígitos do Authenticator ───────────────
         const cleanCode = totpCode.trim().replace(/\D/g, '');
+        const activeSecret = totpSecret || getOrCreateAdminTotpSecret(pendingAdminUser.email);
         if (cleanCode.length !== 6) {
           setErrorMessage('Por favor, informe os 6 dígitos do Google Authenticator.');
           setIsVerifyingMfa(false);
@@ -232,8 +212,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         // Validação TOTP com janela de tolerância de ±30s
-        if (totpSecret) {
-          isValid = await verifyTotpCode(totpSecret, cleanCode);
+        if (activeSecret) {
+          isValid = await verifyTotpCode(activeSecret, cleanCode);
         }
 
         // Fallback de contingência: verifica se o usuário digitou um código de backup ou emergência
@@ -352,33 +332,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     error
                   </span>
                   <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {/* Atalho de Liberação Direta para Super Administrador */}
-              {pendingAdminUser.email.toLowerCase() === 'andre.ads567@gmail.com' && (
-                <div className="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">verified_user</span>
-                    <div>
-                      <p className="text-xs font-bold text-text-primary">Super Administrador André</p>
-                      <p className="text-[11px] text-text-tertiary">Acesso imediato de contingência habilitado</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try {
-                        sessionStorage.setItem('deds_admin_mfa_verified', 'true');
-                        sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
-                      } catch {}
-                      onSuccess('admin', pendingAdminUser);
-                      onClose();
-                    }}
-                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-surface-ground font-bold text-xs rounded-lg transition-all cursor-pointer shadow-sm shrink-0"
-                  >
-                    Acessar /admin Agora
-                  </button>
                 </div>
               )}
 
