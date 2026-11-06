@@ -15,7 +15,7 @@ export interface MfaVerifyResult {
   error?: string;
 }
 
-// ─── Base32 & Pure JS HMAC-SHA1 TOTP Engine ─────────────────────────────────
+// ─── Base32 & RFC 6238 Pure-JS HMAC-SHA1 Engine ──────────────────────────────
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -54,7 +54,7 @@ export function generateBase32Secret(length = 20): string {
   return secret;
 }
 
-// Pure JS SHA-1 implementation (always reliable even in insecure HTTP or environments without SubtleCrypto)
+// Pure JS SHA-1 (RFC 3174 compliant - works reliably in any browser / HTTP / HTTPS)
 function jsSha1(bytes: Uint8Array): Uint8Array {
   let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
   const n = bytes.length;
@@ -112,6 +112,7 @@ function jsSha1(bytes: Uint8Array): Uint8Array {
   return out;
 }
 
+// Pure JS HMAC-SHA-1 (RFC 2104 compliant)
 function jsHmacSha1(key: Uint8Array, message: Uint8Array): Uint8Array {
   let k = key;
   if (k.length > 64) k = jsSha1(k);
@@ -134,38 +135,18 @@ function jsHmacSha1(key: Uint8Array, message: Uint8Array): Uint8Array {
 }
 
 /**
- * Gera o código TOTP de 6 dígitos correspondente ao segredo e intervalo de tempo
+ * Calcula estritamente o código TOTP de 6 dígitos para o segredo fornecido (RFC 6238)
  */
 export async function generateTotpCode(secret: string, offsetSteps = 0): Promise<string> {
-  const secretBytes = base32ToBytes(secret);
+  const cleanSecret = secret.trim().replace(/\s/g, '');
+  const secretBytes = base32ToBytes(cleanSecret);
   const counter = Math.floor(Date.now() / 1000 / 30) + offsetSteps;
 
   const buffer = new ArrayBuffer(8);
   const view = new DataView(buffer);
   view.setBigUint64(0, BigInt(counter), false);
 
-  let hash: Uint8Array;
-
-  // Tenta SubtleCrypto se disponível em contexto HTTPS/seguro
-  try {
-    const cryptoObj = typeof window !== 'undefined' ? window.crypto : (globalThis as any).crypto;
-    if (cryptoObj && cryptoObj.subtle && typeof cryptoObj.subtle.importKey === 'function') {
-      const key = await cryptoObj.subtle.importKey(
-        'raw',
-        secretBytes,
-        { name: 'HMAC', hash: 'SHA-1' },
-        false,
-        ['sign']
-      );
-      const signature = await cryptoObj.subtle.sign('HMAC', key, buffer);
-      hash = new Uint8Array(signature);
-    } else {
-      hash = jsHmacSha1(secretBytes, new Uint8Array(buffer));
-    }
-  } catch {
-    hash = jsHmacSha1(secretBytes, new Uint8Array(buffer));
-  }
-
+  const hash = jsHmacSha1(secretBytes, new Uint8Array(buffer));
   const offset = hash[hash.length - 1] & 0x0f;
   const binary =
     ((hash[offset] & 0x7f) << 24) |
@@ -177,43 +158,27 @@ export async function generateTotpCode(secret: string, offsetSteps = 0): Promise
   return otp.toString().padStart(6, '0');
 }
 
-// Segredo fixado e pareado no Google Authenticator do Super Administrador André de Souza
-export const KNOWN_ADMIN_SECRET = '5CP4P4FL77GEFXCT25BE';
-
 /**
- * Valida o código TOTP de 6 dígitos digitado pelo usuário
- * Com janela de tolerância estendida (±3 minutos) para desvios de relógio de celulares
+ * Validação rigorosa e estrita do código TOTP digitado pelo usuário.
+ * Retorna true APENAS se o código corresponder exatamente ao cálculo RFC 6238 no intervalo atual ou adjacente (+-30s).
+ * Nenhum código mestre ou aleatório é aceito.
  */
-export async function verifyTotpCode(secret: string, inputCode: string, email?: string): Promise<boolean> {
+export async function verifyTotpCode(secret: string, inputCode: string): Promise<boolean> {
+  if (!secret) return false;
   const cleanInput = inputCode.trim().replace(/\D/g, '');
   if (cleanInput.length !== 6) return false;
 
-  // Códigos mestres de emergência para liberação imediata caso o aplicativo do usuário esteja bloqueado
-  const MASTER_6_DIGIT_CODES = ['999888', '123456', '000000', '777888', '888999', '202600'];
-  if (MASTER_6_DIGIT_CODES.includes(cleanInput)) {
-    return true;
-  }
+  // Janela padrão de sincronismo RFC 6238: passo atual (0), anterior (-1) e posterior (+1)
+  const offsets = [0, -1, 1];
 
-  // Lista de segredos a testar (o segredo ativo e o segredo histórico pareado no celular)
-  const secretsToTest = new Set<string>();
-  if (secret) secretsToTest.add(secret);
-  if (KNOWN_ADMIN_SECRET) secretsToTest.add(KNOWN_ADMIN_SECRET);
-
-  if (email && email.toLowerCase() === 'andre.ads567@gmail.com') {
-    secretsToTest.add(KNOWN_ADMIN_SECRET);
-  }
-
-  // Tolerância de ±6 passos de 30s (±3 minutos)
-  const offsets = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6];
-
-  for (const s of secretsToTest) {
-    for (const offset of offsets) {
-      try {
-        const validCode = await generateTotpCode(s, offset);
-        if (validCode === cleanInput) {
-          return true;
-        }
-      } catch {}
+  for (const offset of offsets) {
+    try {
+      const validCode = await generateTotpCode(secret, offset);
+      if (validCode === cleanInput) {
+        return true;
+      }
+    } catch (e) {
+      console.error('[TOTP Engine Error]:', e);
     }
   }
 
@@ -235,9 +200,9 @@ export function getOrCreateAdminTotpSecret(email: string): string {
     }
   } catch {}
 
-  // Para o super admin André, preserva o segredo pareado originalmente
+  // Segredo pareado do administrador
   const defaultSecret = normalizedEmail === 'andre.ads567@gmail.com'
-    ? KNOWN_ADMIN_SECRET
+    ? '5CP4P4FL77GEFXCT25BE'
     : generateBase32Secret(20);
 
   try {
@@ -258,7 +223,8 @@ export function resetAdminTotpSecret(email: string): string {
 }
 
 export function buildTotpUri(email: string, secret: string, issuer = 'Deds Academy'): string {
-  const label = encodeURIComponent(`${issuer}:${email.trim()}`);
+  const cleanEmail = email.trim();
+  const label = encodeURIComponent(`${issuer}:${cleanEmail}`);
   const encodedIssuer = encodeURIComponent(issuer);
   return `otpauth://totp/${label}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;
 }
@@ -349,7 +315,7 @@ export async function unenrollAdminMfa(factorId: string): Promise<boolean> {
   }
 }
 
-// ─── Mecanismo de Códigos de Recuperação (Backup Codes) ─────────────────────
+// ─── Mecanismo de Códigos de Recuperação Descartáveis (Backup Codes) ─────────
 
 const BACKUP_CODES_PREFIX = 'deds_admin_backup_codes_';
 
@@ -384,49 +350,24 @@ export function getOrCreateAdminBackupCodes(email: string): string[] {
     }
   } catch {}
 
-  const defaultCodes = normalizedEmail === 'andre.ads567@gmail.com'
-    ? ['36B5-7448', 'DEDS-2026', '9998-8888', '7777-8888', 'DA26-RECO', 'ADM1-9999', 'BACK-2026', 'SAFE-0000']
-    : generateBackupCodesList(8);
-
+  const newCodes = generateBackupCodesList(8);
   try {
-    localStorage.setItem(key, JSON.stringify(defaultCodes));
+    localStorage.setItem(key, JSON.stringify(newCodes));
   } catch {}
 
-  return defaultCodes;
+  return newCodes;
 }
 
 /**
- * Valida e consome um código de recuperação descartável
+ * Valida e consome um código de recuperação descartável.
+ * Retorna true APENAS se o código coincidir com um dos códigos válidos da lista armazenada.
+ * Ao ser utilizado, o código é consumido (deletado da lista) e não pode ser reutilizado.
  */
 export function verifyAndConsumeBackupCode(email: string, inputCode: string): boolean {
   if (!email || !inputCode) return false;
 
-  const rawClean = inputCode.trim().toUpperCase();
-  const normalizedInput = rawClean.replace(/[^A-Z0-9]/g, '');
-
-  if (normalizedInput.length < 4) return false;
-
-  // Códigos mestres de contingência aceitos (incluindo o UUID fornecido pelo administrador)
-  const MASTER_CODES = [
-    '36B57448EFE2452CA1659E465683A083', // UUID fornecido pelo usuário
-    '36B57448',
-    '36B5-7448',
-    'DEDS2026',
-    'DEDS-2026',
-    'RECOVERY999',
-    '999888',
-    '9998-8888',
-    '000000',
-    '123456',
-    '77778888',
-    '777888',
-    'ADMIN999',
-    'SUPERADMIN'
-  ];
-
-  if (MASTER_CODES.some(m => m.replace(/[^A-Z0-9]/g, '') === normalizedInput)) {
-    return true;
-  }
+  const rawClean = inputCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (rawClean.length < 6) return false;
 
   const normalizedEmail = email.trim().toLowerCase();
   const key = `${BACKUP_CODES_PREFIX}${normalizedEmail}`;
@@ -435,11 +376,11 @@ export function verifyAndConsumeBackupCode(email: string, inputCode: string): bo
     const existing = localStorage.getItem(key);
     if (!existing) return false;
     const codes: string[] = JSON.parse(existing);
-    if (!Array.isArray(codes)) return false;
+    if (!Array.isArray(codes) || codes.length === 0) return false;
 
     const matchedIndex = codes.findIndex((c) => {
       const clean = c.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      return clean === normalizedInput;
+      return clean === rawClean;
     });
 
     if (matchedIndex >= 0) {

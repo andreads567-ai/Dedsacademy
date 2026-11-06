@@ -24,7 +24,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const activeRole = activeUser?.role || hookRole;
 
   useEffect(() => {
-    if (!loading && (!activeUser || (requireAdmin && activeRole !== 'admin'))) {
+    const isMfaVerified = typeof window !== 'undefined' ? sessionStorage.getItem('deds_admin_mfa_verified') === 'true' : false;
+    if (!loading && (!activeUser || (requireAdmin && (activeRole !== 'admin' || !isMfaVerified)))) {
       if (onUnauthorized) {
         onUnauthorized();
       } else if (typeof window !== 'undefined') {
@@ -63,8 +64,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. Usuário autenticado, mas sem papel de Administrador
-  if (requireAdmin && activeRole !== 'admin') {
+  const isMfaVerified = typeof window !== 'undefined'
+    ? sessionStorage.getItem('deds_admin_mfa_verified') === 'true'
+    : false;
+
+  // 2. Usuário autenticado, mas sem papel de Administrador ou sem MFA verificado
+  if (requireAdmin && (activeRole !== 'admin' || !isMfaVerified)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">

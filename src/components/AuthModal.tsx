@@ -187,10 +187,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       let isValid = false;
 
-      // ─── MODO 1: Código de Recuperação / Backup Code ──────────────────────
+      // ─── MODO 1: Código de Recuperação Descartável (Backup Code) ───────────
       if (isBackupMode) {
-        if (!backupCode.trim()) {
-          setErrorMessage('Por favor, informe o seu código de recuperação descartável.');
+        const cleanBackup = backupCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (cleanBackup.length < 6) {
+          setErrorMessage('Por favor, informe um código de recuperação válido (ex: XXXX-XXXX).');
           setIsVerifyingMfa(false);
           return;
         }
@@ -202,27 +203,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
       } else {
-        // ─── MODO 2: Código TOTP de 6 Dígitos do Authenticator ───────────────
+        // ─── MODO 2: Código TOTP de 6 Dígitos do Google Authenticator ──────────
         const cleanCode = totpCode.trim().replace(/\D/g, '');
-        const activeSecret = totpSecret || getOrCreateAdminTotpSecret(pendingAdminUser.email);
         if (cleanCode.length !== 6) {
           setErrorMessage('Por favor, informe os 6 dígitos do Google Authenticator.');
           setIsVerifyingMfa(false);
           return;
         }
 
-        // Validação TOTP com janela de tolerância de ±30s
-        if (activeSecret) {
-          isValid = await verifyTotpCode(activeSecret, cleanCode, pendingAdminUser.email);
-        }
-
-        // Fallback de contingência: verifica se o usuário digitou um código de backup ou emergência
-        if (!isValid) {
-          isValid = verifyAndConsumeBackupCode(pendingAdminUser.email, cleanCode);
-        }
+        const activeSecret = totpSecret || getOrCreateAdminTotpSecret(pendingAdminUser.email);
+        isValid = await verifyTotpCode(activeSecret, cleanCode);
 
         if (!isValid) {
-          setErrorMessage('Código TOTP incorreto ou expirado. Verifique os números no Google Authenticator ou utilize um código de recuperação.');
+          setErrorMessage('Código TOTP incorreto ou expirado. Verifique os números no Google Authenticator e tente novamente.');
           setIsVerifyingMfa(false);
           return;
         }
@@ -233,7 +226,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         localStorage.setItem('deds_remembered_email', pendingAdminUser.email.toLowerCase());
       }
 
-      // Registra sessão administrativa com MFA verificado
+      // Registra sessão administrativa com MFA estritamente verificado
       try {
         sessionStorage.setItem('deds_admin_mfa_verified', 'true');
         sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
@@ -359,15 +352,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                           setTotpCode(val);
                           setErrorMessage('');
-                          if (val.length === 6) {
-                            setTimeout(() => {
-                              verifyTotpCode(totpSecret || activeSecret, val, pendingAdminUser.email).then((valid) => {
-                                if (valid) {
-                                  handleVerifyMfa();
-                                }
-                              });
-                            }, 150);
-                          }
                         }}
                         placeholder="000 000"
                         className="w-full py-3.5 px-4 bg-surface-overlay border border-border-subtle focus:border-primary rounded-xl text-center font-mono text-2xl font-bold tracking-[0.35em] text-text-primary focus:outline-none transition-all shadow-inner"
