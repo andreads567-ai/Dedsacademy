@@ -10,6 +10,7 @@ import {
   DEFAULT_CHECKOUT_PAYMENT_BANNER,
   DEFAULT_STUDENT_BANNERS_CONFIG,
 } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -127,6 +128,207 @@ export function ensureStoreFile(): PlatformStore {
   }
 }
 
+function courseToRowFormat(course: any) {
+  return {
+    id: course.id,
+    title: course.title,
+    instructor: course.instructor,
+    instructor_role: course.instructorRole ?? null,
+    instructor_avatar: course.instructorAvatar ?? null,
+    category: course.category,
+    level: course.level ?? 'Todos os Níveis',
+    rating: Number(course.rating) || 5.0,
+    reviews_count: Number(course.reviewsCount) || 0,
+    students_count: Number(course.studentsCount) || 0,
+    hours: Number(course.hours) || 40,
+    lessons_count: Number(course.lessonsCount) || 0,
+    original_price: Number(course.originalPrice) || 0,
+    current_price: Number(course.currentPrice) || 0,
+    image: course.image,
+    image_file_name: course.imageFileName ?? null,
+    banner_image: course.bannerImage ?? null,
+    banner_file_name: course.bannerFileName ?? null,
+    badge: course.badge ?? null,
+    filter_tags: Array.isArray(course.filterTags) ? course.filterTags : [],
+    description: course.description ?? '',
+    syllabus: Array.isArray(course.syllabus) ? course.syllabus : [],
+    modules: Array.isArray(course.modules) ? course.modules : [],
+    status: course.status ?? 'publicado',
+    is_auto_launch_badge: Boolean(course.isAutoLaunchBadge),
+    video_url: course.videoUrl ?? null,
+    video_file_name: course.videoFileName ?? null,
+    video_type: course.videoType ?? null,
+    final_exam: course.finalExam ?? null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToCourseFormat(row: Record<string, any>) {
+  return {
+    id: row.id,
+    title: row.title,
+    instructor: row.instructor,
+    instructorRole: row.instructor_role ?? undefined,
+    instructorAvatar: row.instructor_avatar ?? undefined,
+    category: row.category,
+    level: row.level ?? 'Todos os Níveis',
+    rating: Number(row.rating) || 5.0,
+    reviewsCount: Number(row.reviews_count) || 0,
+    studentsCount: Number(row.students_count) || 0,
+    hours: Number(row.hours) || 40,
+    lessonsCount: Number(row.lessons_count) || 0,
+    originalPrice: Number(row.original_price) || 0,
+    currentPrice: Number(row.current_price) || 0,
+    image: row.image,
+    imageFileName: row.image_file_name ?? undefined,
+    bannerImage: row.banner_image ?? undefined,
+    bannerFileName: row.banner_file_name ?? undefined,
+    badge: row.badge ?? undefined,
+    filterTags: Array.isArray(row.filter_tags) ? row.filter_tags : [],
+    description: row.description ?? '',
+    syllabus: Array.isArray(row.syllabus) ? row.syllabus : [],
+    modules: Array.isArray(row.modules) ? row.modules : [],
+    status: row.status ?? 'publicado',
+    isAutoLaunchBadge: Boolean(row.is_auto_launch_badge),
+    videoUrl: row.video_url ?? undefined,
+    videoFileName: row.video_file_name ?? undefined,
+    videoType: row.video_type ?? undefined,
+    finalExam: row.final_exam ?? undefined,
+  };
+}
+
+function userToRowFormat(user: any) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    password: user.password ?? null,
+    student_code: user.studentCode ?? null,
+    cpf: user.cpf ?? null,
+    phone: user.phone ?? null,
+    avatar: user.avatar ?? null,
+    address: user.address ?? null,
+    certificate_data: user.certificateData ?? null,
+    status: user.status ?? 'ativo',
+    registered_at: user.registeredAt ?? new Date().toISOString(),
+    last_access: user.lastAccess ?? null,
+    enrolled_course_ids: user.enrolledCourseIds ?? [],
+    completed_course_ids: user.completedCourseIds ?? [],
+    job_title: user.jobTitle ?? null,
+    department: user.department ?? null,
+    access_level: user.accessLevel ?? null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToUserFormat(row: Record<string, any>) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    password: row.password ?? undefined,
+    studentCode: row.student_code ?? undefined,
+    cpf: row.cpf ?? undefined,
+    phone: row.phone ?? undefined,
+    avatar: row.avatar ?? undefined,
+    address: row.address ?? undefined,
+    certificateData: row.certificate_data ?? undefined,
+    status: row.status ?? 'ativo',
+    registeredAt: row.registered_at ?? new Date().toISOString(),
+    lastAccess: row.last_access ?? undefined,
+    enrolledCourseIds: row.enrolled_course_ids ?? [],
+    completedCourseIds: row.completed_course_ids ?? [],
+    jobTitle: row.job_title ?? undefined,
+    department: row.department ?? undefined,
+    accessLevel: row.access_level ?? undefined,
+  };
+}
+
+export async function syncFromSupabase(): Promise<PlatformStore> {
+  const store = ensureStoreFile();
+  try {
+    const [coursesRes, catsRes, usersRes, certsRes] = await Promise.all([
+      supabase.from('courses').select('*'),
+      supabase.from('categories').select('*'),
+      supabase.from('users').select('*'),
+      supabase.from('certificates').select('*'),
+    ]);
+
+    let modified = false;
+
+    if (!coursesRes.error && Array.isArray(coursesRes.data) && coursesRes.data.length > 0) {
+      store.courses = coursesRes.data.map(rowToCourseFormat);
+      modified = true;
+    }
+
+    if (!catsRes.error && Array.isArray(catsRes.data) && catsRes.data.length > 0) {
+      store.categories = catsRes.data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        courseCount: Number(c.course_count) || 0,
+        icon: c.icon || 'folder',
+      }));
+      modified = true;
+    }
+
+    if (!usersRes.error && Array.isArray(usersRes.data) && usersRes.data.length > 0) {
+      store.users = usersRes.data.map(rowToUserFormat);
+      modified = true;
+    }
+
+    if (!certsRes.error && Array.isArray(certsRes.data) && certsRes.data.length > 0) {
+      store.certificates = certsRes.data;
+      modified = true;
+    }
+
+    if (modified) {
+      store.version = Date.now();
+      store.lastUpdated = new Date().toISOString();
+      inMemoryStore = store;
+      try {
+        if (!fs.existsSync(PRIMARY_DATA_DIR)) {
+          fs.mkdirSync(PRIMARY_DATA_DIR, { recursive: true });
+        }
+        fs.writeFileSync(PRIMARY_STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+      } catch {}
+      console.log(`[PlatformSyncHandler] Sincronizado com sucesso com o Supabase: ${store.courses.length} cursos, ${store.users.length} usuários`);
+    }
+  } catch (err) {
+    console.warn('[PlatformSyncHandler] Aviso na sincronização com o Supabase:', err);
+  }
+  return store;
+}
+
+async function syncToSupabase(type: string, data: any) {
+  try {
+    if (type === 'courses' && Array.isArray(data)) {
+      const rows = data.map(courseToRowFormat);
+      const { error } = await supabase.from('courses').upsert(rows);
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert cursos no Supabase:', error.message);
+    } else if (type === 'users' && Array.isArray(data)) {
+      const rows = data.map(userToRowFormat);
+      const { error } = await supabase.from('users').upsert(rows);
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert usuários no Supabase:', error.message);
+    } else if (type === 'categories' && Array.isArray(data)) {
+      const rows = data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        course_count: c.courseCount ?? c.course_count ?? 0,
+        icon: c.icon || 'folder',
+      }));
+      const { error } = await supabase.from('categories').upsert(rows);
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert categorias no Supabase:', error.message);
+    } else if (type === 'certificates' && Array.isArray(data)) {
+      const { error } = await supabase.from('certificates').upsert(data);
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert certificados no Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('[PlatformSyncHandler] syncToSupabase erro:', err);
+  }
+}
+
 export function getPlatformData(): PlatformStore {
   return ensureStoreFile();
 }
@@ -159,6 +361,9 @@ export function savePlatformData(payload: {
     } catch (fsErr) {
       console.error('[PlatformSyncHandler] Error writing to data file:', fsErr);
     }
+
+    // Persiste também no Supabase em segundo plano
+    syncToSupabase(payload.type as string, payload.data).catch(() => {});
 
     return { success: true, version: newVersion };
   } catch (err: any) {

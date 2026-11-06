@@ -533,7 +533,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
               }}
               onPublishExam={(exam) => {
                 setCourseExam(exam);
-                handleSave('publicado', courseModules, exam);
+                handleSave(status, courseModules, exam);
               }}
             />
           ) : currentStep === 3 ? (
@@ -544,7 +544,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
               onChangeModules={(mods) => setCourseModules(mods)}
               onBackToLessons={() => setCurrentStep(2)}
               onSaveDraft={() => handleSave('rascunho')}
-              onPublishCourse={() => handleSave('publicado')}
+              onPublishCourse={() => handleSave(status)}
               onProceedToExam={() => setCurrentStep(4)}
               onProceedToFinalExam={() => setCurrentStep(4)}
             />
@@ -559,7 +559,7 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
               }}
               onBackToBasicInfo={() => setCurrentStep(1)}
               onSaveDraft={() => handleSave('rascunho')}
-              onPublishCourse={() => handleSave('publicado')}
+              onPublishCourse={() => handleSave(status)}
               onProceedToQuizzes={() => setCurrentStep(3)}
             />
           ) : (
@@ -1227,12 +1227,20 @@ export const CourseEditModal: React.FC<CourseEditModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => handleSave('publicado')}
+                onClick={() => handleSave(status)}
                 className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Salvar todas as alterações e manter publicado"
+                title={`Salvar alterações com status "${status}"`}
               >
                 <span className="material-symbols-outlined text-base">check_circle</span>
-                <span>Salvar &amp; Publicar</span>
+                <span>
+                  {status === 'publicado'
+                    ? 'Salvar & Publicar'
+                    : status === 'rascunho'
+                    ? 'Salvar Rascunho'
+                    : status === 'inativo'
+                    ? 'Salvar (Inativo)'
+                    : 'Salvar (Previsto)'}
+                </span>
               </button>
             </div>
           </div>

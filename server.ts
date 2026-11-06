@@ -16,6 +16,7 @@ import {
   handleImageUpload,
   saveCertificate,
   findCertificateByCode,
+  syncFromSupabase,
 } from './src/api/platformSyncHandler';
 
 dotenv.config();
@@ -284,4 +285,7 @@ app.get('*', (_req, res) => {
 
 app.listen(Number(port), '0.0.0.0', () => {
   console.log(`[Deds Academy] Servidor rodando em http://0.0.0.0:${port}`);
+  syncFromSupabase().catch((err) => {
+    console.warn('[Deds Academy] Falha ao sincronizar dados iniciais do Supabase:', err);
+  });
 });

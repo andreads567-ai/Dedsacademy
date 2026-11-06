@@ -1283,7 +1283,7 @@ export default function App() {
       };
       setUsersList((prev) => [targetUser, ...prev]);
       upsertUser(targetUser).catch(console.error);
-      sendWelcomeEmail(targetUser.email, targetUser.name).catch(console.error);
+      sendWelcomeEmail(targetUser).catch(console.error);
       showToast(`Conta criada com sucesso via Google! Bem-vindo(a), ${targetUser.name}!`);
     }
 

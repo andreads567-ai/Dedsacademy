@@ -1,7 +1,552 @@
 {
-  "version": 1793564710890,
-  "lastUpdated": "2026-11-01T20:25:10.890Z",
+  "version": 1794164721438,
+  "lastUpdated": "2026-11-08T19:05:21.438Z",
   "courses": [
+    {
+      "id": "desenvolvimento-web-completo",
+      "title": "Desenvolvimento Web Completo",
+      "instructor": "Rafael Martins",
+      "instructorRole": "Engenheiro de Software Full Stack",
+      "category": "Tecnologia & IA",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 1100,
+      "studentsCount": 840,
+      "hours": 80,
+      "lessonsCount": 195,
+      "originalPrice": 349,
+      "currentPrice": 349,
+      "image": "/images/courses/web-dev.jpg",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Do HTML/CSS/JavaScript moderno até React, TypeScript, Node.js, bancos de dados relacionais e deploy em nuvem com CI/CD.",
+      "syllabus": [
+        "HTML5 Semântico, CSS3 Moderno & Flexbox/Grid",
+        "JavaScript ES6+ Moderno & Programação Assíncrona",
+        "React & Gerenciamento de Estado",
+        "Node.js, Express & Criação de REST APIs Seguras",
+        "Bancos de Dados SQL e NoSQL",
+        "Deploy Contínuo, Docker e Melhores Práticas DevOps"
+      ],
+      "modules": [],
+      "status": "rascunho",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "marketing-digital-pratica",
+      "title": "Marketing Digital na Prática",
+      "instructor": "Lucas Cruz",
+      "instructorRole": "Growth Leader & Estrategista de Performance",
+      "category": "Marketing",
+      "level": "Todos os Níveis",
+      "rating": 4,
+      "reviewsCount": 760,
+      "studentsCount": 1980,
+      "hours": 30,
+      "lessonsCount": 74,
+      "originalPrice": 219,
+      "currentPrice": 219,
+      "image": "/images/courses/marketing.jpg",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "filterTags": [
+        "Lançamentos",
+        "Em alta"
+      ],
+      "description": "Campanhas de tráfego pago no Meta Ads e Google Ads, estratégias de funil de vendas, copywriting persuasivo e mensuração de ROAS e CAC.",
+      "syllabus": [
+        "Visão Estratégica & Mapeamento de Personas",
+        "Copywriting & Gatilhos Mentais de Alta Conversão",
+        "Meta Ads: Do Pixel à Escala de Campanhas",
+        "Google Ads & Estratégias de Pesquisa",
+        "Métricas Chave: CAC, LTV, ROAS e ROI",
+        "Estudos de Caso Reais de E-commerce e Infoprodutos"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "ui-ux-design",
+      "title": "UI/UX Design do Básico ao Avançado",
+      "instructor": "Juliana Nobre",
+      "instructorRole": "Senior Product Designer com atuação internacional",
+      "category": "Tecnologia & IA",
+      "level": "Todos os Níveis",
+      "rating": 5,
+      "reviewsCount": 620,
+      "studentsCount": 1650,
+      "hours": 50,
+      "lessonsCount": 110,
+      "originalPrice": 289,
+      "currentPrice": 289,
+      "image": "/images/courses/ui-ux.jpg",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda pesquisa com usuários, arquitetura de informação, wireframing, prototipagem avançada no Figma e construção de Design Systems escaláveis.",
+      "syllabus": [
+        "Fundamentos de UX & Metodologia Design Thinking",
+        "Pesquisa com Usuários, Entrevistas e Jornadas",
+        "Wireframing & Arquitetura de Informação",
+        "Figma do Zero ao Avançado (Auto Layout & Variantes)",
+        "Construção de Design System Escalável",
+        "Prototipagem Interativa & Apresentação para Stakeholders"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "gestao-projetos-scrum",
+      "title": "Gestão Ágil de Projetos & Scrum",
+      "instructor": "Marcelo Ramos",
+      "instructorRole": "Enterprise Agile Coach & PMP",
+      "category": "Administração",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 840,
+      "studentsCount": 2120,
+      "hours": 45,
+      "lessonsCount": 88,
+      "originalPrice": 249,
+      "currentPrice": 249,
+      "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Domine metodologias ágeis, frameworks Scrum e Kanban, gestão de backlog, métricas ágeis e preparação para certificações internacionais.",
+      "syllabus": [
+        "Fundamentos do Manifesto Ágil e Mindset Lean",
+        "Papéis Scrum: Product Owner, Scrum Master e Dev Team",
+        "Cerimônias e Artefatos do Scrum na Prática",
+        "Kanban Visual & Otimização de Fluxo",
+        "Métricas Ágeis: Burndown, Velocity e Lead Time",
+        "Estudos de Caso de Transformação Ágil"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "recrutamento-tech-selecao",
+      "title": "Tech Recruiter: Atração e Seleção Tech",
+      "instructor": "Felipe Barreto",
+      "instructorRole": "Tech Talent Acquisition Specialist",
+      "category": "Recursos Humanos",
+      "level": "Todos os Níveis",
+      "rating": 4.8,
+      "reviewsCount": 530,
+      "studentsCount": 510,
+      "hours": 30,
+      "lessonsCount": 58,
+      "originalPrice": 199,
+      "currentPrice": 199,
+      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "filterTags": [
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda a mapear stacks técnicas, conduzir entrevistas comportamentais com devs e negociar propostas competitivas no mercado de TI.",
+      "syllabus": [
+        "Mapeamento do Ecossistema de Tecnologia & Stacks",
+        "Hunting Ativo no LinkedIn e GitHub",
+        "Alinhamento de Job Description com Engineering Managers",
+        "Entrevista por Competências e Fit Cultural",
+        "Comunicação Transparente e Feedback a Candidatos",
+        "Fechamento de Proposta e Onboarding Integrado"
+      ],
+      "modules": [],
+      "status": "previsto",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "bim-revit-arquitetura",
+      "title": "BIM com Revit: Modelagem & Projetos",
+      "instructor": "Engª. Patrícia Lima",
+      "instructorRole": "BIM Manager & Coordenadora de Projetos",
+      "category": "Engenharia",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 760,
+      "studentsCount": 690,
+      "hours": 65,
+      "lessonsCount": 130,
+      "originalPrice": 329,
+      "currentPrice": 329,
+      "image": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Aprenda a metodologia BIM na prática: modelagem paramétrica de arquitetura e estruturas, tabelas quantitativas automáticas e compatibilização.",
+      "syllabus": [
+        "Conceitos Fundamentais da Metodologia BIM",
+        "Modelagem de Paredes, Pisos, Coberturas e Esquadrias",
+        "Criação e Edição de Famílias Paramétricas",
+        "Extração Automática de Quantitativos de Materiais",
+        "Documentação Completa de Pranchas Executivas",
+        "Exportação IFC e Compatibilização de Projetos"
+      ],
+      "modules": [],
+      "status": "rascunho",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "people-analytics-rh",
+      "title": "People Analytics & Gestão por Competências",
+      "instructor": "Renata Silveira",
+      "instructorRole": "Diretora de RH Estratégico & Docente",
+      "category": "Recursos Humanos",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 710,
+      "studentsCount": 1430,
+      "hours": 40,
+      "lessonsCount": 76,
+      "originalPrice": 249,
+      "currentPrice": 249,
+      "image": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Transforme dados de recursos humanos em decisões de negócios: métricas de turnover, absenteísmo, eNPS e mapeamento de talentos.",
+      "syllabus": [
+        "Fundamentos de Dados aplicados a Gestão de Pessoas",
+        "Métricas Críticas: Turnover, Retenção e eNPS",
+        "Mapeamento de Competências e Matriz Nine Box",
+        "Dashboards de RH em Excel e Power BI",
+        "Planos de Desenvolvimento Individual (PDI)",
+        "Ética e LGPD no Tratamento de Dados de Colaboradores"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "trafego-pago-avancado",
+      "title": "Tráfego Pago Avançado: Meta & Google Ads",
+      "instructor": "Camila Rocha",
+      "instructorRole": "Head de Mídia Paga & Performance",
+      "category": "Marketing",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 880,
+      "studentsCount": 1220,
+      "hours": 40,
+      "lessonsCount": 82,
+      "originalPrice": 259,
+      "currentPrice": 259,
+      "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Mais vendidos",
+        "Em alta"
+      ],
+      "description": "Estratégias de escala de tráfego, pixel API de conversão, otimização por inteligência artificial e criação de funis perpétuos.",
+      "syllabus": [
+        "Estrutura de Contas e API de Conversões do Meta",
+        "Google Search, Performance Max e YouTube Ads",
+        "Remarketing Avançado e Segmentação Lookalike",
+        "Copywriting e Criativos que Vendem no Feed e Reels",
+        "Análise de Atribuição e Tracking com UTMs",
+        "Otimização de Custos e Escala Segura de Investimento"
+      ],
+      "modules": [],
+      "status": "inativo",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "inteligencia-artificial-prompts",
+      "title": "Inteligência Artificial & Prompts",
+      "instructor": "Dr. Gabriel Vasconcelos",
+      "instructorRole": "Pesquisador em IA Generativa & LLMs",
+      "category": "Tecnologia & IA",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 1350,
+      "studentsCount": 3100,
+      "hours": 35,
+      "lessonsCount": 68,
+      "originalPrice": 269,
+      "currentPrice": 269,
+      "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Lançamento",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Em alta",
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda Engenharia de Prompts para Gemini, ChatGPT e Claude, automações com n8n/Make, agentes de IA e aplicação prática nos negócios.",
+      "syllabus": [
+        "Fundamentos de LLMs e Mecanismo de Atenção",
+        "Técnicas Avançadas de Prompting (Few-Shot, CoT)",
+        "Construção de Agentes Autônomos de Produtividade",
+        "Integração de Modelos de IA via API",
+        "Automação de Fluxos de Trabalho com IA",
+        "Boas Práticas de Governança e Segurança em IA"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "lideranca-gestao-equipes",
+      "title": "Liderança Estratégica & Equipes",
+      "instructor": "Dra. Camila Duarte",
+      "instructorRole": "Consultora de Desenvolvimento Organizacional",
+      "category": "Administração",
+      "level": "Todos os Níveis",
+      "rating": 4.8,
+      "reviewsCount": 650,
+      "studentsCount": 430,
+      "hours": 35,
+      "lessonsCount": 64,
+      "originalPrice": 219,
+      "currentPrice": 219,
+      "image": "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Novo",
+        "variant": "dark"
+      },
+      "filterTags": [
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Desenvolva liderança humanizada, comunicação não-violenta, feedbacks de alto impacto e alinhamento de metas com OKRs.",
+      "syllabus": [
+        "Estilos de Liderança Situacional",
+        "Comunicação Assertiva e Feedbacks Estruturados",
+        "Delegação Eficaz e Empoderamento de Times",
+        "Gestão de Conflitos e Resolução de Problemas",
+        "Framework de OKRs para Alinhamento de Metas",
+        "Cultura de Alta Performance e Segurança Psicológica"
+      ],
+      "modules": [],
+      "status": "previsto",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "python-zero-avancado",
+      "title": "Python do Zero ao Avançado",
+      "instructor": "João Paulo Silveira",
+      "instructorRole": "Especialista em Engenharia de Dados & Machine Learning",
+      "category": "Tecnologia & IA",
+      "level": "Todos os Níveis",
+      "rating": 5,
+      "reviewsCount": 1250,
+      "studentsCount": 3840,
+      "hours": 60,
+      "lessonsCount": 148,
+      "originalPrice": 299,
+      "currentPrice": 299,
+      "image": "/images/courses/python.jpg",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda lógica de programação, orientação a objetos, automações de scripts, análise de dados com Pandas e introdução a IA com projetos práticos do mercado.",
+      "syllabus": [
+        "Fundamentos da Linguagem & Estruturas de Dados",
+        "Programação Orientada a Objetos (POO) Moderna",
+        "Automação de Tarefas & Web Scraping",
+        "Análise de Dados com Pandas & NumPy",
+        "Construção de APIs com FastAPI",
+        "Deploy e Projeto Final com Certificação"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "excel-basico-avancado",
+      "title": "Excel do Básico ao Avançado",
+      "instructor": "Carla Mendes",
+      "instructorRole": "Consultora de BI e Inteligência Financeira",
+      "category": "Finanças",
+      "level": "Todos os Níveis",
+      "rating": 5,
+      "reviewsCount": 980,
+      "studentsCount": 2950,
+      "hours": 40,
+      "lessonsCount": 92,
+      "originalPrice": 199,
+      "currentPrice": 199,
+      "image": "/images/courses/excel.jpg",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "filterTags": [
+        "Em alta",
+        "Com Certificação"
+      ],
+      "description": "Domine fórmulas complexas, PROCV/PROCX, Tabelas Dinâmicas, Dashboards Executivos de alto impacto e introdução a Power Query para automação corporativa.",
+      "syllabus": [
+        "Nivelamento Essencial & Formatação Condicional",
+        "Fórmulas Matemáticas, Lógicas e de Texto",
+        "Funções de Pesquisa (PROCV, PROCX, ÍNDICE+CORRESP)",
+        "Tabelas Dinâmicas & Segmentação de Dados",
+        "Criação de Dashboards Interativos Profissionais",
+        "Power Query para Limpeza e Modelagem de Dados"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "inteligencia-artificial-generativa",
+      "title": "Inteligência Artificial Generativa & Prompts",
+      "instructor": "Mateus Albuquerque",
+      "instructorRole": "Engenheiro de IA & Pesquisador em Processamento de Linguagem Natural",
+      "category": "Tecnologia & IA",
+      "level": "Intermediário",
+      "rating": 4.9,
+      "reviewsCount": 1350,
+      "studentsCount": 3100,
+      "hours": 35,
+      "lessonsCount": 68,
+      "originalPrice": 269,
+      "currentPrice": 269,
+      "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Lançamento",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Em alta",
+        "Lançamentos",
+        "Com Certificação"
+      ],
+      "description": "Aprenda Engenharia de Prompts para Gemini, ChatGPT e Claude, automações com n8n/Make, agentes de IA e aplicação prática nos negócios.",
+      "syllabus": [
+        "Fundamentos de LLMs e Mecanismo de Atenção",
+        "Técnicas Avançadas de Prompting (Few-Shot, CoT)",
+        "Construção de Agentes Autônomos de Produtividade",
+        "Integração de Modelos de IA via API",
+        "Automação de Fluxos de Trabalho com IA",
+        "Boas Práticas de Governança e Segurança em IA"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "power-bi-mercado-financeiro",
+      "title": "Power BI para Análise Financeira",
+      "instructor": "Thiago Sampaio",
+      "instructorRole": "CFO & Especialista em BI Financeiro",
+      "category": "Finanças",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 920,
+      "studentsCount": 2450,
+      "hours": 50,
+      "lessonsCount": 104,
+      "originalPrice": 279,
+      "currentPrice": 279,
+      "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Em alta",
+        "variant": "secondary"
+      },
+      "filterTags": [
+        "Em alta",
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Construa relatórios dinâmicos de DRE, fluxo de caixa, EBITDA e dashboards executivos conectados a bases de dados reais com DAX avançado.",
+      "syllabus": [
+        "Modelagem de Dados Financeiros e Star Schema",
+        "DAX Essencial e Avançado para Cálculos Financeiros",
+        "Análise de DRE, Balanço e Fluxo de Caixa Dinâmico",
+        "Visuais Financeiros de Alta Precisão",
+        "Publicação no Power BI Service e RLS de Segurança",
+        "Projeto Final: Dashboard Executivo para C-Level"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
+    {
+      "id": "autocad-2d-3d-projetos",
+      "title": "AutoCAD 2D e 3D para Projetos Técnicos",
+      "instructor": "Eng. Roberto Faria",
+      "instructorRole": "Engenheiro Civil & Projetista Especialista",
+      "category": "Engenharia",
+      "level": "Todos os Níveis",
+      "rating": 4.9,
+      "reviewsCount": 890,
+      "studentsCount": 2340,
+      "hours": 55,
+      "lessonsCount": 112,
+      "originalPrice": 289,
+      "currentPrice": 289,
+      "image": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80",
+      "badge": {
+        "text": "Mais vendido",
+        "variant": "emerald"
+      },
+      "filterTags": [
+        "Mais vendidos",
+        "Com Certificação"
+      ],
+      "description": "Do desenho técnico básico à modelagem tridimensional, plantas baixas, cortes, elevações, pranchas e plotagem em conformidade com a ABNT.",
+      "syllabus": [
+        "Interface e Comandos de Precisão do AutoCAD",
+        "Desenho de Plantas Baixas, Cortes e Fachadas",
+        "Gerenciamento de Layers, Blocos Dinâmicos e Hachuras",
+        "Cotagem e Textos Normatizados (ABNT)",
+        "Modelagem 3D Básica e Renderização",
+        "Configuração de Layouts, Viewports e Plotagem em PDF"
+      ],
+      "modules": [],
+      "status": "publicado",
+      "isAutoLaunchBadge": false
+    },
     {
       "id": "curso-1793564710552",
       "title": "000",
@@ -10,14 +555,15 @@
       "instructorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       "category": "Administração",
       "level": "Intermediário",
+      "rating": 5,
+      "reviewsCount": 1,
+      "studentsCount": 0,
       "hours": 40,
       "lessonsCount": 3,
       "originalPrice": 299,
-      "currentPrice": 179.9,
+      "currentPrice": 299,
       "image": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80",
       "bannerImage": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=80",
-      "rating": 5,
-      "reviewsCount": 1,
       "badge": {
         "text": "Novo Lançamento",
         "variant": "emerald",
@@ -46,9 +592,9 @@
             {
               "id": "lesson-1793564644334-0-1",
               "title": "Aula 1: Introdução ao Módulo 1",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 1: Fundamentos & Metodologia Aplicada.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 1: Fundamentos & Metodologia Aplicada."
             }
           ]
         },
@@ -59,9 +605,9 @@
             {
               "id": "lesson-1793564644334-1-1",
               "title": "Aula 1: Introdução ao Módulo 2",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 2: Exercícios Práticos e Ferramentas do Mercado.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 2: Exercícios Práticos e Ferramentas do Mercado."
             }
           ]
         },
@@ -72,904 +618,435 @@
             {
               "id": "lesson-1793564644334-2-1",
               "title": "Aula 1: Introdução ao Módulo 3",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 3: Projeto Final & Emissão de Certificado Oficial.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 3: Projeto Final & Emissão de Certificado Oficial."
             }
           ]
         }
       ],
+      "status": "rascunho",
+      "isAutoLaunchBadge": true,
       "finalExam": {
         "id": "exam-1793564710551",
         "title": "Avaliação Final & Prova de Certificação: 000",
-        "description": "Prova obrigatória para conclusão do curso e emissão do Certificado Oficial Deds Academy. Exige aproveitamento mínimo de 80% e permite até 3 tentativas com feedback imediato.",
-        "minPassingPercent": 80,
-        "maxAttempts": 3,
-        "immediateResult": true,
-        "allowRetake": true,
         "status": "rascunho",
         "questions": [
           {
             "id": "q-1",
-            "title": "Qual é o princípio fundamental abordado no primeiro módulo prático do curso?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Qual é o princípio fundamental abordado no primeiro módulo prático do curso?",
             "points": 1,
             "options": [
               {
                 "id": "opt-1-a",
-                "letter": "A",
                 "text": "Estruturação da arquitetura e boas práticas de código limpo",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-1-b",
-                "letter": "B",
                 "text": "Execução de scripts sem documentação técnica prévia",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-c",
-                "letter": "C",
                 "text": "Substituição de algoritmos por soluções manuais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-d",
-                "letter": "D",
                 "text": "Uso exclusivo de tecnologias legadas sem versionamento",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-e",
-                "letter": "E",
                 "text": "Desativação de testes de regressão contínua",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "A arquitetura modular e os princípios de clean code são a base estruturante para projetos escaláveis."
+            "explanation": "A arquitetura modular e os princípios de clean code são a base estruturante para projetos escaláveis.",
+            "selectionType": "unica"
           },
           {
             "id": "q-2",
-            "title": "Sobre o controle de versão e trabalho colaborativo, quais afirmações são verdadeiras?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Sobre o controle de versão e trabalho colaborativo, quais afirmações são verdadeiras?",
             "points": 2,
             "options": [
               {
                 "id": "opt-2-a",
-                "letter": "A",
                 "text": "Branches protegem o ambiente principal de produção durante experimentos",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-b",
-                "letter": "B",
                 "text": "Commits devem conter mensagens semânticas e claras sobre o que foi modificado",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-c",
-                "letter": "C",
                 "text": "Nunca se deve revisar pull requests antes do merge",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-2-d",
-                "letter": "D",
                 "text": "Tags semânticas auxiliam no controle de lançamentos e versões de release",
+                "letter": "D",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-e",
-                "letter": "E",
                 "text": "Arquivos com senhas e chaves privadas devem ser comitados publicamente",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Branches, mensagens semânticas e tags são pilares essenciais do Git moderno."
+            "explanation": "Branches, mensagens semânticas e tags são pilares essenciais do Git moderno.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-3",
-            "title": "Como você avalia o impacto da automação de processos na rotina produtiva de um profissional?",
             "type": "opiniao",
-            "selectionType": "unica",
+            "title": "Como você avalia o impacto da automação de processos na rotina produtiva de um profissional?",
             "points": 1,
             "options": [
               {
                 "id": "opt-3-a",
-                "letter": "A",
                 "text": "Altamente positivo, liberando tempo estratégico para resolução de problemas complexos",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-3-b",
-                "letter": "B",
                 "text": "Moderado, com ganhos pontuais em tarefas repetitivas de menor relevância",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-c",
-                "letter": "C",
                 "text": "Indiferente na maioria das etapas corporativas atuais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-d",
-                "letter": "D",
                 "text": "Desfavorável caso a equipe não receba treinamento adequado contínuo",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-e",
-                "letter": "E",
                 "text": "Dependente unicamente de investimentos de grande escala em hardware",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Questão avaliativa para medir o discernimento analítico sobre automação e escala."
+            "explanation": "Questão avaliativa para medir o discernimento analítico sobre automação e escala.",
+            "selectionType": "unica"
           },
           {
             "id": "q-4",
-            "title": "Na etapa de otimização de performance, qual critério técnico deve ser priorizado?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Na etapa de otimização de performance, qual critério técnico deve ser priorizado?",
             "points": 1,
             "options": [
               {
                 "id": "opt-4-a",
-                "letter": "A",
                 "text": "Redução do tempo de resposta e consumo eficiente de memória",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-4-b",
-                "letter": "B",
                 "text": "Aumento indefinido do número de loops síncronos",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-c",
-                "letter": "C",
                 "text": "Remoção de camadas de segurança para ganho marginal de milissegundos",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-d",
-                "letter": "D",
                 "text": "Ignorar logs e métricas de telemetria em produção",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-e",
-                "letter": "E",
                 "text": "Armazenamento de dados sem índices em consultas pesadas",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Performance sustentável equilibra latência mínima com eficiência de recursos de hardware."
+            "explanation": "Performance sustentável equilibra latência mínima com eficiência de recursos de hardware.",
+            "selectionType": "unica"
           },
           {
             "id": "q-5",
-            "title": "Quais mecanismos garantem a proteção e integridade de dados confidenciais do sistema?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Quais mecanismos garantem a proteção e integridade de dados confidenciais do sistema?",
             "points": 2,
             "options": [
               {
                 "id": "opt-5-a",
-                "letter": "A",
                 "text": "Criptografia em trânsito (HTTPS/TLS) e em repouso (AES-256)",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-b",
-                "letter": "B",
                 "text": "Políticas de controle de acesso baseadas em papéis e privilégios mínimos (RBAC)",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-c",
-                "letter": "C",
                 "text": "Compartilhamento de senhas mestras por e-mail sem expiração",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-5-d",
-                "letter": "D",
                 "text": "Auditoria contínua de logs e alertas para anomalias de tráfego",
+                "letter": "D",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-e",
-                "letter": "E",
                 "text": "Desabilitação de firewalls e rotas de validação de tokens",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Criptografia robusta, RBAC e auditoria contínua compõem a tríade de segurança da informação."
+            "explanation": "Criptografia robusta, RBAC e auditoria contínua compõem a tríade de segurança da informação.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-6",
-            "title": "Em relação ao tratamento de exceções e falhas, qual a conduta recomendada?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Em relação ao tratamento de exceções e falhas, qual a conduta recomendada?",
             "points": 1,
             "options": [
               {
                 "id": "opt-6-a",
-                "letter": "A",
                 "text": "Capturar erros de forma previsível e exibir mensagens amigáveis ao usuário",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-6-b",
-                "letter": "B",
                 "text": "Silenciar todos os erros com blocos vazios para o app não travar",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-c",
-                "letter": "C",
                 "text": "Expor stack traces com dados de banco no frontend público",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-d",
-                "letter": "D",
                 "text": "Reiniciar o servidor a cada requisição que falhar",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-e",
-                "letter": "E",
                 "text": "Ignorar validações no payload recebido do cliente",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "O tratamento elegante de erros previne vazamento de dados sensíveis e melhora a experiência."
+            "explanation": "O tratamento elegante de erros previne vazamento de dados sensíveis e melhora a experiência.",
+            "selectionType": "unica"
           },
           {
             "id": "q-7",
-            "title": "Qual papel as avaliações e feedbacks exercem na melhoria contínua de um projeto?",
             "type": "opiniao",
-            "selectionType": "unica",
+            "title": "Qual papel as avaliações e feedbacks exercem na melhoria contínua de um projeto?",
             "points": 1,
             "options": [
               {
                 "id": "opt-7-a",
-                "letter": "A",
                 "text": "Fundamental para alinhar expectativas, corrigir gargalos e elevar a satisfação",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-7-b",
-                "letter": "B",
                 "text": "Secundário, pois o planejamento inicial deve ser imutável até o término",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-c",
-                "letter": "C",
                 "text": "Opcional apenas em versões beta experimentais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-d",
-                "letter": "D",
                 "text": "Irrelevante quando a métrica financeira estiver positiva",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-e",
-                "letter": "E",
                 "text": "Aplicável exclusivamente a setores de marketing institucional",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Feedback contínuo de usuários é a métrica mais confiável de evolução e qualidade."
+            "explanation": "Feedback contínuo de usuários é a métrica mais confiável de evolução e qualidade.",
+            "selectionType": "unica"
           },
           {
             "id": "q-8",
-            "title": "Em um pipeline de integração contínua (CI/CD), qual fase deve anteceder o deploy em produção?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Em um pipeline de integração contínua (CI/CD), qual fase deve anteceder o deploy em produção?",
             "points": 1,
             "options": [
               {
                 "id": "opt-8-a",
-                "letter": "A",
                 "text": "Execução automatizada de testes unitários, de integração e checagem de lint",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-8-b",
-                "letter": "B",
                 "text": "Exclusão dos backups de banco de dados para economizar espaço",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-c",
-                "letter": "C",
                 "text": "Desligamento imediato dos servidores sem aviso prévio",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-d",
-                "letter": "D",
                 "text": "Deploy direto da máquina local sem registro no repositório",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-e",
-                "letter": "E",
                 "text": "Remoção de todas as variáveis de ambiente secretas",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Testes automatizados asseguram que novos deploys não quebrem funcionalidades existentes."
+            "explanation": "Testes automatizados asseguram que novos deploys não quebrem funcionalidades existentes.",
+            "selectionType": "unica"
           },
           {
             "id": "q-9",
-            "title": "Quais boas práticas devem ser aplicadas ao desenhar interfaces acessíveis e inclusivas?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Quais boas práticas devem ser aplicadas ao desenhar interfaces acessíveis e inclusivas?",
             "points": 2,
             "options": [
               {
                 "id": "opt-9-a",
-                "letter": "A",
                 "text": "Contraste cromático adequado de acordo com as diretrizes WCAG AA",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-b",
-                "letter": "B",
                 "text": "Navegabilidade completa por teclado e foco visual destacado",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-c",
-                "letter": "C",
                 "text": "Textos alternativos em imagens e tags semânticas no HTML",
+                "letter": "C",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-d",
-                "letter": "D",
                 "text": "Uso de texto com tamanho menor que 9px para caber mais conteúdo",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-9-e",
-                "letter": "E",
                 "text": "Desabilitar leitores de tela para proteger o design visual",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Acessibilidade universal garante usabilidade plena para todos os tipos de usuários e dispositivos."
+            "explanation": "Acessibilidade universal garante usabilidade plena para todos os tipos de usuários e dispositivos.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-10",
-            "title": "O que caracteriza a conclusão com excelência e emissão do certificado com validação oficial?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "O que caracteriza a conclusão com excelência e emissão do certificado com validação oficial?",
             "points": 2,
             "options": [
               {
                 "id": "opt-10-a",
-                "letter": "A",
                 "text": "Aproveitamento mínimo de 80% na avaliação final, dados do aluno e assinatura cadastrados",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-10-b",
-                "letter": "B",
                 "text": "Apenas visualização rápida da introdução sem realizar os testes práticos",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-c",
-                "letter": "C",
                 "text": "Acerto de apenas 30% das questões sem revisão de conteúdo",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-d",
-                "letter": "D",
                 "text": "Emissão manual sem autenticação criptográfica ou QR Code",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-e",
-                "letter": "E",
                 "text": "Certificado emitido sem identificação de CPF e registro da instituição",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "A emissão de certificação válida exige rigor acadêmico com no mínimo 80% de acerto e dados completos."
+            "explanation": "A emissão de certificação válida exige rigor acadêmico com no mínimo 80% de acerto e dados completos.",
+            "selectionType": "unica"
           }
         ],
         "updatedAt": "2026-11-01T20:25:10.551Z",
-        "requireSatisfactionSurvey": true,
+        "allowRetake": true,
+        "description": "Prova obrigatória para conclusão do curso e emissão do Certificado Oficial Deds Academy. Exige aproveitamento mínimo de 80% e permite até 3 tentativas com feedback imediato.",
+        "maxAttempts": 3,
+        "immediateResult": true,
+        "minPassingPercent": 80,
         "satisfactionQuestion": {
-          "enabled": true,
-          "requiredForCertificate": true,
+          "type": "stars",
           "prompt": "Avalie a qualidade geral desta formação e a didática do instrutor (obrigatório para liberação do certificado):",
-          "type": "stars"
-        }
-      },
-      "status": "rascunho",
-      "studentsCount": 0,
-      "createdAt": "01/11/2026",
-      "publishedAt": "2026-11-01T20:25:10.552Z",
-      "isAutoLaunchBadge": true
-    },
-    {
-      "id": "python-zero-avancado",
-      "badge": {
-        "text": "Mais vendido",
-        "variant": "emerald"
-      },
-      "hours": 60,
-      "image": "/images/courses/python.jpg",
-      "title": "Python do Zero ao Avançado",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Tecnologia & IA",
-      "syllabus": [
-        "Fundamentos da Linguagem & Estruturas de Dados",
-        "Programação Orientada a Objetos (POO) Moderna",
-        "Automação de Tarefas & Web Scraping",
-        "Análise de Dados com Pandas & NumPy",
-        "Construção de APIs com FastAPI",
-        "Deploy e Projeto Final com Certificação"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "João Paulo Silveira",
-      "description": "Aprenda lógica de programação, orientação a objetos, automações de scripts, análise de dados com Pandas e introdução a IA com projetos práticos do mercado.",
-      "currentPrice": 189.9,
-      "lessonsCount": 148,
-      "reviewsCount": 1250,
-      "originalPrice": 299,
-      "studentsCount": 3840,
-      "instructorRole": "Especialista em Engenharia de Dados & Machine Learning"
-    },
-    {
-      "id": "excel-basico-avancado",
-      "badge": {
-        "text": "Em alta",
-        "variant": "secondary"
-      },
-      "hours": 40,
-      "image": "/images/courses/excel.jpg",
-      "title": "Excel do Básico ao Avançado",
-      "rating": 4.8,
-      "status": "publicado",
-      "category": "Finanças",
-      "syllabus": [
-        "Nivelamento Essencial & Formatação Condicional",
-        "Fórmulas Matemáticas, Lógicas e de Texto",
-        "Funções de Pesquisa (PROCV, PROCX, ÍNDICE+CORRESP)",
-        "Tabelas Dinâmicas & Segmentação de Dados",
-        "Criação de Dashboards Interativos Profissionais",
-        "Power Query para Limpeza e Modelagem de Dados"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Com Certificação"
-      ],
-      "instructor": "Carla Mendes",
-      "description": "Domine fórmulas complexas, PROCV/PROCX, Tabelas Dinâmicas, Dashboards Executivos de alto impacto e introdução a Power Query para automação corporativa.",
-      "currentPrice": 129.9,
-      "lessonsCount": 92,
-      "reviewsCount": 980,
-      "originalPrice": 199,
-      "studentsCount": 2950,
-      "instructorRole": "Consultora de BI e Inteligência Financeira"
-    },
-    {
-      "id": "marketing-digital-pratica",
-      "badge": {
-        "text": "Novo",
-        "variant": "dark"
-      },
-      "hours": 30,
-      "image": "/images/courses/marketing.jpg",
-      "title": "Marketing Digital na Prática",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Marketing",
-      "syllabus": [
-        "Visão Estratégica & Mapeamento de Personas",
-        "Copywriting & Gatilhos Mentais de Alta Conversão",
-        "Meta Ads: Do Pixel à Escala de Campanhas",
-        "Google Ads & Estratégias de Pesquisa",
-        "Métricas Chave: CAC, LTV, ROAS e ROI",
-        "Estudos de Caso Reais de E-commerce e Infoprodutos"
-      ],
-      "filterTags": [
-        "Lançamentos",
-        "Em alta"
-      ],
-      "instructor": "Lucas Cruz",
-      "description": "Campanhas de tráfego pago no Meta Ads e Google Ads, estratégias de funil de vendas, copywriting persuasivo e mensuração de ROAS e CAC.",
-      "currentPrice": 149.9,
-      "lessonsCount": 74,
-      "reviewsCount": 760,
-      "originalPrice": 219,
-      "studentsCount": 1980,
-      "instructorRole": "Growth Leader & Estrategista de Performance"
-    },
-    {
-      "id": "ui-ux-design",
-      "badge": {
-        "text": "Mais vendido",
-        "variant": "emerald"
-      },
-      "hours": 50,
-      "image": "/images/courses/ui-ux.jpg",
-      "title": "UI/UX Design do Básico ao Avançado",
-      "rating": 4.7,
-      "status": "publicado",
-      "category": "Tecnologia & IA",
-      "syllabus": [
-        "Fundamentos de UX & Metodologia Design Thinking",
-        "Pesquisa com Usuários, Entrevistas e Jornadas",
-        "Wireframing & Arquitetura de Informação",
-        "Figma do Zero ao Avançado (Auto Layout & Variantes)",
-        "Construção de Design System Escalável",
-        "Prototipagem Interativa & Apresentação para Stakeholders"
-      ],
-      "filterTags": [
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "Juliana Nobre",
-      "description": "Aprenda pesquisa com usuários, arquitetura de informação, wireframing, prototipagem avançada no Figma e construção de Design Systems escaláveis.",
-      "currentPrice": 199.9,
-      "lessonsCount": 110,
-      "reviewsCount": 620,
-      "originalPrice": 289,
-      "studentsCount": 1650,
-      "instructorRole": "Senior Product Designer com atuação internacional"
-    },
-    {
-      "id": "desenvolvimento-web-completo",
-      "badge": {
-        "text": "Em alta",
-        "variant": "secondary"
-      },
-      "hours": 80,
-      "image": "/images/courses/web-dev.jpg",
-      "title": "Desenvolvimento Web Completo",
-      "rating": 4.9,
-      "status": "rascunho",
-      "category": "Tecnologia & IA",
-      "syllabus": [
-        "HTML5 Semântico, CSS3 Moderno & Flexbox/Grid",
-        "JavaScript ES6+ Moderno & Programação Assíncrona",
-        "React & Gerenciamento de Estado",
-        "Node.js, Express & Criação de REST APIs Seguras",
-        "Bancos de Dados SQL e NoSQL",
-        "Deploy Contínuo, Docker e Melhores Práticas DevOps"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "Rafael Martins",
-      "description": "Do HTML/CSS/JavaScript moderno até React, TypeScript, Node.js, bancos de dados relacionais e deploy em nuvem com CI/CD.",
-      "currentPrice": 229.9,
-      "lessonsCount": 195,
-      "reviewsCount": 1100,
-      "originalPrice": 349,
-      "studentsCount": 840,
-      "instructorRole": "Engenheiro de Software Full Stack"
-    },
-    {
-      "id": "gestao-projetos-scrum",
-      "badge": {
-        "text": "Mais vendido",
-        "variant": "emerald"
-      },
-      "hours": 45,
-      "image": "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80",
-      "title": "Gestão Ágil de Projetos & Scrum",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Administração",
-      "syllabus": [
-        "Fundamentos do Manifesto Ágil e Mindset Lean",
-        "Papéis Scrum: Product Owner, Scrum Master e Dev Team",
-        "Cerimônias e Artefatos do Scrum na Prática",
-        "Kanban Visual & Otimização de Fluxo",
-        "Métricas Ágeis: Burndown, Velocity e Lead Time",
-        "Estudos de Caso de Transformação Ágil"
-      ],
-      "filterTags": [
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "Marcelo Ramos",
-      "description": "Domine metodologias ágeis, frameworks Scrum e Kanban, gestão de backlog, métricas ágeis e preparação para certificações internacionais.",
-      "currentPrice": 159.9,
-      "lessonsCount": 88,
-      "reviewsCount": 840,
-      "originalPrice": 249,
-      "studentsCount": 2120,
-      "instructorRole": "Enterprise Agile Coach & PMP"
-    },
-    {
-      "id": "lideranca-gestao-equipes",
-      "badge": {
-        "text": "Novo",
-        "variant": "dark"
-      },
-      "hours": 35,
-      "image": "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80",
-      "title": "Liderança Estratégica & Equipes",
-      "rating": 4.8,
-      "status": "previsto",
-      "category": "Administração",
-      "syllabus": [
-        "Estilos de Liderança Situacional",
-        "Comunicação Assertiva e Feedbacks Estruturados",
-        "Delegação Eficaz e Empoderamento de Times",
-        "Gestão de Conflitos e Resolução de Problemas",
-        "Framework de OKRs para Alinhamento de Metas",
-        "Cultura de Alta Performance e Segurança Psicológica"
-      ],
-      "filterTags": [
-        "Lançamentos",
-        "Com Certificação"
-      ],
-      "instructor": "Dra. Camila Duarte",
-      "description": "Desenvolva liderança humanizada, comunicação não-violenta, feedbacks de alto impacto e alinhamento de metas com OKRs.",
-      "currentPrice": 139.9,
-      "lessonsCount": 64,
-      "reviewsCount": 650,
-      "originalPrice": 219,
-      "studentsCount": 430,
-      "instructorRole": "Consultora de Desenvolvimento Organizacional"
-    },
-    {
-      "id": "power-bi-mercado-financeiro",
-      "badge": {
-        "text": "Em alta",
-        "variant": "secondary"
-      },
-      "hours": 50,
-      "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
-      "title": "Power BI para Análise Financeira",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Finanças",
-      "syllabus": [
-        "Modelagem de Dados Financeiros e Star Schema",
-        "DAX Essencial e Avançado para Cálculos Financeiros",
-        "Análise de DRE, Balanço e Fluxo de Caixa Dinâmico",
-        "Visuais Financeiros de Alta Precisão",
-        "Publicação no Power BI Service e RLS de Segurança",
-        "Projeto Final: Dashboard Executivo para C-Level"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "Thiago Sampaio",
-      "description": "Construa relatórios dinâmicos de DRE, fluxo de caixa, EBITDA e dashboards executivos conectados a bases de dados reais com DAX avançado.",
-      "currentPrice": 179.9,
-      "lessonsCount": 104,
-      "reviewsCount": 920,
-      "originalPrice": 279,
-      "studentsCount": 2450,
-      "instructorRole": "CFO & Especialista em BI Financeiro"
-    },
-    {
-      "id": "trafego-pago-avancado",
-      "badge": {
-        "text": "Mais vendido",
-        "variant": "emerald"
-      },
-      "hours": 40,
-      "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-      "title": "Tráfego Pago Avançado: Meta & Google Ads",
-      "rating": 4.9,
-      "status": "inativo",
-      "category": "Marketing",
-      "syllabus": [
-        "Estrutura de Contas e API de Conversões do Meta",
-        "Google Search, Performance Max e YouTube Ads",
-        "Remarketing Avançado e Segmentação Lookalike",
-        "Copywriting e Criativos que Vendem no Feed e Reels",
-        "Análise de Atribuição e Tracking com UTMs",
-        "Otimização de Custos e Escala Segura de Investimento"
-      ],
-      "filterTags": [
-        "Mais vendidos",
-        "Em alta"
-      ],
-      "instructor": "Camila Rocha",
-      "description": "Estratégias de escala de tráfego, pixel API de conversão, otimização por inteligência artificial e criação de funis perpétuos.",
-      "currentPrice": 159.9,
-      "lessonsCount": 82,
-      "reviewsCount": 880,
-      "originalPrice": 259,
-      "studentsCount": 1220,
-      "instructorRole": "Head de Mídia Paga & Performance"
-    },
-    {
-      "id": "people-analytics-rh",
-      "badge": {
-        "text": "Em alta",
-        "variant": "secondary"
-      },
-      "hours": 40,
-      "image": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
-      "title": "People Analytics & Gestão por Competências",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Recursos Humanos",
-      "syllabus": [
-        "Fundamentos de Dados aplicados a Gestão de Pessoas",
-        "Métricas Críticas: Turnover, Retenção e eNPS",
-        "Mapeamento de Competências e Matriz Nine Box",
-        "Dashboards de RH em Excel e Power BI",
-        "Planos de Desenvolvimento Individual (PDI)",
-        "Ética e LGPD no Tratamento de Dados de Colaboradores"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Com Certificação"
-      ],
-      "instructor": "Renata Silveira",
-      "description": "Transforme dados de recursos humanos em decisões de negócios: métricas de turnover, absenteísmo, eNPS e mapeamento de talentos.",
-      "currentPrice": 169.9,
-      "lessonsCount": 76,
-      "reviewsCount": 710,
-      "originalPrice": 249,
-      "studentsCount": 1430,
-      "instructorRole": "Diretora de RH Estratégico & Docente"
-    },
-    {
-      "id": "recrutamento-tech-selecao",
-      "badge": {
-        "text": "Novo",
-        "variant": "dark"
-      },
-      "hours": 30,
-      "image": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
-      "title": "Tech Recruiter: Atração e Seleção Tech",
-      "rating": 4.8,
-      "status": "previsto",
-      "category": "Recursos Humanos",
-      "syllabus": [
-        "Mapeamento do Ecossistema de Tecnologia & Stacks",
-        "Hunting Ativo no LinkedIn e GitHub",
-        "Alinhamento de Job Description com Engineering Managers",
-        "Entrevista por Competências e Fit Cultural",
-        "Comunicação Transparente e Feedback a Candidatos",
-        "Fechamento de Proposta e Onboarding Integrado"
-      ],
-      "filterTags": [
-        "Lançamentos",
-        "Com Certificação"
-      ],
-      "instructor": "Felipe Barreto",
-      "description": "Aprenda a mapear stacks técnicas, conduzir entrevistas comportamentais com devs e negociar propostas competitivas no mercado de TI.",
-      "currentPrice": 129.9,
-      "lessonsCount": 58,
-      "reviewsCount": 530,
-      "originalPrice": 199,
-      "studentsCount": 510,
-      "instructorRole": "Tech Talent Acquisition Specialist"
-    },
-    {
-      "id": "autocad-2d-3d-projetos",
-      "badge": {
-        "text": "Mais vendido",
-        "variant": "emerald"
-      },
-      "hours": 55,
-      "image": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80",
-      "title": "AutoCAD 2D e 3D para Projetos Técnicos",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Engenharia",
-      "syllabus": [
-        "Interface e Comandos de Precisão do AutoCAD",
-        "Desenho de Plantas Baixas, Cortes e Fachadas",
-        "Gerenciamento de Layers, Blocos Dinâmicos e Hachuras",
-        "Cotagem e Textos Normatizados (ABNT)",
-        "Modelagem 3D Básica e Renderização",
-        "Configuração de Layouts, Viewports e Plotagem em PDF"
-      ],
-      "filterTags": [
-        "Mais vendidos",
-        "Com Certificação"
-      ],
-      "instructor": "Eng. Roberto Faria",
-      "description": "Do desenho técnico básico à modelagem tridimensional, plantas baixas, cortes, elevações, pranchas e plotagem em conformidade com a ABNT.",
-      "currentPrice": 179.9,
-      "lessonsCount": 112,
-      "reviewsCount": 890,
-      "originalPrice": 289,
-      "studentsCount": 2340,
-      "instructorRole": "Engenheiro Civil & Projetista Especialista"
-    },
-    {
-      "id": "bim-revit-arquitetura",
-      "badge": {
-        "text": "Em alta",
-        "variant": "secondary"
-      },
-      "hours": 65,
-      "image": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
-      "title": "BIM com Revit: Modelagem & Projetos",
-      "rating": 4.9,
-      "status": "rascunho",
-      "category": "Engenharia",
-      "syllabus": [
-        "Conceitos Fundamentais da Metodologia BIM",
-        "Modelagem de Paredes, Pisos, Coberturas e Esquadrias",
-        "Criação e Edição de Famílias Paramétricas",
-        "Extração Automática de Quantitativos de Materiais",
-        "Documentação Completa de Pranchas Executivas",
-        "Exportação IFC e Compatibilização de Projetos"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Com Certificação"
-      ],
-      "instructor": "Engª. Patrícia Lima",
-      "description": "Aprenda a metodologia BIM na prática: modelagem paramétrica de arquitetura e estruturas, tabelas quantitativas automáticas e compatibilização.",
-      "currentPrice": 219.9,
-      "lessonsCount": 130,
-      "reviewsCount": 760,
-      "originalPrice": 329,
-      "studentsCount": 690,
-      "instructorRole": "BIM Manager & Coordenadora de Projetos"
-    },
-    {
-      "id": "inteligencia-artificial-prompts",
-      "badge": {
-        "text": "Lançamento",
-        "variant": "emerald"
-      },
-      "hours": 35,
-      "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80",
-      "title": "Inteligência Artificial & Prompts",
-      "rating": 4.9,
-      "status": "publicado",
-      "category": "Tecnologia & IA",
-      "syllabus": [
-        "Fundamentos de LLMs e Mecanismo de Atenção",
-        "Técnicas Avançadas de Prompting (Few-Shot, CoT)",
-        "Construção de Agentes Autônomos de Produtividade",
-        "Integração de Modelos de IA via API",
-        "Automação de Fluxos de Trabalho com IA",
-        "Boas Práticas de Governança e Segurança em IA"
-      ],
-      "filterTags": [
-        "Em alta",
-        "Lançamentos",
-        "Com Certificação"
-      ],
-      "instructor": "Dr. Gabriel Vasconcelos",
-      "description": "Aprenda Engenharia de Prompts para Gemini, ChatGPT e Claude, automações com n8n/Make, agentes de IA e aplicação prática nos negócios.",
-      "currentPrice": 169.9,
-      "lessonsCount": 68,
-      "reviewsCount": 1350,
-      "originalPrice": 269,
-      "studentsCount": 3100,
-      "instructorRole": "Pesquisador em IA Generativa & LLMs"
+          "enabled": true,
+          "requiredForCertificate": true
+        },
+        "requireSatisfactionSurvey": true
+      }
     },
     {
       "id": "curso-1793497969551",
@@ -979,14 +1056,15 @@
       "instructorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       "category": "Administração",
       "level": "Intermediário",
+      "rating": 5,
+      "reviewsCount": 1,
+      "studentsCount": 0,
       "hours": 40,
       "lessonsCount": 3,
       "originalPrice": 299,
-      "currentPrice": 179.9,
+      "currentPrice": 299,
       "image": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80",
       "bannerImage": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&auto=format&fit=crop&q=80",
-      "rating": 5,
-      "reviewsCount": 1,
       "badge": {
         "text": "Novo Lançamento",
         "variant": "emerald",
@@ -1013,9 +1091,9 @@
             {
               "id": "lesson-1793497956218-0-1",
               "title": "Aula 1: Introdução ao Módulo 1",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 1: Fundamentos & Metodologia Aplicada.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 1: Fundamentos & Metodologia Aplicada."
             }
           ]
         },
@@ -1026,9 +1104,9 @@
             {
               "id": "lesson-1793497956218-1-1",
               "title": "Aula 1: Introdução ao Módulo 2",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 2: Exercícios Práticos e Ferramentas do Mercado.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 2: Exercícios Práticos e Ferramentas do Mercado."
             }
           ]
         },
@@ -1039,438 +1117,435 @@
             {
               "id": "lesson-1793497956218-2-1",
               "title": "Aula 1: Introdução ao Módulo 3",
-              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 3: Projeto Final & Emissão de Certificado Oficial.",
               "duration": "15 min",
-              "attachments": []
+              "attachments": [],
+              "description": "Fundamentos essenciais, objetivos de estudo e diretrizes práticas para Módulo 3: Projeto Final & Emissão de Certificado Oficial."
             }
           ]
         }
       ],
+      "status": "rascunho",
+      "isAutoLaunchBadge": true,
       "finalExam": {
         "id": "exam-1793497969547",
         "title": "Avaliação Final & Prova de Certificação: test 123",
-        "description": "Prova obrigatória para conclusão do curso e emissão do Certificado Oficial Deds Academy. Exige aproveitamento mínimo de 80% e permite até 3 tentativas com feedback imediato.",
-        "minPassingPercent": 80,
-        "maxAttempts": 3,
-        "immediateResult": true,
-        "allowRetake": true,
         "status": "rascunho",
         "questions": [
           {
             "id": "q-1",
-            "title": "Qual é o princípio fundamental abordado no primeiro módulo prático do curso?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Qual é o princípio fundamental abordado no primeiro módulo prático do curso?",
             "points": 1,
             "options": [
               {
                 "id": "opt-1-a",
-                "letter": "A",
                 "text": "Estruturação da arquitetura e boas práticas de código limpo",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-1-b",
-                "letter": "B",
                 "text": "Execução de scripts sem documentação técnica prévia",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-c",
-                "letter": "C",
                 "text": "Substituição de algoritmos por soluções manuais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-d",
-                "letter": "D",
                 "text": "Uso exclusivo de tecnologias legadas sem versionamento",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-1-e",
-                "letter": "E",
                 "text": "Desativação de testes de regressão contínua",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "A arquitetura modular e os princípios de clean code são a base estruturante para projetos escaláveis."
+            "explanation": "A arquitetura modular e os princípios de clean code são a base estruturante para projetos escaláveis.",
+            "selectionType": "unica"
           },
           {
             "id": "q-2",
-            "title": "Sobre o controle de versão e trabalho colaborativo, quais afirmações são verdadeiras?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Sobre o controle de versão e trabalho colaborativo, quais afirmações são verdadeiras?",
             "points": 2,
             "options": [
               {
                 "id": "opt-2-a",
-                "letter": "A",
                 "text": "Branches protegem o ambiente principal de produção durante experimentos",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-b",
-                "letter": "B",
                 "text": "Commits devem conter mensagens semânticas e claras sobre o que foi modificado",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-c",
-                "letter": "C",
                 "text": "Nunca se deve revisar pull requests antes do merge",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-2-d",
-                "letter": "D",
                 "text": "Tags semânticas auxiliam no controle de lançamentos e versões de release",
+                "letter": "D",
                 "isCorrect": true
               },
               {
                 "id": "opt-2-e",
-                "letter": "E",
                 "text": "Arquivos com senhas e chaves privadas devem ser comitados publicamente",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Branches, mensagens semânticas e tags são pilares essenciais do Git moderno."
+            "explanation": "Branches, mensagens semânticas e tags são pilares essenciais do Git moderno.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-3",
-            "title": "Como você avalia o impacto da automação de processos na rotina produtiva de um profissional?",
             "type": "opiniao",
-            "selectionType": "unica",
+            "title": "Como você avalia o impacto da automação de processos na rotina produtiva de um profissional?",
             "points": 1,
             "options": [
               {
                 "id": "opt-3-a",
-                "letter": "A",
                 "text": "Altamente positivo, liberando tempo estratégico para resolução de problemas complexos",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-3-b",
-                "letter": "B",
                 "text": "Moderado, com ganhos pontuais em tarefas repetitivas de menor relevância",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-c",
-                "letter": "C",
                 "text": "Indiferente na maioria das etapas corporativas atuais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-d",
-                "letter": "D",
                 "text": "Desfavorável caso a equipe não receba treinamento adequado contínuo",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-3-e",
-                "letter": "E",
                 "text": "Dependente unicamente de investimentos de grande escala em hardware",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Questão avaliativa para medir o discernimento analítico sobre automação e escala."
+            "explanation": "Questão avaliativa para medir o discernimento analítico sobre automação e escala.",
+            "selectionType": "unica"
           },
           {
             "id": "q-4",
-            "title": "Na etapa de otimização de performance, qual critério técnico deve ser priorizado?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Na etapa de otimização de performance, qual critério técnico deve ser priorizado?",
             "points": 1,
             "options": [
               {
                 "id": "opt-4-a",
-                "letter": "A",
                 "text": "Redução do tempo de resposta e consumo eficiente de memória",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-4-b",
-                "letter": "B",
                 "text": "Aumento indefinido do número de loops síncronos",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-c",
-                "letter": "C",
                 "text": "Remoção de camadas de segurança para ganho marginal de milissegundos",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-d",
-                "letter": "D",
                 "text": "Ignorar logs e métricas de telemetria em produção",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-4-e",
-                "letter": "E",
                 "text": "Armazenamento de dados sem índices em consultas pesadas",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Performance sustentável equilibra latência mínima com eficiência de recursos de hardware."
+            "explanation": "Performance sustentável equilibra latência mínima com eficiência de recursos de hardware.",
+            "selectionType": "unica"
           },
           {
             "id": "q-5",
-            "title": "Quais mecanismos garantem a proteção e integridade de dados confidenciais do sistema?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Quais mecanismos garantem a proteção e integridade de dados confidenciais do sistema?",
             "points": 2,
             "options": [
               {
                 "id": "opt-5-a",
-                "letter": "A",
                 "text": "Criptografia em trânsito (HTTPS/TLS) e em repouso (AES-256)",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-b",
-                "letter": "B",
                 "text": "Políticas de controle de acesso baseadas em papéis e privilégios mínimos (RBAC)",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-c",
-                "letter": "C",
                 "text": "Compartilhamento de senhas mestras por e-mail sem expiração",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-5-d",
-                "letter": "D",
                 "text": "Auditoria contínua de logs e alertas para anomalias de tráfego",
+                "letter": "D",
                 "isCorrect": true
               },
               {
                 "id": "opt-5-e",
-                "letter": "E",
                 "text": "Desabilitação de firewalls e rotas de validação de tokens",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Criptografia robusta, RBAC e auditoria contínua compõem a tríade de segurança da informação."
+            "explanation": "Criptografia robusta, RBAC e auditoria contínua compõem a tríade de segurança da informação.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-6",
-            "title": "Em relação ao tratamento de exceções e falhas, qual a conduta recomendada?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Em relação ao tratamento de exceções e falhas, qual a conduta recomendada?",
             "points": 1,
             "options": [
               {
                 "id": "opt-6-a",
-                "letter": "A",
                 "text": "Capturar erros de forma previsível e exibir mensagens amigáveis ao usuário",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-6-b",
-                "letter": "B",
                 "text": "Silenciar todos os erros com blocos vazios para o app não travar",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-c",
-                "letter": "C",
                 "text": "Expor stack traces com dados de banco no frontend público",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-d",
-                "letter": "D",
                 "text": "Reiniciar o servidor a cada requisição que falhar",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-6-e",
-                "letter": "E",
                 "text": "Ignorar validações no payload recebido do cliente",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "O tratamento elegante de erros previne vazamento de dados sensíveis e melhora a experiência."
+            "explanation": "O tratamento elegante de erros previne vazamento de dados sensíveis e melhora a experiência.",
+            "selectionType": "unica"
           },
           {
             "id": "q-7",
-            "title": "Qual papel as avaliações e feedbacks exercem na melhoria contínua de um projeto?",
             "type": "opiniao",
-            "selectionType": "unica",
+            "title": "Qual papel as avaliações e feedbacks exercem na melhoria contínua de um projeto?",
             "points": 1,
             "options": [
               {
                 "id": "opt-7-a",
-                "letter": "A",
                 "text": "Fundamental para alinhar expectativas, corrigir gargalos e elevar a satisfação",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-7-b",
-                "letter": "B",
                 "text": "Secundário, pois o planejamento inicial deve ser imutável até o término",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-c",
-                "letter": "C",
                 "text": "Opcional apenas em versões beta experimentais",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-d",
-                "letter": "D",
                 "text": "Irrelevante quando a métrica financeira estiver positiva",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-7-e",
-                "letter": "E",
                 "text": "Aplicável exclusivamente a setores de marketing institucional",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Feedback contínuo de usuários é a métrica mais confiável de evolução e qualidade."
+            "explanation": "Feedback contínuo de usuários é a métrica mais confiável de evolução e qualidade.",
+            "selectionType": "unica"
           },
           {
             "id": "q-8",
-            "title": "Em um pipeline de integração contínua (CI/CD), qual fase deve anteceder o deploy em produção?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "Em um pipeline de integração contínua (CI/CD), qual fase deve anteceder o deploy em produção?",
             "points": 1,
             "options": [
               {
                 "id": "opt-8-a",
-                "letter": "A",
                 "text": "Execução automatizada de testes unitários, de integração e checagem de lint",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-8-b",
-                "letter": "B",
                 "text": "Exclusão dos backups de banco de dados para economizar espaço",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-c",
-                "letter": "C",
                 "text": "Desligamento imediato dos servidores sem aviso prévio",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-d",
-                "letter": "D",
                 "text": "Deploy direto da máquina local sem registro no repositório",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-8-e",
-                "letter": "E",
                 "text": "Remoção de todas as variáveis de ambiente secretas",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Testes automatizados asseguram que novos deploys não quebrem funcionalidades existentes."
+            "explanation": "Testes automatizados asseguram que novos deploys não quebrem funcionalidades existentes.",
+            "selectionType": "unica"
           },
           {
             "id": "q-9",
-            "title": "Quais boas práticas devem ser aplicadas ao desenhar interfaces acessíveis e inclusivas?",
             "type": "assertiva",
-            "selectionType": "multipla",
+            "title": "Quais boas práticas devem ser aplicadas ao desenhar interfaces acessíveis e inclusivas?",
             "points": 2,
             "options": [
               {
                 "id": "opt-9-a",
-                "letter": "A",
                 "text": "Contraste cromático adequado de acordo com as diretrizes WCAG AA",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-b",
-                "letter": "B",
                 "text": "Navegabilidade completa por teclado e foco visual destacado",
+                "letter": "B",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-c",
-                "letter": "C",
                 "text": "Textos alternativos em imagens e tags semânticas no HTML",
+                "letter": "C",
                 "isCorrect": true
               },
               {
                 "id": "opt-9-d",
-                "letter": "D",
                 "text": "Uso de texto com tamanho menor que 9px para caber mais conteúdo",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-9-e",
-                "letter": "E",
                 "text": "Desabilitar leitores de tela para proteger o design visual",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "Acessibilidade universal garante usabilidade plena para todos os tipos de usuários e dispositivos."
+            "explanation": "Acessibilidade universal garante usabilidade plena para todos os tipos de usuários e dispositivos.",
+            "selectionType": "multipla"
           },
           {
             "id": "q-10",
-            "title": "O que caracteriza a conclusão com excelência e emissão do certificado com validação oficial?",
             "type": "assertiva",
-            "selectionType": "unica",
+            "title": "O que caracteriza a conclusão com excelência e emissão do certificado com validação oficial?",
             "points": 2,
             "options": [
               {
                 "id": "opt-10-a",
-                "letter": "A",
                 "text": "Aproveitamento mínimo de 80% na avaliação final, dados do aluno e assinatura cadastrados",
+                "letter": "A",
                 "isCorrect": true
               },
               {
                 "id": "opt-10-b",
-                "letter": "B",
                 "text": "Apenas visualização rápida da introdução sem realizar os testes práticos",
+                "letter": "B",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-c",
-                "letter": "C",
                 "text": "Acerto de apenas 30% das questões sem revisão de conteúdo",
+                "letter": "C",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-d",
-                "letter": "D",
                 "text": "Emissão manual sem autenticação criptográfica ou QR Code",
+                "letter": "D",
                 "isCorrect": false
               },
               {
                 "id": "opt-10-e",
-                "letter": "E",
                 "text": "Certificado emitido sem identificação de CPF e registro da instituição",
+                "letter": "E",
                 "isCorrect": false
               }
             ],
-            "explanation": "A emissão de certificação válida exige rigor acadêmico com no mínimo 80% de acerto e dados completos."
+            "explanation": "A emissão de certificação válida exige rigor acadêmico com no mínimo 80% de acerto e dados completos.",
+            "selectionType": "unica"
           }
         ],
         "updatedAt": "2026-11-01T01:52:49.547Z",
-        "requireSatisfactionSurvey": true,
+        "allowRetake": true,
+        "description": "Prova obrigatória para conclusão do curso e emissão do Certificado Oficial Deds Academy. Exige aproveitamento mínimo de 80% e permite até 3 tentativas com feedback imediato.",
+        "maxAttempts": 3,
+        "immediateResult": true,
+        "minPassingPercent": 80,
         "satisfactionQuestion": {
-          "enabled": true,
-          "requiredForCertificate": true,
+          "type": "stars",
           "prompt": "Avalie a qualidade geral desta formação e a didática do instrutor (obrigatório para liberação do certificado):",
-          "type": "stars"
-        }
-      },
-      "status": "rascunho",
-      "studentsCount": 0,
-      "createdAt": "31/10/2026",
-      "publishedAt": "2026-11-01T01:52:49.551Z",
-      "isAutoLaunchBadge": true
+          "enabled": true,
+          "requiredForCertificate": true
+        },
+        "requireSatisfactionSurvey": true
+      }
     }
   ],
   "categories": [
@@ -1703,29 +1778,131 @@
   ],
   "users": [
     {
+      "id": "user-admin-2",
+      "name": "Mariana Lima",
+      "email": "mariana.lima@dedsacademy.com.br",
+      "role": "admin",
+      "password": "MarianaStaff#2025",
+      "cpf": "234.567.890-12",
+      "phone": "(11) 98111-2233",
+      "address": {
+        "cep": "04538-133",
+        "city": "São Paulo",
+        "state": "SP",
+        "number": "466",
+        "street": "Rua Joaquim Floriano",
+        "complement": "Sala 81",
+        "neighborhood": "Itaim Bibi"
+      },
+      "status": "ativo",
+      "registeredAt": "10/02/2024",
+      "lastAccess": "Hoje, 08:45",
+      "enrolledCourseIds": [],
+      "completedCourseIds": [],
+      "jobTitle": "Coordenadora Pedagógica & Cursos",
+      "department": "Coordenação Pedagógica",
+      "accessLevel": "Administrador"
+    },
+    {
+      "id": "user-admin-3",
+      "name": "Carlos Mendes",
+      "email": "carlos.mendes@dedsacademy.com.br",
+      "role": "admin",
+      "password": "CarlosSuporte@2025",
+      "cpf": "345.678.901-23",
+      "phone": "(21) 97654-3210",
+      "address": {
+        "cep": "20040-020",
+        "city": "Rio de Janeiro",
+        "state": "RJ",
+        "number": "10",
+        "street": "Rua da Assembleia",
+        "complement": "Andar 12",
+        "neighborhood": "Centro"
+      },
+      "status": "ativo",
+      "registeredAt": "05/04/2024",
+      "lastAccess": "Ontem, 17:15",
+      "enrolledCourseIds": [],
+      "completedCourseIds": [],
+      "jobTitle": "Analista de Suporte Técnico & Operações",
+      "department": "Suporte & Atendimento ao Aluno",
+      "accessLevel": "Suporte Técnico"
+    },
+    {
+      "id": "user-admin-4",
+      "name": "Juliana Rocha",
+      "email": "juliana.rocha@dedsacademy.com.br",
+      "role": "admin",
+      "password": "JulianaFin#2025",
+      "cpf": "456.789.012-34",
+      "phone": "(31) 99222-4455",
+      "address": {
+        "cep": "30140-071",
+        "city": "Belo Horizonte",
+        "state": "MG",
+        "number": "1420",
+        "street": "Avenida Getúlio Vargas",
+        "complement": "Sala 504",
+        "neighborhood": "Savassi"
+      },
+      "status": "pendente",
+      "registeredAt": "12/06/2024",
+      "lastAccess": "Há 2 dias",
+      "enrolledCourseIds": [],
+      "completedCourseIds": [],
+      "jobTitle": "Gestora Financeira & Contratos",
+      "department": "Financeiro & Compliance",
+      "accessLevel": "Gestor Operacional"
+    },
+    {
+      "id": "user-aluno-1793881619422",
+      "name": "André De Souza",
+      "email": "andre.2017ads81@gmail.com",
+      "role": "aluno",
+      "password": "andre@2017",
+      "studentCode": "ALU-8873",
+      "cpf": "06155147159",
+      "phone": "66981170690",
+      "address": {
+        "cep": "78635000",
+        "city": "Água Boa",
+        "state": "MT",
+        "number": "",
+        "street": "",
+        "complement": "",
+        "neighborhood": ""
+      },
+      "status": "ativo",
+      "registeredAt": "05/11/2026",
+      "lastAccess": "Hoje, 09:26",
+      "enrolledCourseIds": [],
+      "completedCourseIds": []
+    },
+    {
       "id": "user-aluno-1",
       "name": "Lucas M. Silveira",
       "email": "aluno@123.com.br",
       "role": "aluno",
-      "studentCode": "ALU-8921",
       "password": "10203040",
+      "studentCode": "ALU-8921",
       "cpf": "384.920.118-04",
       "phone": "(11) 98765-4321",
       "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       "address": {
         "cep": "01310-100",
-        "street": "Avenida Paulista",
-        "number": "1578",
-        "complement": "Apto 42",
-        "neighborhood": "Bela Vista",
         "city": "São Paulo",
-        "state": "SP"
+        "state": "SP",
+        "number": "1578",
+        "street": "Avenida Paulista",
+        "complement": "Apto 42",
+        "neighborhood": "Bela Vista"
       },
       "certificateData": {
-        "customName": "Lucas M. Silveira",
         "customCpf": "384.920.118-04",
-        "signatureType": "automatic",
         "fontStyle": "font-script",
+        "customName": "Lucas M. Silveira",
+        "signatureType": "automatic",
         "signatureImage": ""
       },
       "status": "ativo",
@@ -1744,106 +1921,52 @@
       "name": "ANDRE DE SOUZA",
       "email": "andre.ads567@gmail.com",
       "role": "admin",
-      "jobTitle": "Super Administrador & Diretor Geral",
-      "department": "Diretoria Executiva & Tecnologia",
-      "accessLevel": "Super Administrador",
       "password": "$2a$12$PsBdErAfPDkwzjb6DtPAQuN8/ktDe5SrtGLlUgjb1TVHrbd3.FaSO",
       "cpf": "110.220.330-44",
       "phone": "(11) 99888-7766",
       "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       "address": {
         "cep": "01310-100",
-        "street": "Avenida Paulista",
-        "number": "1578",
-        "complement": "Conjunto 1402",
-        "neighborhood": "Bela Vista",
         "city": "São Paulo",
-        "state": "SP"
+        "state": "SP",
+        "number": "1578",
+        "street": "Avenida Paulista",
+        "complement": "Conjunto 1402",
+        "neighborhood": "Bela Vista"
       },
       "status": "ativo",
       "registeredAt": "01/01/2024",
       "lastAccess": "Hoje, 09:30",
       "enrolledCourseIds": [],
-      "completedCourseIds": []
-    },
-    {
-      "id": "user-admin-2",
-      "name": "Mariana Lima",
-      "email": "mariana.lima@dedsacademy.com.br",
-      "role": "admin",
-      "jobTitle": "Coordenadora Pedagógica & Cursos",
-      "department": "Coordenação Pedagógica",
-      "accessLevel": "Administrador",
-      "password": "MarianaStaff#2025",
-      "cpf": "234.567.890-12",
-      "phone": "(11) 98111-2233",
-      "address": {
-        "cep": "04538-133",
-        "street": "Rua Joaquim Floriano",
-        "number": "466",
-        "complement": "Sala 81",
-        "neighborhood": "Itaim Bibi",
-        "city": "São Paulo",
-        "state": "SP"
-      },
-      "status": "ativo",
-      "registeredAt": "10/02/2024",
-      "lastAccess": "Hoje, 08:45",
-      "enrolledCourseIds": [],
-      "completedCourseIds": []
-    },
-    {
-      "id": "user-admin-3",
-      "name": "Carlos Mendes",
-      "email": "carlos.mendes@dedsacademy.com.br",
-      "role": "admin",
-      "jobTitle": "Analista de Suporte Técnico & Operações",
-      "department": "Suporte & Atendimento ao Aluno",
-      "accessLevel": "Suporte Técnico",
-      "password": "CarlosSuporte@2025",
-      "cpf": "345.678.901-23",
-      "phone": "(21) 97654-3210",
-      "address": {
-        "cep": "20040-020",
-        "street": "Rua da Assembleia",
-        "number": "10",
-        "complement": "Andar 12",
-        "neighborhood": "Centro",
-        "city": "Rio de Janeiro",
-        "state": "RJ"
-      },
-      "status": "ativo",
-      "registeredAt": "05/04/2024",
-      "lastAccess": "Ontem, 17:15",
-      "enrolledCourseIds": [],
-      "completedCourseIds": []
-    },
-    {
-      "id": "user-admin-4",
-      "name": "Juliana Rocha",
-      "email": "juliana.rocha@dedsacademy.com.br",
-      "role": "admin",
-      "jobTitle": "Gestora Financeira & Contratos",
-      "department": "Financeiro & Compliance",
-      "accessLevel": "Gestor Operacional",
-      "password": "JulianaFin#2025",
-      "cpf": "456.789.012-34",
-      "phone": "(31) 99222-4455",
-      "address": {
-        "cep": "30140-071",
-        "street": "Avenida Getúlio Vargas",
-        "number": "1420",
-        "complement": "Sala 504",
-        "neighborhood": "Savassi",
-        "city": "Belo Horizonte",
-        "state": "MG"
-      },
-      "status": "pendente",
-      "registeredAt": "12/06/2024",
-      "lastAccess": "Há 2 dias",
-      "enrolledCourseIds": [],
-      "completedCourseIds": []
+      "completedCourseIds": [],
+      "jobTitle": "Super Administrador & Diretor Geral",
+      "department": "Diretoria Executiva & Tecnologia",
+      "accessLevel": "Super Administrador"
     }
   ],
-  "certificates": []
+  "certificates": [
+    {
+      "id": "cert-1793929849775",
+      "code": "DA2026-B91-932",
+      "course_id": "desenvolvimento-web-completo",
+      "course_title": "Desenvolvimento Web Completo",
+      "course_category": "Tecnologia & IA",
+      "student_id": "user-aluno-1793881619422",
+      "student_code": "ALU-8873",
+      "student_name": "André De Souza",
+      "student_cpf": "06155147159",
+      "hours": 80,
+      "issue_date": "05/11/2026",
+      "instructor": "Rafael Martins",
+      "status": "valido",
+      "cancellation_reason": null,
+      "institution_cnpj": null,
+      "metadata": {
+        "cancelledAt": null,
+        "institutionCnpj": "45.678.901/0001-45"
+      },
+      "created_at": "2026-11-06T01:50:50.008318+00:00",
+      "updated_at": "2026-11-06T01:50:50.008318+00:00"
+    }
+  ]
 }
