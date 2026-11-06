@@ -6,6 +6,8 @@ import {
   resetAdminTotpSecret,
   buildTotpUri,
   generateQrCodeDataUrl,
+  getOrCreateAdminBackupCodes,
+  regenerateAdminBackupCodes,
 } from '../../lib/mfaService';
 
 interface StaffUserModalProps {
@@ -55,6 +57,9 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
   const [showMfaDetails, setShowMfaDetails] = useState(false);
   const [copiedMfaSecret, setCopiedMfaSecret] = useState(false);
   const [isRenewingMfa, setIsRenewingMfa] = useState(false);
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [copiedBackupCodes, setCopiedBackupCodes] = useState(false);
+  const [isRegeneratingCodes, setIsRegeneratingCodes] = useState(false);
 
   useEffect(() => {
     if (staffUser) {
@@ -112,6 +117,8 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
       setMfaSecret(secret);
       const uri = buildTotpUri(targetEmail, secret);
       generateQrCodeDataUrl(uri).then(setMfaQrCodeUrl).catch(console.error);
+      const codes = getOrCreateAdminBackupCodes(targetEmail);
+      setBackupCodes(codes);
     }
 
     setFeedbackMessage(null);
@@ -143,10 +150,12 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
       const uri = buildTotpUri(targetEmail, newSecret);
       const newQr = await generateQrCodeDataUrl(uri);
       setMfaQrCodeUrl(newQr);
+      const freshCodes = regenerateAdminBackupCodes(targetEmail);
+      setBackupCodes(freshCodes);
       setShowMfaDetails(true);
       setFeedbackMessage({
         type: 'success',
-        text: 'Novo pareamento gerado com sucesso! Escaneie o novo QR Code abaixo no app Google Authenticator do celular.',
+        text: 'Novo pareamento e códigos de recuperação gerados com sucesso! Escaneie o novo QR Code no app Google Authenticator.',
       });
     } catch (err: any) {
       setFeedbackMessage({
@@ -155,6 +164,34 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
       });
     } finally {
       setIsRenewingMfa(false);
+    }
+  };
+
+  const handleCopyAllBackupCodes = () => {
+    if (!backupCodes.length) return;
+    navigator.clipboard.writeText(backupCodes.join('\n'));
+    setCopiedBackupCodes(true);
+    setTimeout(() => setCopiedBackupCodes(false), 2500);
+  };
+
+  const handleRegenerateBackupCodes = () => {
+    const targetEmail = formData.email || staffUser?.email;
+    if (!targetEmail) return;
+    const confirmed = window.confirm(
+      'Deseja gerar uma nova lista com 8 códigos de recuperação descartáveis?\n\nOs códigos antigos serão invalidados imediatamente.'
+    );
+    if (!confirmed) return;
+
+    setIsRegeneratingCodes(true);
+    try {
+      const fresh = regenerateAdminBackupCodes(targetEmail);
+      setBackupCodes(fresh);
+      setFeedbackMessage({
+        type: 'success',
+        text: 'Novos 8 códigos de recuperação gerados com sucesso! Guarde-os em local seguro.',
+      });
+    } finally {
+      setIsRegeneratingCodes(false);
     }
   };
 
@@ -808,6 +845,57 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Bloco de Códigos de Recuperação Descartáveis (Backup Codes) */}
+              <div className="p-4 bg-surface-raised rounded-xl border border-border-subtle space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-subtle/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-base">lock_reset</span>
+                    <h4 className="text-xs font-bold text-text-primary">
+                      Códigos de Recuperação Descartáveis (Backup Codes)
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyAllBackupCodes}
+                      className="px-2.5 py-1 text-xs bg-surface-overlay hover:bg-surface-container border border-border-subtle rounded-lg text-text-primary font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {copiedBackupCodes ? 'done' : 'content_copy'}
+                      </span>
+                      <span>{copiedBackupCodes ? 'Copiados!' : 'Copiar Todos'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateBackupCodes}
+                      disabled={isRegeneratingCodes}
+                      className="px-2.5 py-1 text-xs bg-surface-overlay hover:bg-surface-container border border-border-subtle rounded-lg text-secondary font-bold transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Gera 8 novos códigos descartáveis"
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {isRegeneratingCodes ? 'sync' : 'autorenew'}
+                      </span>
+                      <span>{isRegeneratingCodes ? 'Gerando...' : 'Gerar Novos Códigos'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-text-tertiary">
+                  Caso você perca o aparelho celular ou o Google Authenticator apresente falha de horário, use um destes códigos para acessar imediatamente. <strong>Cada código pode ser utilizado apenas 1 vez.</strong>
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  {backupCodes.map((code, index) => (
+                    <div
+                      key={index}
+                      className="p-2 rounded-lg bg-surface-overlay border border-border-subtle text-center font-mono font-bold text-xs text-primary tracking-wider select-all shadow-inner"
+                    >
+                      {code}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

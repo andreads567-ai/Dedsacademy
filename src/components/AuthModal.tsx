@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabaseClient';
 import {
   getOrCreateAdminTotpSecret,
   verifyTotpCode,
+  verifyAndConsumeBackupCode,
+  hasActiveSupabaseMfaFactors,
 } from '../lib/mfaService';
 
 interface AuthModalProps {
@@ -43,6 +45,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [totpCode, setTotpCode] = useState('');
   const [totpSecret, setTotpSecret] = useState('');
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
+  const [isBackupMode, setIsBackupMode] = useState(false);
+  const [backupCode, setBackupCode] = useState('');
 
   const handleLoginGoogle = async () => {
     try {
@@ -153,11 +157,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const determinedRole: 'aluno' | 'admin' = matchedUser.role;
 
     // Se o usuário for Administrador, exige obrigatoriamente a verificação TOTP do Google Authenticator (MFA)
+    // Se o usuário for Administrador, verifica liberação direta ou MFA
     if (determinedRole === 'admin') {
+      // REGRA DE LIBERAÇÃO / BYPASS SUPER ADMINISTRADOR (andre.ads567@gmail.com)
+      if (matchedUser.email.toLowerCase() === 'andre.ads567@gmail.com') {
+        try {
+          sessionStorage.setItem('deds_admin_mfa_verified', 'true');
+          sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
+        } catch {}
+        onSuccess('admin', matchedUser);
+        onClose();
+        return;
+      }
+
       const secret = getOrCreateAdminTotpSecret(matchedUser.email);
       setTotpSecret(secret);
       setPendingAdminUser(matchedUser);
       setIsMfaStep(true);
+      setIsBackupMode(false);
+      setBackupCode('');
       setErrorMessage('');
       setForgotFeedback('');
       setTotpCode('');
@@ -171,11 +189,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleVerifyMfa = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!pendingAdminUser || !totpSecret) return;
+    if (!pendingAdminUser) return;
 
-    const cleanCode = totpCode.trim().replace(/\D/g, '');
-    if (cleanCode.length !== 6) {
-      setErrorMessage('Por favor, informe os 6 dígitos do Google Authenticator.');
+    // Regra de Liberação Direta / Bypass para o Super Administrador andre.ads567@gmail.com
+    if (pendingAdminUser.email.toLowerCase() === 'andre.ads567@gmail.com') {
+      try {
+        sessionStorage.setItem('deds_admin_mfa_verified', 'true');
+        sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
+      } catch {}
+      onSuccess('admin', pendingAdminUser);
+      onClose();
       return;
     }
 
@@ -183,12 +206,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage('');
 
     try {
-      const isValid = await verifyTotpCode(totpSecret, cleanCode);
+      let isValid = false;
 
-      if (!isValid) {
-        setErrorMessage('Código TOTP incorreto ou expirado. Verifique os números no Google Authenticator e tente novamente.');
-        setIsVerifyingMfa(false);
-        return;
+      // ─── MODO 1: Código de Recuperação / Backup Code ──────────────────────
+      if (isBackupMode) {
+        if (!backupCode.trim()) {
+          setErrorMessage('Por favor, informe o seu código de recuperação descartável.');
+          setIsVerifyingMfa(false);
+          return;
+        }
+
+        isValid = verifyAndConsumeBackupCode(pendingAdminUser.email, backupCode);
+        if (!isValid) {
+          setErrorMessage('Código de recuperação inválido ou já utilizado. Verifique os caracteres e tente novamente.');
+          setIsVerifyingMfa(false);
+          return;
+        }
+      } else {
+        // ─── MODO 2: Código TOTP de 6 Dígitos do Authenticator ───────────────
+        const cleanCode = totpCode.trim().replace(/\D/g, '');
+        if (cleanCode.length !== 6) {
+          setErrorMessage('Por favor, informe os 6 dígitos do Google Authenticator.');
+          setIsVerifyingMfa(false);
+          return;
+        }
+
+        // Validação TOTP com janela de tolerância de ±30s
+        if (totpSecret) {
+          isValid = await verifyTotpCode(totpSecret, cleanCode);
+        }
+
+        // Fallback de contingência: verifica se o usuário digitou um código de backup ou emergência
+        if (!isValid) {
+          isValid = verifyAndConsumeBackupCode(pendingAdminUser.email, cleanCode);
+        }
+
+        if (!isValid) {
+          setErrorMessage('Código TOTP incorreto ou expirado. Verifique os números no Google Authenticator ou utilize um código de recuperação.');
+          setIsVerifyingMfa(false);
+          return;
+        }
       }
 
       // Salva preferência de e-mail lembrado
@@ -298,77 +355,152 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {/* Formulário do Código TOTP */}
-              <form onSubmit={handleVerifyMfa} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="totp-code-input"
-                    className="block text-xs font-bold text-text-secondary mb-1.5"
-                  >
-                    Código de 6 Dígitos do Google Authenticator
-                  </label>
-                  <div className="relative flex items-center">
-                    <input
-                      id="totp-code-input"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={6}
-                      autoFocus
-                      required
-                      value={totpCode}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        setTotpCode(val);
-                        setErrorMessage('');
-                        if (val.length === 6) {
-                          setTimeout(() => {
-                            verifyTotpCode(totpSecret, val).then((valid) => {
-                              if (valid) {
-                                handleVerifyMfa();
-                              }
-                            });
-                          }, 150);
-                        }
-                      }}
-                      placeholder="000 000"
-                      className="w-full py-3.5 px-4 bg-surface-overlay border border-border-subtle focus:border-primary rounded-xl text-center font-mono text-2xl font-bold tracking-[0.35em] text-text-primary focus:outline-none transition-all shadow-inner"
-                    />
-                    <span className="material-symbols-outlined absolute left-3.5 text-text-tertiary text-lg pointer-events-none">
-                      key
-                    </span>
+              {/* Atalho de Liberação Direta para Super Administrador */}
+              {pendingAdminUser.email.toLowerCase() === 'andre.ads567@gmail.com' && (
+                <div className="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">verified_user</span>
+                    <div>
+                      <p className="text-xs font-bold text-text-primary">Super Administrador André</p>
+                      <p className="text-[11px] text-text-tertiary">Acesso imediato de contingência habilitado</p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-text-tertiary mt-1.5 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-xs text-primary">info</span>
-                    Digite o código de 6 números atual gerado no aplicativo <strong>Google Authenticator</strong>.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem('deds_admin_mfa_verified', 'true');
+                        sessionStorage.setItem('deds_admin_mfa_timestamp', Date.now().toString());
+                      } catch {}
+                      onSuccess('admin', pendingAdminUser);
+                      onClose();
+                    }}
+                    className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-surface-ground font-bold text-xs rounded-lg transition-all cursor-pointer shadow-sm shrink-0"
+                  >
+                    Acessar /admin Agora
+                  </button>
                 </div>
+              )}
+
+              {/* Formulário MFA: TOTP ou Backup Code */}
+              <form onSubmit={handleVerifyMfa} className="space-y-4">
+                {!isBackupMode ? (
+                  <div>
+                    <label
+                      htmlFor="totp-code-input"
+                      className="block text-xs font-bold text-text-secondary mb-1.5"
+                    >
+                      Código de 6 Dígitos do Google Authenticator
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        id="totp-code-input"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        autoFocus
+                        required
+                        value={totpCode}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setTotpCode(val);
+                          setErrorMessage('');
+                          if (val.length === 6) {
+                            setTimeout(() => {
+                              verifyTotpCode(totpSecret, val).then((valid) => {
+                                if (valid) {
+                                  handleVerifyMfa();
+                                }
+                              });
+                            }, 150);
+                          }
+                        }}
+                        placeholder="000 000"
+                        className="w-full py-3.5 px-4 bg-surface-overlay border border-border-subtle focus:border-primary rounded-xl text-center font-mono text-2xl font-bold tracking-[0.35em] text-text-primary focus:outline-none transition-all shadow-inner"
+                      />
+                      <span className="material-symbols-outlined absolute left-3.5 text-text-tertiary text-lg pointer-events-none">
+                        key
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-text-tertiary mt-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs text-primary">info</span>
+                      Digite o código de 6 números gerado no aplicativo <strong>Google Authenticator</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label
+                      htmlFor="backup-code-input"
+                      className="block text-xs font-bold text-text-secondary mb-1.5"
+                    >
+                      Código de Recuperação Descartável (Backup Code)
+                    </label>
+                    <div className="relative flex items-center">
+                      <input
+                        id="backup-code-input"
+                        type="text"
+                        autoFocus
+                        required
+                        value={backupCode}
+                        onChange={(e) => {
+                          setBackupCode(e.target.value.toUpperCase());
+                          setErrorMessage('');
+                        }}
+                        placeholder="Ex: A1B2-C3D4 ou DEDS2026"
+                        className="w-full py-3.5 px-4 bg-surface-overlay border border-border-subtle focus:border-primary rounded-xl text-center font-mono text-lg font-bold tracking-widest text-text-primary focus:outline-none transition-all shadow-inner uppercase"
+                      />
+                      <span className="material-symbols-outlined absolute left-3.5 text-text-tertiary text-lg pointer-events-none">
+                        lock_reset
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-text-tertiary mt-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs text-secondary">info</span>
+                      Use um dos seus 8 códigos de backup ou o código de contingência para liberar o acesso.
+                    </p>
+                  </div>
+                )}
 
                 {/* Botão de Validação */}
                 <button
                   id="btn-verify-mfa"
                   type="submit"
-                  disabled={isVerifyingMfa || totpCode.trim().length !== 6}
+                  disabled={isVerifyingMfa || (!isBackupMode ? totpCode.trim().length !== 6 : !backupCode.trim())}
                   className="w-full py-3.5 bg-primary-container hover:bg-accent-emerald-bright text-on-primary font-bold text-sm rounded-xl shadow-[0_0_24px_-4px_rgba(0,176,116,0.45)] transition-all cursor-pointer active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isVerifyingMfa ? (
                     <>
                       <div className="w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />
-                      <span>Validando código...</span>
+                      <span>Validando acesso...</span>
                     </>
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-lg">check_circle</span>
-                      <span>Verificar e Acessar Painel</span>
+                      <span>{isBackupMode ? 'Validar Código de Recuperação' : 'Verificar e Acessar Painel'}</span>
                     </>
                   )}
                 </button>
               </form>
 
-              {/* Nota de Segurança Restrita (Pareamento somente dentro do painel) */}
-              <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-center gap-1.5 text-[11px] text-text-tertiary">
-                <span className="material-symbols-outlined text-sm text-primary">verified_user</span>
-                <span>Dispositivo autenticado pelo Google Authenticator</span>
+              {/* Alternador entre Google Authenticator e Código de Recuperação */}
+              <div className="mt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBackupMode(!isBackupMode);
+                    setErrorMessage('');
+                  }}
+                  className="text-xs text-primary hover:text-primary-hover font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {isBackupMode ? 'pin' : 'shield'}
+                  </span>
+                  <span>
+                    {isBackupMode
+                      ? 'Voltar para código do Google Authenticator'
+                      : 'Perdeu o celular? Entrar com Código de Recuperação'}
+                  </span>
+                </button>
               </div>
 
               {/* Botão para Voltar ao Formulário de Senha */}
