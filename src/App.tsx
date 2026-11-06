@@ -81,6 +81,9 @@ export default function App() {
     return 'inicio';
   });
 
+  // Estado do curso selecionado (visualização de detalhes em página cheia)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+
   // Mantém a barra de endereço sincronizada com a rota da visualização atual
   useEffect(() => {
     if (typeof window !== 'undefined' && !selectedCourse) {
@@ -624,6 +627,14 @@ export default function App() {
     return () => stopLiveSync();
   }, []);
 
+  const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('deds_certificates_list');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_CERTIFICATES;
+  });
+
   // ─── Hostinger: Carregamento inicial de dados sincronizados ──────────────
   useEffect(() => {
     let cancelled = false;
@@ -727,7 +738,6 @@ export default function App() {
     mode: 'login',
     role: 'aluno',
   });
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [playerCourse, setPlayerCourse] = useState<Course | null>(null);
 
   // Security guard: If current user logs out or is not enrolled, clear active course player
@@ -746,14 +756,6 @@ export default function App() {
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_COURSE_REVIEWS;
-  });
-
-  const [certificatesList, setCertificatesList] = useState<CertificateItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('deds_certificates_list');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return INITIAL_CERTIFICATES;
   });
 
   // Sincroniza em tempo real a lista viva de certificados quando gravada no localStorage pelo ADM
