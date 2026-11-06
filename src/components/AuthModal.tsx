@@ -5,8 +5,6 @@ import { sendPasswordResetEmail } from '../services/emailService';
 import { supabase } from '../lib/supabaseClient';
 import {
   getOrCreateAdminTotpSecret,
-  buildTotpUri,
-  generateQrCodeDataUrl,
   verifyTotpCode,
 } from '../lib/mfaService';
 
@@ -44,10 +42,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [pendingAdminUser, setPendingAdminUser] = useState<UserAccount | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [totpSecret, setTotpSecret] = useState('');
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [showQrSetup, setShowQrSetup] = useState(false);
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
-  const [copiedSecret, setCopiedSecret] = useState(false);
 
   const handleLoginGoogle = async () => {
     try {
@@ -79,7 +74,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setIsMfaStep(false);
       setPendingAdminUser(null);
       setTotpCode('');
-      setShowQrSetup(false);
       setIsVerifyingMfa(false);
       const savedEmail = localStorage.getItem('deds_remembered_email');
       if (savedEmail) {
@@ -167,13 +161,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMessage('');
       setForgotFeedback('');
       setTotpCode('');
-
-      // Gera o QR Code para visualização/configuração no Google Authenticator
-      const uri = buildTotpUri(matchedUser.email, secret);
-      generateQrCodeDataUrl(uri)
-        .then((url) => setQrCodeUrl(url))
-        .catch(console.error);
-
       return;
     }
 
@@ -222,14 +209,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMessage('Falha ao validar autenticação em duas etapas. Tente novamente.');
     } finally {
       setIsVerifyingMfa(false);
-    }
-  };
-
-  const handleCopySecret = () => {
-    if (totpSecret && navigator.clipboard) {
-      navigator.clipboard.writeText(totpSecret);
-      setCopiedSecret(true);
-      setTimeout(() => setCopiedSecret(false), 2500);
     }
   };
 
@@ -386,64 +365,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </form>
 
-              {/* Sanfona / Accordion: Configurar ou Escanear QR Code */}
-              <div className="mt-4 pt-4 border-t border-border-subtle">
-                <button
-                  type="button"
-                  onClick={() => setShowQrSetup(!showQrSetup)}
-                  className="w-full flex items-center justify-between text-xs text-text-secondary hover:text-primary transition-colors py-1 cursor-pointer font-medium"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-base text-primary">qr_code_scanner</span>
-                    <span>{showQrSetup ? 'Ocultar QR Code' : 'Primeiro acesso? Configurar no Google Authenticator'}</span>
-                  </span>
-                  <span className="material-symbols-outlined text-sm">
-                    {showQrSetup ? 'expand_less' : 'expand_more'}
-                  </span>
-                </button>
-
-                {showQrSetup && (
-                  <div className="mt-3 p-3.5 bg-surface-overlay rounded-xl border border-border-subtle text-center animate-in fade-in zoom-in-95 duration-200">
-                    <p className="text-xs text-text-secondary font-medium mb-2.5">
-                      Escaneie com a câmera do Google Authenticator:
-                    </p>
-                    {qrCodeUrl ? (
-                      <div className="inline-block p-2 bg-white rounded-xl shadow-md border border-gray-200">
-                        <img
-                          src={qrCodeUrl}
-                          alt="QR Code Google Authenticator"
-                          className="w-40 h-40 object-contain mx-auto"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-40 h-40 bg-surface-container flex items-center justify-center mx-auto rounded-xl text-xs text-text-tertiary">
-                        Gerando QR Code...
-                      </div>
-                    )}
-
-                    {/* Chave Manual */}
-                    <div className="mt-3">
-                      <span className="text-[11px] text-text-tertiary block mb-1">
-                        Ou digite esta chave manualmente no app:
-                      </span>
-                      <div className="flex items-center justify-center gap-2">
-                        <code className="text-xs font-mono font-bold text-primary bg-surface-raised px-2.5 py-1 rounded border border-border-subtle select-all">
-                          {totpSecret}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={handleCopySecret}
-                          className="px-2 py-1 text-[11px] bg-surface-raised hover:bg-surface-container border border-border-subtle rounded text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-xs">
-                            {copiedSecret ? 'done' : 'content_copy'}
-                          </span>
-                          <span>{copiedSecret ? 'Copiado!' : 'Copiar'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              {/* Nota de Segurança Restrita (Pareamento somente dentro do painel) */}
+              <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-center gap-1.5 text-[11px] text-text-tertiary">
+                <span className="material-symbols-outlined text-sm text-primary">verified_user</span>
+                <span>Dispositivo autenticado pelo Google Authenticator</span>
               </div>
 
               {/* Botão para Voltar ao Formulário de Senha */}

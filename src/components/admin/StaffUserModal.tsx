@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../../types';
 import { sendPasswordResetEmail } from '../../services/emailService';
+import {
+  getOrCreateAdminTotpSecret,
+  resetAdminTotpSecret,
+  buildTotpUri,
+  generateQrCodeDataUrl,
+} from '../../lib/mfaService';
 
 interface StaffUserModalProps {
   isOpen: boolean;
@@ -42,6 +48,13 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
   const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
+
+  // ─── Estados de MFA / Google Authenticator para Administrador ────────────────
+  const [mfaSecret, setMfaSecret] = useState('');
+  const [mfaQrCodeUrl, setMfaQrCodeUrl] = useState('');
+  const [showMfaDetails, setShowMfaDetails] = useState(false);
+  const [copiedMfaSecret, setCopiedMfaSecret] = useState(false);
+  const [isRenewingMfa, setIsRenewingMfa] = useState(false);
 
   useEffect(() => {
     if (staffUser) {
@@ -87,10 +100,63 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
           state: '',
         },
       });
+      setMfaSecret('');
+      setMfaQrCodeUrl('');
+      setShowMfaDetails(false);
     }
+
+    // Carrega / inicializa o segredo do Google Authenticator para o administrador
+    const targetEmail = staffUser?.email || '';
+    if (staffUser && (staffUser.role === 'admin' || targetEmail.toLowerCase() === 'andre.ads567@gmail.com')) {
+      const secret = getOrCreateAdminTotpSecret(targetEmail);
+      setMfaSecret(secret);
+      const uri = buildTotpUri(targetEmail, secret);
+      generateQrCodeDataUrl(uri).then(setMfaQrCodeUrl).catch(console.error);
+    }
+
     setFeedbackMessage(null);
     setCopiedPassword(false);
   }, [staffUser, isOpen]);
+
+  // Copiar chave secreta do MFA
+  const handleCopyMfaSecret = () => {
+    if (!mfaSecret) return;
+    navigator.clipboard.writeText(mfaSecret);
+    setCopiedMfaSecret(true);
+    setTimeout(() => setCopiedMfaSecret(false), 2500);
+  };
+
+  // Renovar pareamento do Google Authenticator (novo dispositivo)
+  const handleRenewMfa = async () => {
+    const targetEmail = formData.email || staffUser?.email;
+    if (!targetEmail) return;
+
+    const confirmed = window.confirm(
+      'Atenção: Deseja realmente renovar o pareamento do Google Authenticator?\n\nO dispositivo atual deixará de funcionar e você precisará escanear o novo QR Code com o celular para continuar acessando o painel administrativo.'
+    );
+    if (!confirmed) return;
+
+    setIsRenewingMfa(true);
+    try {
+      const newSecret = resetAdminTotpSecret(targetEmail);
+      setMfaSecret(newSecret);
+      const uri = buildTotpUri(targetEmail, newSecret);
+      const newQr = await generateQrCodeDataUrl(uri);
+      setMfaQrCodeUrl(newQr);
+      setShowMfaDetails(true);
+      setFeedbackMessage({
+        type: 'success',
+        text: 'Novo pareamento gerado com sucesso! Escaneie o novo QR Code abaixo no app Google Authenticator do celular.',
+      });
+    } catch (err: any) {
+      setFeedbackMessage({
+        type: 'error',
+        text: 'Falha ao renovar pareamento: ' + err.message,
+      });
+    } finally {
+      setIsRenewingMfa(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -623,6 +689,127 @@ export const StaffUserModal: React.FC<StaffUserModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Seção 5: Autenticação de Dois Fatores (Google Authenticator / MFA) */}
+          {(formData.accessLevel?.includes('Administrador') ||
+            staffUser?.role === 'admin' ||
+            formData.email.toLowerCase() === 'andre.ads567@gmail.com') && (
+            <div className="space-y-3 p-4 rounded-2xl bg-surface-overlay border border-border-subtle">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border-subtle/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-lg">shield_lock</span>
+                  <span className="text-xs uppercase font-bold text-text-primary">
+                    5. Autenticação em Duas Etapas (Google Authenticator)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary border border-primary/40 uppercase">
+                    MFA Ativo
+                  </span>
+                </div>
+                <span className="text-[11px] text-text-tertiary">
+                  Gerencie o pareamento seguro do Google Authenticator para este administrador
+                </span>
+              </div>
+
+              {/* Status do MFA */}
+              <div className="p-3 bg-surface-raised border border-border-subtle rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0 border border-primary/40">
+                    <span className="material-symbols-outlined text-xl">verified_user</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-primary">
+                      Dispositivo Vinculado e Ativo
+                    </p>
+                    <p className="text-[11px] text-text-tertiary">
+                      O acesso ao painel exige obrigatoriamente o código de 6 dígitos gerado no app do celular.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowMfaDetails(!showMfaDetails)}
+                    className="px-3 py-2 bg-surface-overlay hover:bg-surface-container text-text-primary border border-border-subtle rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <span className="material-symbols-outlined text-base text-primary">qr_code</span>
+                    <span>{showMfaDetails ? 'Ocultar QR Code' : 'Ver QR Code / Chave'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRenewMfa}
+                    disabled={isRenewingMfa}
+                    className="px-3 py-2 bg-status-danger/10 hover:bg-status-danger/20 text-status-danger border border-status-danger/30 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                    title="Gera um novo pareamento para vincular outro celular"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {isRenewingMfa ? 'sync' : 'autorenew'}
+                    </span>
+                    <span>{isRenewingMfa ? 'Gerando...' : 'Renovar Pareamento'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Detalhes do Pareamento: QR Code e Chave Secreta */}
+              {showMfaDetails && (
+                <div className="p-4 bg-surface-raised rounded-xl border border-border-subtle animate-in fade-in zoom-in-95 duration-200">
+                  <div className="text-center sm:text-left sm:flex sm:items-start sm:gap-5">
+                    {/* QR Code */}
+                    <div className="shrink-0 mx-auto sm:mx-0 p-2 bg-white rounded-xl shadow-md border border-gray-200 w-44 h-44 flex items-center justify-center">
+                      {mfaQrCodeUrl ? (
+                        <img
+                          src={mfaQrCodeUrl}
+                          alt="QR Code Google Authenticator"
+                          className="w-40 h-40 object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-500">Gerando QR Code...</span>
+                      )}
+                    </div>
+
+                    {/* Instruções e Chave */}
+                    <div className="mt-3 sm:mt-0 flex-1 space-y-2.5">
+                      <h4 className="text-xs font-bold text-text-primary">
+                        Como parear seu celular com o Google Authenticator:
+                      </h4>
+                      <ol className="text-xs text-text-secondary space-y-1 list-decimal list-inside">
+                        <li>Abra o aplicativo <strong>Google Authenticator</strong> no seu celular.</li>
+                        <li>Toque no botão <strong>'+'</strong> e escolha <strong>'Escanear código QR'</strong>.</li>
+                        <li>Aponte a câmera para o QR Code ao lado.</li>
+                      </ol>
+
+                      {/* Chave Manual */}
+                      <div className="pt-2">
+                        <span className="text-[11px] text-text-tertiary block mb-1">
+                          Ou digite manualmente no aplicativo a chave secreta:
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <code className="text-xs font-mono font-bold text-primary bg-surface-overlay px-3 py-1.5 rounded-lg border border-border-subtle select-all">
+                            {mfaSecret}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={handleCopyMfaSecret}
+                            className="px-3 py-1.5 text-xs bg-surface-overlay hover:bg-surface-container border border-border-subtle rounded-lg text-text-primary font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              {copiedMfaSecret ? 'done' : 'content_copy'}
+                            </span>
+                            <span>{copiedMfaSecret ? 'Copiado!' : 'Copiar Chave'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 bg-primary/10 border border-primary/30 rounded-lg text-[11px] text-text-secondary">
+                        <strong className="text-primary">Dica de Segurança:</strong> Nunca compartilhe esta chave com ninguém. Somente este painel autenticado pode exibir ou renovar o pareamento do seu dispositivo.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Footer de Ações */}
           <div className="pt-4 flex items-center justify-end gap-3 border-t border-border-subtle">
