@@ -4,6 +4,7 @@
  */
 
 import { ApiIntegrationSettings, WebhookLogItem, UserAccount, Course, Coupon } from '../types';
+import { saveApiSettings } from '../lib/supabaseService';
 
 export type EmailNotificationType =
   | 'welcome'
@@ -48,6 +49,7 @@ export function getStoredApiSettings(): ApiIntegrationSettings | null {
 export function saveStoredApiSettings(settings: ApiIntegrationSettings): void {
   try {
     localStorage.setItem('deds_api_settings', JSON.stringify(settings));
+    saveApiSettings(settings).catch(() => {});
   } catch (err) {
     console.error('[EmailService] Erro ao salvar configurações:', err);
   }

@@ -42,20 +42,37 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const secretKey =
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+
+    let secretKey =
+      body.secretKey?.trim() ||
       (typeof process !== 'undefined' &&
         (process.env?.STRIPE_SECRET_KEY || process.env?.STRIPE_API_KEY)) ||
       '';
 
     if (!secretKey) {
-      console.error('[Stripe Config Error] STRIPE_SECRET_KEY não encontrada nas variáveis de ambiente da Vercel.');
-      return res.status(400).json({
-        error:
-          'Chave secreta da Stripe (STRIPE_SECRET_KEY) não foi configurada nas Variáveis de Ambiente da Vercel. Por favor configure STRIPE_SECRET_KEY no painel da Vercel (Project Settings > Environment Variables).',
-      });
+      try {
+        const { supabase } = await import('../src/lib/supabaseClient');
+        const { data } = await supabase
+          .from('platform_settings')
+          .select('api_settings')
+          .eq('id', 'general')
+          .maybeSingle();
+        if (data?.api_settings?.payment?.secretKey?.trim()) {
+          secretKey = data.api_settings.payment.secretKey.trim();
+        }
+      } catch (sbErr) {
+        console.warn('[Stripe Checkout] Falha ao consultar Supabase:', sbErr);
+      }
     }
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
+    if (!secretKey) {
+      console.error('[Stripe Config Error] STRIPE_SECRET_KEY não encontrada no Supabase ou nas variáveis de ambiente.');
+      return res.status(400).json({
+        error:
+          'Chave secreta da Stripe (STRIPE_SECRET_KEY) não foi configurada nas APIs do Supabase nem nas Variáveis de Ambiente. Por favor configure a chave no Painel Admin > Integrações de APIs.',
+      });
+    }
 
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host || 'dedsacademy.vercel.app';

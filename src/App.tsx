@@ -36,7 +36,7 @@ import { INITIAL_COUPONS, INITIAL_CAMPAIGNS } from './data/promotionsData';
 import { INITIAL_USERS, INITIAL_STUDENT_PROGRESS, INITIAL_CERTIFICATES, INITIAL_COURSE_REVIEWS, INITIAL_BLOG_POSTS, INITIAL_INSTRUCTORS } from './data/usersData';
 import { Course, CartItem, Coupon, PromotionalCampaign, BlogPost, UserAccount, StudentProgress, Category, HeroBannerConfig, DEFAULT_HERO_BANNER, MiddlePromoBannerConfig, DEFAULT_MIDDLE_PROMO_BANNER, CheckoutPaymentBannerConfig, DEFAULT_CHECKOUT_PAYMENT_BANNER, StudentBannersConfig, DEFAULT_STUDENT_BANNERS_CONFIG, CourseReview, CertificateItem, Testimonial, Instructor } from './types';
 import { getStoredStudentBanners, saveStoredStudentBanners } from './services/studentBannersService';
-import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty, saveStudentProgressToDB, fetchStudentProgressFromDB } from './lib/supabaseService';
+import { fetchUsers, fetchCourses, fetchCategories, upsertUser, upsertCourse, deleteCourse as sbDeleteCourse, upsertCategories, seedIfEmpty, saveStudentProgressToDB, fetchStudentProgressFromDB, fetchApiSettings, fetchSupportChannelsFromDB } from './lib/supabaseService';
 import { supabase } from './lib/supabaseClient';
 import { sendWelcomeEmail, sendLessonCompleteEmail, sendCertificateEmail, sendNewCourseBroadcastEmail } from './services/emailService';
 import { generateSequentialCertificateCode, saveCertificateToDB, fetchCertificatesFromDB } from './services/certificateService';
@@ -508,9 +508,32 @@ export default function App() {
 
   // ─── Real-time Multi-Browser Platform Synchronization ─────────────────────
   useEffect(() => {
+    // 0. Sincroniza configurações globais de API e canais diretamente do Supabase
+    fetchApiSettings().then((apiData) => {
+      if (apiData) {
+        try {
+          localStorage.setItem('deds_api_settings', JSON.stringify(apiData));
+          window.dispatchEvent(new CustomEvent('deds_api_settings_updated', { detail: apiData }));
+        } catch {}
+      }
+    });
+    fetchSupportChannelsFromDB();
+
     // 1. Initial immediate pull from shared server backend
     fetchPlatformSyncData().then((data) => {
       if (data) {
+        if (data.apiSettings) {
+          try {
+            localStorage.setItem('deds_api_settings', JSON.stringify(data.apiSettings));
+            window.dispatchEvent(new CustomEvent('deds_api_settings_updated', { detail: data.apiSettings }));
+          } catch {}
+        }
+        if (data.supportChannels) {
+          try {
+            localStorage.setItem('deds_contact_channels', JSON.stringify(data.supportChannels));
+            window.dispatchEvent(new CustomEvent('deds_contact_channels_updated', { detail: data.supportChannels }));
+          } catch {}
+        }
         if (data.courses && data.courses.length > 0) {
           const sanitized = sanitizeCourseList(data.courses);
           setCoursesList((prev) => {

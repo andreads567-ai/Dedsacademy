@@ -43,12 +43,29 @@ function buildFormData(data: any, form = new URLSearchParams(), parentKey = ''):
 }
 
 export async function createStripeCheckoutSession(payload: CreateSessionRequest & { secretKey?: string }, origin: string) {
-  const secretKey =
+  let secretKey =
     payload.secretKey?.trim() ||
     (typeof process !== 'undefined' && process.env?.STRIPE_SECRET_KEY) ||
     '';
+
   if (!secretKey) {
-    throw new Error('STRIPE_SECRET_KEY não está configurada no ambiente ou no painel.');
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('api_settings')
+        .eq('id', 'general')
+        .maybeSingle();
+      if (data?.api_settings?.payment?.secretKey?.trim()) {
+        secretKey = data.api_settings.payment.secretKey.trim();
+      }
+    } catch (sbErr) {
+      console.warn('[Stripe Handler] Falha ao consultar Supabase:', sbErr);
+    }
+  }
+
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY não está configurada no Supabase, no painel ou nas variáveis de ambiente.');
   }
 
   const successUrl =

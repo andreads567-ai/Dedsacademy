@@ -1,3 +1,32 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// src/lib/supabaseClient.ts
+var supabaseClient_exports = {};
+__export(supabaseClient_exports, {
+  supabase: () => supabase,
+  supabaseAnonKey: () => supabaseAnonKey,
+  supabaseUrl: () => supabaseUrl
+});
+import { createClient } from "@supabase/supabase-js";
+var metaEnv, procEnv, supabaseUrl, supabaseAnonKey, supabase;
+var init_supabaseClient = __esm({
+  "src/lib/supabaseClient.ts"() {
+    metaEnv = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : null;
+    procEnv = typeof process !== "undefined" && process.env ? process.env : null;
+    supabaseUrl = metaEnv?.VITE_SUPABASE_URL || procEnv?.VITE_SUPABASE_URL || procEnv?.SUPABASE_URL || "https://berjxxsglkwtciiltvri.supabase.co";
+    supabaseAnonKey = metaEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcmp4eHNnbGt3dGNpaWx0dnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2ODEwOTQsImV4cCI6MjEwOTI1NzA5NH0.L3DF85lkE3ec-A3D1fPt4QsFXj6r3Xxmrw1awUq2xeE";
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+});
+
 // server.ts
 import express from "express";
 import dotenv from "dotenv";
@@ -25,9 +54,20 @@ function buildFormData(data, form = new URLSearchParams(), parentKey = "") {
   return form;
 }
 async function createStripeCheckoutSession(payload, origin) {
-  const secretKey = payload.secretKey?.trim() || typeof process !== "undefined" && process.env?.STRIPE_SECRET_KEY || "";
+  let secretKey = payload.secretKey?.trim() || typeof process !== "undefined" && process.env?.STRIPE_SECRET_KEY || "";
   if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY n\xE3o est\xE1 configurada no ambiente ou no painel.");
+    try {
+      const { supabase: supabase2 } = await Promise.resolve().then(() => (init_supabaseClient(), supabaseClient_exports));
+      const { data: data2 } = await supabase2.from("platform_settings").select("api_settings").eq("id", "general").maybeSingle();
+      if (data2?.api_settings?.payment?.secretKey?.trim()) {
+        secretKey = data2.api_settings.payment.secretKey.trim();
+      }
+    } catch (sbErr) {
+      console.warn("[Stripe Handler] Falha ao consultar Supabase:", sbErr);
+    }
+  }
+  if (!secretKey) {
+    throw new Error("STRIPE_SECRET_KEY n\xE3o est\xE1 configurada no Supabase, no painel ou nas vari\xE1veis de ambiente.");
   }
   const successUrl = payload.successUrl || `${origin}/?payment_status=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = payload.cancelUrl || `${origin}/?payment_status=cancel`;
@@ -1022,15 +1062,8 @@ var DEFAULT_STUDENT_BANNERS_CONFIG = {
   ]
 };
 
-// src/lib/supabaseClient.ts
-import { createClient } from "@supabase/supabase-js";
-var metaEnv = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : null;
-var procEnv = typeof process !== "undefined" && process.env ? process.env : null;
-var supabaseUrl = metaEnv?.VITE_SUPABASE_URL || procEnv?.VITE_SUPABASE_URL || procEnv?.SUPABASE_URL || "https://berjxxsglkwtciiltvri.supabase.co";
-var supabaseAnonKey = metaEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.VITE_SUPABASE_ANON_KEY || procEnv?.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlcmp4eHNnbGt3dGNpaWx0dnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2ODEwOTQsImV4cCI6MjEwOTI1NzA5NH0.L3DF85lkE3ec-A3D1fPt4QsFXj6r3Xxmrw1awUq2xeE";
-var supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // src/api/platformSyncHandler.ts
+init_supabaseClient();
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var isInsideDist = path.basename(__dirname) === "dist";
@@ -1231,11 +1264,12 @@ function rowToUserFormat(row) {
 async function syncFromSupabase() {
   const store = ensureStoreFile();
   try {
-    const [coursesRes, catsRes, usersRes, certsRes] = await Promise.all([
+    const [coursesRes, catsRes, usersRes, certsRes, settingsRes] = await Promise.all([
       supabase.from("courses").select("*"),
       supabase.from("categories").select("*"),
       supabase.from("users").select("*"),
-      supabase.from("certificates").select("*")
+      supabase.from("certificates").select("*"),
+      supabase.from("platform_settings").select("*").eq("id", "general").maybeSingle()
     ]);
     let modified = false;
     if (!coursesRes.error && Array.isArray(coursesRes.data) && coursesRes.data.length > 0) {
@@ -1258,6 +1292,16 @@ async function syncFromSupabase() {
     if (!certsRes.error && Array.isArray(certsRes.data) && certsRes.data.length > 0) {
       store.certificates = certsRes.data;
       modified = true;
+    }
+    if (!settingsRes.error && settingsRes.data) {
+      if (settingsRes.data.api_settings && Object.keys(settingsRes.data.api_settings).length > 0) {
+        store.apiSettings = settingsRes.data.api_settings;
+        modified = true;
+      }
+      if (settingsRes.data.support_channels) {
+        store.supportChannels = settingsRes.data.support_channels;
+        modified = true;
+      }
     }
     if (modified) {
       store.version = Date.now();
@@ -1299,6 +1343,21 @@ async function syncToSupabase(type, data) {
     } else if (type === "certificates" && Array.isArray(data)) {
       const { error } = await supabase.from("certificates").upsert(data);
       if (error) console.warn("[PlatformSyncHandler] Falha ao upsert certificados no Supabase:", error.message);
+    } else if (type === "apiSettings" && data) {
+      const { error } = await supabase.from("platform_settings").upsert({
+        id: "general",
+        api_settings: data,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }, { onConflict: "id" });
+      if (error) console.warn("[PlatformSyncHandler] Falha ao upsert api_settings no Supabase:", error.message);
+    } else if (type === "supportChannels" && data) {
+      const { error } = await supabase.from("platform_settings").upsert({
+        id: "general",
+        support_channels: data,
+        support_whatsapp: data?.whatsappNumber,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }, { onConflict: "id" });
+      if (error) console.warn("[PlatformSyncHandler] Falha ao upsert support_channels no Supabase:", error.message);
     }
   } catch (err) {
     console.warn("[PlatformSyncHandler] syncToSupabase erro:", err);
@@ -1414,6 +1473,9 @@ function handleImageUpload(payload) {
     return { success: false, error: err.message || "Erro ao processar imagem" };
   }
 }
+
+// src/api/stripeWebhookHandler.ts
+init_supabaseClient();
 
 // src/api/zohoHandler.ts
 var ZOHO_ACCOUNTS_DOMAINS = {
@@ -1563,7 +1625,7 @@ async function refreshZohoAccessToken(params) {
   }
 }
 async function sendZohoEmailMessage(params) {
-  const {
+  let {
     to,
     subject,
     html,
@@ -1576,6 +1638,26 @@ async function sendZohoEmailMessage(params) {
     region = "com",
     accountId
   } = params;
+  if (!clientId || !clientSecret || !refreshToken) {
+    try {
+      const { supabase: supabase2 } = await Promise.resolve().then(() => (init_supabaseClient(), supabaseClient_exports));
+      const { data } = await supabase2.from("platform_settings").select("api_settings").eq("id", "general").maybeSingle();
+      if (data?.api_settings?.email) {
+        const em = data.api_settings.email;
+        clientId = clientId || em.zohoClientId;
+        clientSecret = clientSecret || em.zohoClientSecret;
+        refreshToken = refreshToken || em.zohoRefreshToken;
+        if (!params.accessToken && em.zohoAccessToken) params.accessToken = em.zohoAccessToken;
+        region = region || em.zohoRegion || "com";
+        accountId = accountId || em.zohoAccountId;
+        fromEmail = fromEmail || em.fromEmail || em.zohoUser;
+        fromName = fromName || em.fromName || "Deds Academy";
+        replyTo = replyTo || em.replyToEmail || fromEmail;
+      }
+    } catch (err) {
+      console.warn("[ZohoHandler] Falha ao consultar credenciais no Supabase:", err);
+    }
+  }
   let accessToken = params.accessToken?.trim();
   const renewAccessToken = async () => {
     if (refreshToken && clientId && clientSecret) {

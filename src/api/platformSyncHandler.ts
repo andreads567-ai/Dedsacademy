@@ -39,6 +39,8 @@ export interface PlatformStore {
   announcements: any[];
   users: any[];
   certificates: any[];
+  apiSettings?: any;
+  supportChannels?: any;
 }
 
 let inMemoryStore: PlatformStore | null = null;
@@ -249,11 +251,12 @@ function rowToUserFormat(row: Record<string, any>) {
 export async function syncFromSupabase(): Promise<PlatformStore> {
   const store = ensureStoreFile();
   try {
-    const [coursesRes, catsRes, usersRes, certsRes] = await Promise.all([
+    const [coursesRes, catsRes, usersRes, certsRes, settingsRes] = await Promise.all([
       supabase.from('courses').select('*'),
       supabase.from('categories').select('*'),
       supabase.from('users').select('*'),
       supabase.from('certificates').select('*'),
+      supabase.from('platform_settings').select('*').eq('id', 'general').maybeSingle(),
     ]);
 
     let modified = false;
@@ -281,6 +284,17 @@ export async function syncFromSupabase(): Promise<PlatformStore> {
     if (!certsRes.error && Array.isArray(certsRes.data) && certsRes.data.length > 0) {
       store.certificates = certsRes.data;
       modified = true;
+    }
+
+    if (!settingsRes.error && settingsRes.data) {
+      if (settingsRes.data.api_settings && Object.keys(settingsRes.data.api_settings).length > 0) {
+        store.apiSettings = settingsRes.data.api_settings;
+        modified = true;
+      }
+      if (settingsRes.data.support_channels) {
+        store.supportChannels = settingsRes.data.support_channels;
+        modified = true;
+      }
     }
 
     if (modified) {
@@ -323,6 +337,21 @@ async function syncToSupabase(type: string, data: any) {
     } else if (type === 'certificates' && Array.isArray(data)) {
       const { error } = await supabase.from('certificates').upsert(data);
       if (error) console.warn('[PlatformSyncHandler] Falha ao upsert certificados no Supabase:', error.message);
+    } else if (type === 'apiSettings' && data) {
+      const { error } = await supabase.from('platform_settings').upsert({
+        id: 'general',
+        api_settings: data,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert api_settings no Supabase:', error.message);
+    } else if (type === 'supportChannels' && data) {
+      const { error } = await supabase.from('platform_settings').upsert({
+        id: 'general',
+        support_channels: data,
+        support_whatsapp: data?.whatsappNumber,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (error) console.warn('[PlatformSyncHandler] Falha ao upsert support_channels no Supabase:', error.message);
     }
   } catch (err) {
     console.warn('[PlatformSyncHandler] syncToSupabase erro:', err);

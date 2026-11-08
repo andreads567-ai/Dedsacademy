@@ -226,7 +226,7 @@ export async function refreshZohoAccessToken(params: ZohoRefreshTokenParams) {
  * 3. Envia e-mail via API REST oficial do Zoho Mail
  */
 export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
-  const {
+  let {
     to,
     subject,
     html,
@@ -239,6 +239,31 @@ export async function sendZohoEmailMessage(params: ZohoSendEmailParams) {
     region = 'com',
     accountId,
   } = params;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('api_settings')
+        .eq('id', 'general')
+        .maybeSingle();
+      if (data?.api_settings?.email) {
+        const em = data.api_settings.email;
+        clientId = clientId || em.zohoClientId;
+        clientSecret = clientSecret || em.zohoClientSecret;
+        refreshToken = refreshToken || em.zohoRefreshToken;
+        if (!params.accessToken && em.zohoAccessToken) params.accessToken = em.zohoAccessToken;
+        region = region || em.zohoRegion || 'com';
+        accountId = accountId || em.zohoAccountId;
+        fromEmail = fromEmail || em.fromEmail || em.zohoUser;
+        fromName = fromName || em.fromName || 'Deds Academy';
+        replyTo = replyTo || em.replyToEmail || fromEmail;
+      }
+    } catch (err) {
+      console.warn('[ZohoHandler] Falha ao consultar credenciais no Supabase:', err);
+    }
+  }
 
   let accessToken = params.accessToken?.trim();
 

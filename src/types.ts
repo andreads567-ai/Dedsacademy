@@ -410,6 +410,11 @@ export interface ApiIntegrationSettings {
     lastSynced?: string;
   };
   webhooks: WebhookLogItem[];
+  instagram?: {
+    profileUrl: string;
+    apiToken?: string;
+    status: 'conectado' | 'desconectado';
+  };
 }
 
 export interface SupportChannelEmail {

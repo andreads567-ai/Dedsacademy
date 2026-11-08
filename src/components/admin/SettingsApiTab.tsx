@@ -12,6 +12,11 @@ import {
   buildWhatsAppUrl,
   DEFAULT_SUPPORT_CHANNELS,
 } from '../../services/contactChannelsService';
+import {
+  fetchApiSettings,
+  saveApiSettings,
+  fetchSupportChannelsFromDB,
+} from '../../lib/supabaseService';
 
 interface SettingsApiTabProps {
   initialSettings?: ApiIntegrationSettings;
@@ -108,12 +113,6 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
   // Load from localStorage or use defaults
   const [settings, setSettings] = useState<ApiIntegrationSettings>(() => {
     try {
-      // Clear stale data from old hardcoded defaults (one-time migration)
-      const cleanupDone = localStorage.getItem('deds_api_settings_v2_cleanup');
-      if (!cleanupDone) {
-        localStorage.removeItem('deds_api_settings');
-        localStorage.setItem('deds_api_settings_v2_cleanup', 'true');
-      }
       const saved = localStorage.getItem('deds_api_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -131,6 +130,48 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
     }
     return initialSettings || DEFAULT_SETTINGS;
   });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+
+  // Sincronização prioritária diretamente do Supabase na inicialização
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const cloudSettings = await fetchApiSettings();
+        if (active && cloudSettings) {
+          setSettings(cloudSettings);
+          if (cloudSettings.instagram?.profileUrl) {
+            setInstagramConfig((prev) => ({
+              ...prev,
+              profileUrl: cloudSettings.instagram?.profileUrl || prev.profileUrl,
+              apiToken: cloudSettings.instagram?.apiToken || prev.apiToken,
+              status: cloudSettings.instagram?.status || prev.status,
+              lastVerified: 'Sincronizado via Supabase',
+            }));
+          }
+        }
+        const cloudChannels = await fetchSupportChannelsFromDB();
+        if (active && cloudChannels) {
+          setSupportChannels(cloudChannels);
+        }
+      } catch (err) {
+        console.warn('[SettingsApiTab] Erro ao carregar configurações do Supabase:', err);
+      }
+    })();
+
+    const handleExternalUpdate = (e: any) => {
+      if (e.detail) {
+        setSettings(e.detail);
+      }
+    };
+    window.addEventListener('deds_api_settings_updated', handleExternalUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener('deds_api_settings_updated', handleExternalUpdate);
+    };
+  }, []);
 
   const [activeSection, setActiveSection] = useState<
     'pagamento' | 'video' | 'storage' | 'email' | 'webhooks' | 'banco' | 'instagram' | 'atendimento'
@@ -175,7 +216,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
     }
   });
 
-  const handleTestAndSaveInstagram = () => {
+  const handleTestAndSaveInstagram = async () => {
     if (!instagramConfig.profileUrl.trim()) {
       alert('Por favor, informe a URL ou @perfil oficial do Instagram da Deds Academy.');
       return;
@@ -191,13 +232,25 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
       lastVerified: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     };
     setInstagramConfig(updated);
+
+    const nextSettings: ApiIntegrationSettings = {
+      ...settings,
+      instagram: {
+        profileUrl: formatted,
+        apiToken: updated.apiToken,
+        status: 'conectado',
+      },
+    };
+    setSettings(nextSettings);
+    await saveApiSettings(nextSettings);
+
     try {
       localStorage.setItem('deds_instagram_url', formatted);
       localStorage.setItem('deds_instagram_token', instagramConfig.apiToken);
       localStorage.setItem('deds_instagram_status', 'conectado');
       window.dispatchEvent(new CustomEvent('deds_instagram_updated', { detail: formatted }));
     } catch {}
-    alert('✅ API e Perfil Oficial do Instagram verificados e conectados com sucesso!\n\nO botão de rede oficial do rodapé agora redireciona perfeitamente para: ' + formatted);
+    alert('✅ API e Perfil Oficial do Instagram verificados, gravados no Supabase e conectados com sucesso!\n\nO botão de rede oficial do rodapé agora redireciona perfeitamente em qualquer dispositivo para: ' + formatted);
   };
 
   const [showSaveAlert, setShowSaveAlert] = useState(false);
@@ -250,18 +303,37 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
-      localStorage.setItem('deds_api_settings', JSON.stringify(settings));
+      const merged: ApiIntegrationSettings = {
+        ...settings,
+        instagram: {
+          profileUrl: instagramConfig.profileUrl,
+          apiToken: instagramConfig.apiToken,
+          status: instagramConfig.status,
+        },
+      };
+
+      await saveApiSettings(merged);
       saveStoredSupportChannels(supportChannels);
+
+      if (onSaveSettings) {
+        onSaveSettings(merged);
+      }
+
+      setSaveSuccessMessage('Configurações das APIs salvas com sucesso no Supabase! Carregadas globalmente em qualquer dispositivo.');
+      setShowSaveAlert(true);
+      setTimeout(() => {
+        setShowSaveAlert(false);
+        setSaveSuccessMessage(null);
+      }, 4500);
     } catch (e) {
-      console.error(e);
+      console.error('[SettingsApiTab] Erro ao salvar:', e);
+      alert('Falha ao gravar configurações no Supabase. Verifique sua conexão com a internet.');
+    } finally {
+      setIsSaving(false);
     }
-    if (onSaveSettings) {
-      onSaveSettings(settings);
-    }
-    setShowSaveAlert(true);
-    setTimeout(() => setShowSaveAlert(false), 3500);
   };
 
   const handleClearServiceData = (service: 'payment' | 'video' | 'storage' | 'email' | 'database') => {
@@ -364,6 +436,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
 
       try {
         localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+        saveApiSettings(updated).catch(() => {});
       } catch { /* ignore */ }
       return updated;
     });
@@ -440,6 +513,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           };
           try {
             localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+            saveApiSettings(updated).catch(() => {});
           } catch { /* ignore */ }
           return updated;
         });
@@ -531,6 +605,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
           };
           try {
             localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+            saveApiSettings(updated).catch(() => {});
           } catch { /* ignore */ }
           return updated;
         });
@@ -644,6 +719,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         setSettings(updated);
         try {
           localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+          saveApiSettings(updated).catch(() => {});
         } catch {}
         alert(
           `✅ Conexão Zoho Realizada com Sucesso!\n\n` +
@@ -666,6 +742,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         setSettings(updated);
         try {
           localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+          saveApiSettings(updated).catch(() => {});
         } catch {}
         alert(`❌ Falha ao Vincular Token Zoho:\n\n${errorMsg}`);
       }
@@ -715,8 +792,9 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
     setSettings(updated);
     try {
       localStorage.setItem('deds_api_settings', JSON.stringify(updated));
+      saveApiSettings(updated).catch(() => {});
     } catch {}
-    alert('✅ Refresh Token Permanente salvo com sucesso no banco de dados!');
+    alert('✅ Refresh Token Permanente salvo com sucesso no banco de dados e Supabase!');
   };
 
   const handleSendCustomTestEmail = async () => {
@@ -823,18 +901,21 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
         <button
           type="button"
           onClick={handleSave}
-          className="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+          disabled={isSaving}
+          className="px-5 py-2.5 rounded-xl bg-primary-container hover:bg-accent-emerald-bright text-on-primary text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
         >
-          <span className="material-symbols-outlined text-base">save</span>
-          <span>Salvar Todas as Configurações</span>
+          <span className={`material-symbols-outlined text-base ${isSaving ? 'animate-spin' : ''}`}>
+            {isSaving ? 'sync' : 'cloud_sync'}
+          </span>
+          <span>{isSaving ? 'Gravando no Supabase...' : 'Salvar Todas as Configurações'}</span>
         </button>
       </div>
 
       {showSaveAlert && (
         <div className="p-4 rounded-xl bg-accent-emerald-bright/10 border border-accent-emerald-bright/40 text-accent-emerald-bright text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-in fade-in">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-base">verified</span>
-            <span>Configurações das APIs e Webhooks salvas com sucesso no banco e cache local!</span>
+            <span className="material-symbols-outlined text-base">cloud_done</span>
+            <span>{saveSuccessMessage || 'Configurações salvas e gravadas no Supabase com sucesso! Disponíveis em qualquer dispositivo.'}</span>
           </div>
           <button
             type="button"
@@ -2270,7 +2351,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       },
                     };
                     setSettings(updated);
-                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); saveApiSettings(updated).catch(() => {}); } catch {}
                   }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
@@ -2299,7 +2380,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       },
                     };
                     setSettings(updated);
-                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); saveApiSettings(updated).catch(() => {}); } catch {}
                   }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
@@ -2330,7 +2411,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       },
                     };
                     setSettings(updated);
-                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); saveApiSettings(updated).catch(() => {}); } catch {}
                   }}
                   className="w-4 h-4 mt-0.5 text-accent-emerald-bright rounded cursor-pointer accent-accent-emerald-bright"
                 />
@@ -2361,7 +2442,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       },
                     };
                     setSettings(updated);
-                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); saveApiSettings(updated).catch(() => {}); } catch {}
                   }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />
@@ -2390,7 +2471,7 @@ export const SettingsApiTab: React.FC<SettingsApiTabProps> = ({
                       },
                     };
                     setSettings(updated);
-                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); } catch {}
+                    try { localStorage.setItem('deds_api_settings', JSON.stringify(updated)); saveApiSettings(updated).catch(() => {}); } catch {}
                   }}
                   className="w-4 h-4 mt-0.5 text-primary rounded cursor-pointer accent-primary"
                 />

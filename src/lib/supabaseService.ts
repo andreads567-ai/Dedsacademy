@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import type { UserAccount, Course, Category, StudentProgress } from '../types';
+import type { UserAccount, Course, Category, StudentProgress, ApiIntegrationSettings, SupportChannelsSettings } from '../types';
 import { sanitizeCourse, sanitizeCourseList } from './cacheManager';
 
 // ─── Helpers: User ──────────────────────────────────────────────────────────
@@ -455,6 +455,262 @@ export async function saveStudentProgressToDB(userId: string, courseId: string, 
     return true;
   } catch (err) {
     console.error('[SupabaseService] Erro ao salvar progresso:', err);
+    return false;
+  }
+}
+
+// ─── API Integration Settings & Global Persist ─────────────────────────────
+
+export const DEFAULT_API_SETTINGS: ApiIntegrationSettings = {
+  payment: {
+    provider: 'stripe',
+    environment: 'producao',
+    publicKey: 'pk_live_51UUI3YHjDgKvyO43sJDhwBd065NMpAz7jopPnjzSCgJfIms6mIcE95Ey4u8Gr4Yy1HirIB5UIKbveM8w7uuX5NMs009JalGWux',
+    secretKey: '',
+    pixKey: '',
+    boletoEnabled: true,
+    pixEnabled: true,
+    cardEnabled: true,
+    webhookUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/stripe-webhook` : '/api/stripe-webhook',
+    webhookSecret: '',
+    status: 'desconectado',
+    lastTested: undefined,
+  },
+  video: {
+    provider: 'panda',
+    apiKey: '',
+    libraryId: '',
+    playerToken: '',
+    allowedDomains: '',
+    drmEnabled: true,
+    antiDownload: true,
+    webhookUrl: '',
+    status: 'desconectado',
+    lastTested: undefined,
+  },
+  storage: {
+    provider: 's3',
+    bucketName: '',
+    region: '',
+    accessKey: '',
+    secretKey: '',
+    cdnDomain: '',
+    backupFolder: '',
+    webhookUrl: '',
+    status: 'desconectado',
+    lastTested: undefined,
+  },
+  email: {
+    provider: 'zoho',
+    apiKey: '',
+    fromEmail: 'andre.souza@dadsacademy.com.br',
+    fromName: 'Deds Academy',
+    replyToEmail: 'andre.souza@dadsacademy.com.br',
+    zohoClientId: '',
+    zohoClientSecret: '',
+    zohoUser: 'andre.souza@dadsacademy.com.br',
+    zohoAccountId: '',
+    zohoRegion: 'com',
+    zohoScope: 'ZohoMail.messages.CREATE,ZohoMail.accounts.READ',
+    zohoGrantToken: '',
+    zohoRefreshToken: '',
+    zohoAccessToken: '',
+    adminAlertEmail: 'andre.souza@dadsacademy.com.br',
+    notifyOnWelcome: true,
+    notifyOnPasswordReset: true,
+    notifyOnLessonComplete: true,
+    notifyOnCertificate: true,
+    notifyOnNewCoupon: true,
+    notifyOnNewCourse: true,
+    notifyOnEnrollment: true,
+    notifyOnCompletion: true,
+    webhookUrl: '',
+    status: 'desconectado',
+    statusDetails: 'Aguardando vinculação do Token Zoho Self-Client.',
+    lastTested: undefined,
+  },
+  database: {
+    type: 'postgresql',
+    host: '',
+    port: 5432,
+    databaseName: '',
+    user: '',
+    ssl: true,
+    poolSize: 25,
+    status: 'desconectado',
+    lastSynced: undefined,
+  },
+  webhooks: [],
+  instagram: {
+    profileUrl: 'https://www.instagram.com/dedsacademy/',
+    apiToken: '',
+    status: 'conectado',
+  },
+};
+
+/** Busca as configurações de API do Supabase e atualiza o cache local */
+export async function fetchApiSettings(): Promise<ApiIntegrationSettings | null> {
+  // 1. Consulta prioritária na tabela platform_settings do Supabase
+  try {
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('api_settings')
+      .eq('id', 'general')
+      .maybeSingle();
+
+    if (!error && data?.api_settings && typeof data.api_settings === 'object' && Object.keys(data.api_settings).length > 0) {
+      const parsed = data.api_settings;
+      const merged: ApiIntegrationSettings = {
+        ...DEFAULT_API_SETTINGS,
+        ...parsed,
+        payment: { ...DEFAULT_API_SETTINGS.payment, ...(parsed.payment || {}) },
+        video: { ...DEFAULT_API_SETTINGS.video, ...(parsed.video || {}) },
+        storage: { ...DEFAULT_API_SETTINGS.storage, ...(parsed.storage || {}) },
+        email: { ...DEFAULT_API_SETTINGS.email, ...(parsed.email || {}) },
+        database: { ...DEFAULT_API_SETTINGS.database, ...(parsed.database || {}) },
+        instagram: { ...DEFAULT_API_SETTINGS.instagram, ...(parsed.instagram || {}) },
+      };
+
+      try {
+        localStorage.setItem('deds_api_settings', JSON.stringify(merged));
+        if (merged.instagram?.profileUrl) {
+          localStorage.setItem('deds_instagram_url', merged.instagram.profileUrl);
+          if (merged.instagram.apiToken) localStorage.setItem('deds_instagram_token', merged.instagram.apiToken);
+          localStorage.setItem('deds_instagram_status', merged.instagram.status || 'conectado');
+        }
+      } catch {}
+
+      return merged;
+    }
+  } catch (err) {
+    console.warn('[SupabaseService] Erro ao buscar configurações de API no Supabase:', err);
+  }
+
+  // 2. Fallback no servidor local / platform-sync
+  try {
+    const res = await fetch('/api/platform-sync', { cache: 'no-store' });
+    if (res.ok) {
+      const syncData = await res.json();
+      if (syncData?.apiSettings) {
+        return syncData.apiSettings;
+      }
+    }
+  } catch {}
+
+  // 3. Fallback no cache local
+  try {
+    const saved = localStorage.getItem('deds_api_settings');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+
+  return null;
+}
+
+/** Grava as configurações de API no Supabase, no localStorage e emite eventos globais */
+export async function saveApiSettings(settings: ApiIntegrationSettings): Promise<boolean> {
+  // 1. Atualiza cache local instantâneo
+  try {
+    localStorage.setItem('deds_api_settings', JSON.stringify(settings));
+    if (settings.instagram?.profileUrl) {
+      localStorage.setItem('deds_instagram_url', settings.instagram.profileUrl);
+      if (settings.instagram.apiToken) localStorage.setItem('deds_instagram_token', settings.instagram.apiToken);
+      localStorage.setItem('deds_instagram_status', settings.instagram.status || 'conectado');
+      window.dispatchEvent(new CustomEvent('deds_instagram_updated', { detail: settings.instagram.profileUrl }));
+    }
+    window.dispatchEvent(new CustomEvent('deds_api_settings_updated', { detail: settings }));
+
+    // Notifica servidor local de backup
+    fetch('/api/platform-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'apiSettings', data: settings }),
+    }).catch(() => {});
+  } catch {}
+
+  // 2. Grava na nuvem Supabase em tempo real (linha única 'general')
+  try {
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert(
+        {
+          id: 'general',
+          api_settings: settings,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+
+    if (error) {
+      console.error('[SupabaseService] Falha ao persistir configurações de API no Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[SupabaseService] saveApiSettings erro:', err);
+    return false;
+  }
+}
+
+/** Busca os canais de atendimento gravados no Supabase */
+export async function fetchSupportChannelsFromDB(): Promise<SupportChannelsSettings | null> {
+  try {
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('support_channels, support_whatsapp')
+      .eq('id', 'general')
+      .maybeSingle();
+
+    if (!error && data) {
+      let channels: SupportChannelsSettings | null = null;
+      if (data.support_channels && typeof data.support_channels === 'object') {
+        channels = data.support_channels;
+      }
+      if (data.support_whatsapp && channels) {
+        channels.whatsappNumber = data.support_whatsapp;
+      }
+      if (channels) {
+        try {
+          localStorage.setItem('deds_contact_channels', JSON.stringify(channels));
+        } catch {}
+        return channels;
+      }
+    }
+  } catch (err) {
+    console.warn('[SupabaseService] Erro ao buscar canais de atendimento no Supabase:', err);
+  }
+  return null;
+}
+
+/** Grava os canais de atendimento no Supabase */
+export async function saveSupportChannelsToDB(channels: SupportChannelsSettings): Promise<boolean> {
+  try {
+    localStorage.setItem('deds_contact_channels', JSON.stringify(channels));
+    window.dispatchEvent(new CustomEvent('deds_contact_channels_updated', { detail: channels }));
+    fetch('/api/platform-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'supportChannels', data: channels }),
+    }).catch(() => {});
+
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert(
+        {
+          id: 'general',
+          support_channels: channels,
+          support_whatsapp: channels.whatsappNumber,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+
+    if (error) {
+      console.warn('[SupabaseService] Falha ao salvar canais de atendimento no Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[SupabaseService] saveSupportChannelsToDB erro:', err);
     return false;
   }
 }

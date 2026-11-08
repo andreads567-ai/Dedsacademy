@@ -18,6 +18,8 @@ export interface PlatformSyncPayload {
   instructors?: any[];
   blogPosts?: any[];
   announcements?: any[];
+  apiSettings?: any;
+  supportChannels?: any;
 }
 
 let currentKnownVersion = 0;
@@ -78,6 +80,8 @@ export async function syncUpdateToBackend(
     | 'instructors'
     | 'blogPosts'
     | 'announcements'
+    | 'apiSettings'
+    | 'supportChannels'
     | 'full',
   data: any
 ): Promise<boolean> {
@@ -110,6 +114,8 @@ export async function syncUpdateToBackend(
         studentBanners: 'deds_student_banners_config',
         instructors: 'deds_instructors_list',
         blogPosts: 'deds_blog_posts',
+        apiSettings: 'deds_api_settings',
+        supportChannels: 'deds_contact_channels',
       };
       const key = storageKeyMap[type];
       if (key && data !== undefined) {
